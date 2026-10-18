@@ -1,0 +1,13 @@
+{
+  "appId": "com.braian.finanzas",
+  "appName": "Finanzas",
+  "webDir": "dist",
+  "backgroundColor": "#12161f",
+  "android": {
+    "backgroundColor": "#12161f",
+    "allowMixedContent": true
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

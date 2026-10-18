@@ -1,0 +1,59 @@
+name: Compilar APK de Android (Finanzas)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-android-apk:
+    name: Generar Finanzas.apk
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Descargar código del repositorio
+        uses: actions/checkout@v4
+
+      - name: 2. Configurar Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: 3. Configurar Java JDK 21 (requerido por Capacitor 8 / Android Gradle)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: 4. Instalar dependencias del proyecto
+        run: npm install
+
+      - name: 5. Compilar aplicación web (Vite) y sincronizar con Android (Capacitor)
+        run: |
+          npm run build
+          npx cap sync android
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: 6. Dar permisos de ejecución a Gradle y compilar el APK
+        working-directory: ./android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: 7. Renombrar archivo a Finanzas.apk
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk Finanzas.apk
+
+      - name: 8. Subir Finanzas.apk listo para descargar
+        uses: actions/upload-artifact@v4
+        with:
+          name: Finanzas-Android-APK
+          path: Finanzas.apk
+          if-no-files-found: error
+          retention-days: 30
