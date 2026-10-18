@@ -1,16 +1,26 @@
-name: Compilar APK de Android (Finanzas)
+name: Compilar APK y Publicar Actualización Automática (OTA)
 
 on:
   push:
-    branches:
-      - main
-      - master
+    branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages-and-apk"
+  cancel-in-progress: true
+
 jobs:
-  build-android-apk:
-    name: Generar Finanzas.apk
+  build-apk:
+    name: Generar Finanzas.apk y paquete OTA
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - name: 1. Descargar código del repositorio
@@ -19,7 +29,7 @@ jobs:
       - name: 2. Configurar Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: '22'
           cache: 'npm'
 
       - name: 3. Configurar Java JDK 21 (requerido por Capacitor 8 / Android Gradle)
@@ -32,28 +42,53 @@ jobs:
       - name: 4. Instalar dependencias del proyecto
         run: npm install
 
-      - name: 5. Compilar aplicación web (Vite) y sincronizar con Android (Capacitor)
+      - name: 5. Compilar aplicación web (Vite) y generar paquete OTA (dist.zip + version.json)
+        env:
+          GITHUB_SHA: ${{ github.sha }}
         run: |
           npm run build
+          SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+          cat <<EOF > dist/version.json
+          {
+            "version": "${GITHUB_SHA}",
+            "shortVersion": "v-${SHORT_SHA}",
+            "updatedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "bundleUrl": "https://pintobg.github.io/App-personal/dist.zip",
+            "apkUrl": "https://pintobg.github.io/App-personal/Finanzas.apk"
+          }
+          EOF
+          cd dist
+          zip -r ../dist.zip .
+          cd ..
           npx cap sync android
-        env:
-          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: 6. Dar permisos de ejecución a Gradle y compilar el APK
-        working-directory: ./android
         run: |
+          cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: 7. Renombrar archivo a Finanzas.apk
+      - name: 7. Preparar Finanzas.apk y archivos para actualización automática
         run: |
           cp android/app/build/outputs/apk/debug/app-debug.apk Finanzas.apk
+          cp dist.zip dist/dist.zip
+          cp Finanzas.apk dist/Finanzas.apk
 
-      - name: 8. Subir Finanzas.apk listo para descargar
+      - name: 8. Subir Finanzas.apk listo para descargar en Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: Finanzas-Android-APK
           path: Finanzas.apk
           if-no-files-found: error
-          retention-days: 30
+
+      - name: 9. Configurar GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: 10. Subir paquete de actualización automática a GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+
+      - name: 11. Publicar actualización en vivo (OTA) en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

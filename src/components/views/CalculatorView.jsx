@@ -1160,6 +1160,28 @@ export default function CalculatorView({
             </svg>
             Restaurar Copia de Seguridad
           </button>
+
+          <button
+            type="button"
+            className="btn"
+            onClick={() => window.dispatchEvent(new CustomEvent('finanzas:check-update'))}
+            style={{
+              padding: '0.85rem 1rem',
+              borderRadius: '12px',
+              border: '1px solid #2a3447',
+              background: '#232c3d',
+              color: '#f1f5f9',
+              fontWeight: 600,
+              fontSize: '0.9rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              cursor: 'pointer'
+            }}
+          >
+            🔄 Buscar Actualización de la App
+          </button>
         </div>
       </div>
 

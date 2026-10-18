@@ -4,10 +4,12 @@
   "webDir": "dist",
   "backgroundColor": "#12161f",
   "android": {
-    "backgroundColor": "#12161f",
-    "allowMixedContent": true
+    "backgroundColor": "#12161f"
   },
-  "server": {
-    "androidScheme": "https"
+  "plugins": {
+    "CapacitorUpdater": {
+      "autoUpdate": false,
+      "statsUrl": ""
+    }
   }
 }

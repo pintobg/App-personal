@@ -25,6 +25,7 @@ import ConfirmModal from './components/modals/ConfirmModal';
 
 import Toast from './components/common/Toast';
 import PwaInstallPrompt from './components/common/PwaInstallPrompt';
+import AutoUpdater from './components/common/AutoUpdater';
 import { formatAmount, getTxUsdEquivalent, translateCategory } from './utils/formatters';
 import { generateTestData, TEST_DATA_SEED_KEY } from './utils/testData';
 import './App.css';
@@ -745,6 +746,7 @@ function App() {
   return (
     <div className="app-container">
       <PwaInstallPrompt />
+      <AutoUpdater showToast={showToast} />
       <div className="content-area" key={currentPage}>
         <div className="page-enter">
           <Suspense fallback={<div style={{ padding: '3rem 1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>Cargando...</div>}>
