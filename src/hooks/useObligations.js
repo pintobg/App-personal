@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { syncService } from '../services/syncService';
-import { generateTestData } from '../utils/testData';
 
 export const useObligations = (user = null) => {
   const [obligations, setObligations] = useState(() => {
     const saved = localStorage.getItem('obligations');
     try {
-      return saved ? JSON.parse(saved) : generateTestData().obligations;
+      return saved ? JSON.parse(saved) : [];
     } catch {
-      return generateTestData().obligations;
+      return [];
     }
   });
 

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { syncService } from '../services/syncService';
-import { generateTestData } from '../utils/testData';
 
 export function useAssets(user = null) {
   const [assets, setAssets] = useState(() => {
@@ -9,10 +8,10 @@ export function useAssets(user = null) {
       try {
         return JSON.parse(saved);
       } catch {
-        return generateTestData().assets;
+        return [];
       }
     }
-    return generateTestData().assets;
+    return [];
   });
 
   useEffect(() => {

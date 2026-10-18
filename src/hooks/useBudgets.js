@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { syncService } from '../services/syncService';
-import { generateTestData } from '../utils/testData';
 
 const STORAGE_KEY = 'personal_budgets';
 
@@ -17,7 +16,7 @@ export function useBudgets(user = null) {
     } catch (e) {
       console.error('Error cargando presupuestos de localStorage:', e);
     }
-    return generateTestData().budgets;
+    return {};
   });
 
   useEffect(() => {

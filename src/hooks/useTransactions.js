@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getTxRateSnapshot } from '../utils/formatters';
 import { syncService } from '../services/syncService';
-import { generateTestData } from '../utils/testData';
 
 export function useTransactions(currentRates = {}, user = null) {
   const [transactions, setTransactions] = useState(() => {
@@ -12,10 +11,10 @@ export function useTransactions(currentRates = {}, user = null) {
         parsed = parsed.filter(t => !(t.type === 'spent' && !t.category));
         return parsed;
       } catch {
-        return generateTestData(currentRates).transactions;
+        return [];
       }
     }
-    return generateTestData(currentRates).transactions;
+    return [];
   });
 
   useEffect(() => {

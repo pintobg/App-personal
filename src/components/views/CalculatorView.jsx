@@ -51,6 +51,7 @@ export default function CalculatorView({
   budgets = {},
   showToast,
   onInjectTestData,
+  onClearAllData,
   auth,
   onOpenAuthModal,
   onSyncNow,
@@ -1182,15 +1183,41 @@ export default function CalculatorView({
           >
             🔄 Buscar Actualización de la App
           </button>
+
+          <button
+            type="button"
+            className="btn"
+            onClick={onClearAllData}
+            style={{
+              padding: '0.85rem 1rem',
+              borderRadius: '12px',
+              border: '1px solid #4d2631',
+              background: '#311b22',
+              color: '#ef4444',
+              fontWeight: 600,
+              fontSize: '0.9rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              cursor: 'pointer'
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+            Eliminar Datos Precargados / Limpiar App
+          </button>
         </div>
       </div>
 
       <div style={{ textAlign: 'center', marginTop: '1rem', marginBottom: '2rem' }}>
         <button
           onClick={onInjectTestData}
-          style={{ background: '#311b22', color: '#ef4444', border: '1px solid #4d2631', padding: '10px 20px', borderRadius: '12px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+          style={{ background: '#232c3d', color: '#94a3b8', border: '1px solid #2a3447', padding: '10px 20px', borderRadius: '12px', fontSize: '0.82rem', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
         >
-          🛠 Reemplazar por Datos de Prueba
+          🛠 Cargar Datos de Prueba
         </button>
       </div>
     </div>

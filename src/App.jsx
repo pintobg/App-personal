@@ -30,20 +30,6 @@ import { formatAmount, getTxUsdEquivalent, translateCategory } from './utils/for
 import { generateTestData, TEST_DATA_SEED_KEY } from './utils/testData';
 import './App.css';
 
-if (typeof window !== 'undefined' && localStorage.getItem(TEST_DATA_SEED_KEY) !== 'applied') {
-  try {
-    const initialMock = generateTestData();
-    localStorage.setItem('personal_assets', JSON.stringify(initialMock.assets));
-    localStorage.setItem('personal_transactions', JSON.stringify(initialMock.transactions));
-    localStorage.setItem('obligations', JSON.stringify(initialMock.obligations));
-    localStorage.setItem('personal_budgets', JSON.stringify(initialMock.budgets));
-    localStorage.removeItem('finanzas_sync_queue');
-    localStorage.setItem(TEST_DATA_SEED_KEY, 'applied');
-  } catch (e) {
-    console.error('Error initializing test seed data:', e);
-  }
-}
-
 function App() {
   const auth = useAuth();
   const { user } = auth;
@@ -743,6 +729,29 @@ function App() {
     });
   };
 
+  const clearAllAppData = () => {
+    requestConfirm({
+      title: 'Eliminar todos los datos',
+      message: '¿Estás seguro de que deseas eliminar todas las cuentas, transacciones, compromisos y presupuestos precargados para empezar desde cero?',
+      confirmText: 'Sí, limpiar todo',
+      variant: 'danger',
+      onConfirm: () => {
+        localStorage.setItem('personal_assets', JSON.stringify([]));
+        localStorage.setItem('personal_transactions', JSON.stringify([]));
+        localStorage.setItem('obligations', JSON.stringify([]));
+        localStorage.setItem('personal_budgets', JSON.stringify({}));
+        localStorage.removeItem('finanzas_sync_queue');
+        localStorage.removeItem(TEST_DATA_SEED_KEY);
+
+        setAssets([]);
+        setTransactions([]);
+        setObligations([]);
+        setBudgets({});
+        showToast('Todos los datos fueron eliminados. App lista desde cero.');
+      }
+    });
+  };
+
   return (
     <div className="app-container">
       <PwaInstallPrompt />
@@ -834,6 +843,7 @@ function App() {
                 budgets={budgets}
                 showToast={showToast}
                 onInjectTestData={injectAdvancedTestData}
+                onClearAllData={clearAllAppData}
                 auth={auth}
                 onOpenAuthModal={() => setIsAuthModalOpen(true)}
                 onSyncNow={handleSyncNow}
