@@ -36,6 +36,32 @@ function getIsoDateOffset(daysOffset, baseDateStr) {
   return d.toISOString().split('T')[0];
 }
 
+function formatCalcNumber(num, decimals = 2) {
+  const n = Number(num);
+  if (num === '' || num === null || num === undefined || isNaN(n)) return '';
+  return n.toLocaleString('en-US', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  });
+}
+
+function formatCalcLiveInput(rawStr) {
+  if (rawStr === '' || rawStr === null || rawStr === undefined) return '';
+  const str = String(rawStr);
+  const [intPart, decPart] = str.split('.');
+  const formattedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return decPart !== undefined ? `${formattedInt}.${decPart}` : formattedInt;
+}
+
+function sanitizeCalcInput(inputValue) {
+  const cleaned = String(inputValue || '').replace(/,/g, '').replace(/[^0-9.]/g, '');
+  const parts = cleaned.split('.');
+  if (parts.length > 2) {
+    return `${parts[0]}.${parts.slice(1).join('')}`;
+  }
+  return cleaned;
+}
+
 export default function CalculatorView({
   calcBaseCurrency,
   setCalcBaseCurrency,
@@ -61,6 +87,10 @@ export default function CalculatorView({
   const fileInputRef = useRef(null);
   const hasAutoFetchedRef = useRef(false);
   const calculatorTopRef = useRef(null);
+  const bcvUsdInputRef = useRef(null);
+  const paraleloInputRef = useRef(null);
+  const eurInputRef = useRef(null);
+  const customInputRef = useRef(null);
 
   // Modo de tasa en la calculadora: 'current' (Hoy) | 'historical' (Fecha anterior)
   const [rateMode, setRateMode] = useState('current');
@@ -588,7 +618,7 @@ export default function CalculatorView({
       )}
 
       {/* MONTO EN BOLÍVARES */}
-      <div className="glass-card" style={{ padding: '0.95rem 1.15rem', borderRadius: '16px', marginBottom: '1rem', textAlign: 'center' }}>
+      <div className="glass-card" style={{ padding: '0.95rem 1.15rem', borderRadius: '16px', marginBottom: '0.75rem', textAlign: 'center' }}>
         <div style={{ color: '#94a3b8', fontSize: '0.82rem', marginBottom: '0.35rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem' }}>
           <span>Monto en Bolívares (Bs)</span>
           {rateMode === 'historical' && (
@@ -597,22 +627,105 @@ export default function CalculatorView({
             </span>
           )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '1.4rem', fontWeight: 600, color: '#f1f5f9' }}>Bs.</span>
-          <input
-            type="number"
-            value={calcBaseCurrency === 'BS' ? calcBaseAmount : (activeAmountBs !== '' ? Number(activeAmountBs).toFixed(2) : '')}
-            onChange={e => { setCalcBaseCurrency('BS'); setCalcBaseAmount(e.target.value); }}
-            style={{ background: 'transparent', border: 'none', borderBottom: '2px solid #10b981', color: '#f1f5f9', fontSize: '1.85rem', fontWeight: 700, width: '160px', textAlign: 'center', outline: 'none' }}
-            placeholder="0.00"
-          />
-        </div>
+        {(() => {
+          const bsDisplayValue = calcBaseCurrency === 'BS'
+            ? formatCalcLiveInput(calcBaseAmount)
+            : (activeAmountBs !== '' ? formatCalcNumber(activeAmountBs, 2) : '');
+          const bsFontSize = bsDisplayValue.length > 13
+            ? '1.35rem'
+            : bsDisplayValue.length > 10
+              ? '1.55rem'
+              : '1.85rem';
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.45rem' }}>
+              <span style={{ fontSize: '1.35rem', fontWeight: 600, color: '#f1f5f9', flexShrink: 0 }}>Bs.</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={bsDisplayValue}
+                onChange={e => {
+                  setCalcBaseCurrency('BS');
+                  setCalcBaseAmount(sanitizeCalcInput(e.target.value));
+                }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  borderBottom: '2px solid #10b981',
+                  color: '#f1f5f9',
+                  fontSize: bsFontSize,
+                  fontWeight: 700,
+                  width: 'min(100%, 230px)',
+                  textAlign: 'center',
+                  outline: 'none',
+                  transition: 'font-size 0.15s ease'
+                }}
+                placeholder="0.00"
+              />
+            </div>
+          );
+        })()}
       </div>
+
+      {/* BARRA DE BRECHA CAMBIARIA (BCV VS PARALELO) */}
+      {activeRates.bcvUsd > 0 && activeRates.paralelo > 0 && (() => {
+        const gapBs = activeRates.paralelo - activeRates.bcvUsd;
+        const gapPct = (gapBs / activeRates.bcvUsd) * 100;
+        const isPositiveGap = gapPct >= 0;
+        const usdAtBcv = activeAmountBs ? activeAmountBs / activeRates.bcvUsd : 0;
+        const usdAtParalelo = activeAmountBs ? activeAmountBs / activeRates.paralelo : 0;
+        const usdDiff = Math.abs(usdAtBcv - usdAtParalelo);
+
+        return (
+          <div
+            style={{
+              padding: '0.6rem 0.95rem',
+              borderRadius: '12px',
+              marginBottom: '0.85rem',
+              background: 'rgba(245, 158, 11, 0.08)',
+              border: '1px solid rgba(245, 158, 11, 0.25)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.2rem'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', color: '#cbd5e1', fontWeight: 500 }}>
+                <span>⚖️ Brecha BCV vs Paralelo</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                  {isPositiveGap ? '+' : ''}Bs. {formatCalcNumber(gapBs, 2)}
+                </span>
+                <span
+                  style={{
+                    padding: '0.15rem 0.5rem',
+                    borderRadius: '999px',
+                    background: 'rgba(245, 158, 11, 0.18)',
+                    color: '#fbbf24',
+                    fontSize: '0.78rem',
+                    fontWeight: 700
+                  }}
+                >
+                  {isPositiveGap ? '+' : ''}{gapPct.toFixed(2)}%
+                </span>
+              </div>
+            </div>
+            {usdDiff > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: '#94a3b8', paddingTop: '0.15rem', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                <span>Diferencia en este monto:</span>
+                <span style={{ color: '#fbbf24', fontWeight: 600 }}>
+                  ${formatCalcNumber(usdDiff, 2)} USD
+                </span>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* TARJETAS DE CONVERSIÓN */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.75rem', marginBottom: '2rem' }}>
-        <div className="glass-card" style={{ padding: '0.9rem 1.1rem', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
+        <div className="glass-card" style={{ padding: '0.9rem 1.1rem', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ minWidth: 0 }}>
             <div style={{ color: '#f1f5f9', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <span>USD BCV</span>
               {rateMode === 'historical' && (
@@ -623,27 +736,59 @@ export default function CalculatorView({
             </div>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Oficial</div>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', color: '#10b981' }}>
-              <span style={{ fontSize: '1.2rem', fontWeight: 700 }}>$</span>
-              <input
-                type="number"
-                value={calcBaseCurrency === 'BCV_USD' ? calcBaseAmount : (activeAmountBs && activeRates.bcvUsd ? (activeAmountBs / activeRates.bcvUsd).toFixed(2) : '')}
-                onChange={e => { setCalcBaseCurrency('BCV_USD'); setCalcBaseAmount(e.target.value); }}
-                style={{ background: 'transparent', border: 'none', color: '#10b981', fontSize: '1.2rem', fontWeight: 700, width: '95px', textAlign: 'right', outline: 'none' }}
-                placeholder="0.00"
-              />
-            </div>
-            <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-              Tasa: Bs. {activeRates.bcvUsd ? Number(activeRates.bcvUsd).toFixed(2) : '---'}
-            </div>
-          </div>
+          {(() => {
+            const bcvDisplayVal = calcBaseCurrency === 'BCV_USD'
+              ? formatCalcLiveInput(calcBaseAmount)
+              : (activeAmountBs && activeRates.bcvUsd ? formatCalcNumber(activeAmountBs / activeRates.bcvUsd, 2) : '');
+            const charLen = (bcvDisplayVal || '0.00').length;
+            return (
+              <div
+                onClick={() => bcvUsdInputRef.current?.focus()}
+                style={{ textAlign: 'right', flex: 1, minWidth: 0, cursor: 'text' }}
+              >
+                <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px', color: '#10b981' }}>
+                  <span style={{ fontSize: '1.2rem', fontWeight: 700, flexShrink: 0, userSelect: 'none' }}>$</span>
+                  <input
+                    ref={bcvUsdInputRef}
+                    type="text"
+                    inputMode="decimal"
+                    value={bcvDisplayVal}
+                    onChange={e => {
+                      setCalcBaseCurrency('BCV_USD');
+                      setCalcBaseAmount(sanitizeCalcInput(e.target.value));
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#10b981',
+                      fontSize: '1.2rem',
+                      fontWeight: 700,
+                      width: `${charLen + 0.6}ch`,
+                      maxWidth: '170px',
+                      textAlign: 'right',
+                      outline: 'none',
+                      padding: 0
+                    }}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                  Tasa: Bs. {activeRates.bcvUsd ? formatCalcNumber(activeRates.bcvUsd, 2) : '---'}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
-        <div className="glass-card" style={{ padding: '0.9rem 1.1rem', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ color: '#f1f5f9', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <div className="glass-card" style={{ padding: '0.9rem 1.1rem', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ color: '#f1f5f9', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
               <span>USD Paralelo</span>
+              {activeRates.bcvUsd > 0 && activeRates.paralelo > 0 && (
+                <span style={{ fontSize: '0.66rem', padding: '1px 6px', borderRadius: '6px', background: 'rgba(245, 158, 11, 0.16)', color: '#fbbf24', fontWeight: 700 }}>
+                  +{(((activeRates.paralelo - activeRates.bcvUsd) / activeRates.bcvUsd) * 100).toFixed(1)}%
+                </span>
+              )}
               {rateMode === 'historical' && (
                 <span style={{ fontSize: '0.65rem', padding: '1px 6px', borderRadius: '6px', background: '#312615', color: '#f59e0b' }}>
                   Histórico
@@ -652,27 +797,59 @@ export default function CalculatorView({
             </div>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Monitor / EnParalelo</div>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', color: '#10b981' }}>
-              <span style={{ fontSize: '1.2rem', fontWeight: 700 }}>$</span>
-              <input
-                type="number"
-                value={calcBaseCurrency === 'PARALELO' ? calcBaseAmount : (activeAmountBs && activeRates.paralelo ? (activeAmountBs / activeRates.paralelo).toFixed(2) : '')}
-                onChange={e => { setCalcBaseCurrency('PARALELO'); setCalcBaseAmount(e.target.value); }}
-                style={{ background: 'transparent', border: 'none', color: '#10b981', fontSize: '1.2rem', fontWeight: 700, width: '95px', textAlign: 'right', outline: 'none' }}
-                placeholder="0.00"
-              />
-            </div>
-            <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-              Tasa: Bs. {activeRates.paralelo ? Number(activeRates.paralelo).toFixed(2) : '---'}
-            </div>
-          </div>
+          {(() => {
+            const parDisplayVal = calcBaseCurrency === 'PARALELO'
+              ? formatCalcLiveInput(calcBaseAmount)
+              : (activeAmountBs && activeRates.paralelo ? formatCalcNumber(activeAmountBs / activeRates.paralelo, 2) : '');
+            const charLen = (parDisplayVal || '0.00').length;
+            return (
+              <div
+                onClick={() => paraleloInputRef.current?.focus()}
+                style={{ textAlign: 'right', flex: 1, minWidth: 0, cursor: 'text' }}
+              >
+                <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px', color: '#10b981' }}>
+                  <span style={{ fontSize: '1.2rem', fontWeight: 700, flexShrink: 0, userSelect: 'none' }}>$</span>
+                  <input
+                    ref={paraleloInputRef}
+                    type="text"
+                    inputMode="decimal"
+                    value={parDisplayVal}
+                    onChange={e => {
+                      setCalcBaseCurrency('PARALELO');
+                      setCalcBaseAmount(sanitizeCalcInput(e.target.value));
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#10b981',
+                      fontSize: '1.2rem',
+                      fontWeight: 700,
+                      width: `${charLen + 0.6}ch`,
+                      maxWidth: '170px',
+                      textAlign: 'right',
+                      outline: 'none',
+                      padding: 0
+                    }}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                  Tasa: Bs. {activeRates.paralelo ? formatCalcNumber(activeRates.paralelo, 2) : '---'}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
-        <div className="glass-card" style={{ padding: '0.9rem 1.1rem', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ color: '#f1f5f9', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <div className="glass-card" style={{ padding: '0.9rem 1.1rem', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ color: '#f1f5f9', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
               <span>EUR BCV</span>
+              {activeRates.bcvUsd > 0 && activeRates.bcvEur > 0 && (
+                <span style={{ fontSize: '0.66rem', padding: '1px 6px', borderRadius: '6px', background: 'rgba(59, 130, 246, 0.16)', color: '#60a5fa', fontWeight: 700 }}>
+                  +{(((activeRates.bcvEur - activeRates.bcvUsd) / activeRates.bcvUsd) * 100).toFixed(1)}% vs $
+                </span>
+              )}
               {rateMode === 'historical' && (
                 <span style={{ fontSize: '0.65rem', padding: '1px 6px', borderRadius: '6px', background: '#172742', color: '#3b82f6' }}>
                   Histórico
@@ -681,50 +858,118 @@ export default function CalculatorView({
             </div>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Oficial</div>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', color: '#3b82f6' }}>
-              <span style={{ fontSize: '1.2rem', fontWeight: 700 }}>€</span>
-              <input
-                type="number"
-                value={calcBaseCurrency === 'EUR' ? calcBaseAmount : (activeAmountBs && activeRates.bcvEur ? (activeAmountBs / activeRates.bcvEur).toFixed(2) : '')}
-                onChange={e => { setCalcBaseCurrency('EUR'); setCalcBaseAmount(e.target.value); }}
-                style={{ background: 'transparent', border: 'none', color: '#3b82f6', fontSize: '1.2rem', fontWeight: 700, width: '95px', textAlign: 'right', outline: 'none' }}
-                placeholder="0.00"
-              />
-            </div>
-            <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-              Tasa: Bs. {activeRates.bcvEur ? Number(activeRates.bcvEur).toFixed(2) : '---'}
-            </div>
-          </div>
+          {(() => {
+            const eurDisplayVal = calcBaseCurrency === 'EUR'
+              ? formatCalcLiveInput(calcBaseAmount)
+              : (activeAmountBs && activeRates.bcvEur ? formatCalcNumber(activeAmountBs / activeRates.bcvEur, 2) : '');
+            const charLen = (eurDisplayVal || '0.00').length;
+            return (
+              <div
+                onClick={() => eurInputRef.current?.focus()}
+                style={{ textAlign: 'right', flex: 1, minWidth: 0, cursor: 'text' }}
+              >
+                <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px', color: '#3b82f6' }}>
+                  <span style={{ fontSize: '1.2rem', fontWeight: 700, flexShrink: 0, userSelect: 'none' }}>€</span>
+                  <input
+                    ref={eurInputRef}
+                    type="text"
+                    inputMode="decimal"
+                    value={eurDisplayVal}
+                    onChange={e => {
+                      setCalcBaseCurrency('EUR');
+                      setCalcBaseAmount(sanitizeCalcInput(e.target.value));
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#3b82f6',
+                      fontSize: '1.2rem',
+                      fontWeight: 700,
+                      width: `${charLen + 0.6}ch`,
+                      maxWidth: '170px',
+                      textAlign: 'right',
+                      outline: 'none',
+                      padding: 0
+                    }}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                  Tasa: Bs. {activeRates.bcvEur ? formatCalcNumber(activeRates.bcvEur, 2) : '---'}
+                </div>
+              </div>
+            );
+          })()}
         </div>
 
-        <div className="glass-card" style={{ padding: '0.9rem 1.1rem', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #2a3447' }}>
-          <div>
-            <div style={{ color: '#f1f5f9', fontWeight: 600 }}>Personalizada</div>
+        <div className="glass-card" style={{ padding: '0.9rem 1.1rem', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', border: '1px solid #2a3447' }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ color: '#f1f5f9', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+              <span>Personalizada</span>
+              {activeRates.bcvUsd > 0 && activeRates.custom > 0 && (
+                <span style={{ fontSize: '0.66rem', padding: '1px 6px', borderRadius: '6px', background: 'rgba(245, 158, 11, 0.16)', color: '#fbbf24', fontWeight: 700 }}>
+                  {activeRates.custom >= activeRates.bcvUsd ? '+' : ''}{(((activeRates.custom - activeRates.bcvUsd) / activeRates.bcvUsd) * 100).toFixed(1)}% vs BCV
+                </span>
+              )}
+            </div>
             <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Ej. Binance P2P</div>
           </div>
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '2px', color: '#f59e0b' }}>
-              <span style={{ fontSize: '1.2rem', fontWeight: 700 }}>$</span>
-              <input
-                type="number"
-                value={calcBaseCurrency === 'CUSTOM' ? calcBaseAmount : (activeAmountBs && activeRates.custom ? (activeAmountBs / activeRates.custom).toFixed(2) : '')}
-                onChange={e => { setCalcBaseCurrency('CUSTOM'); setCalcBaseAmount(e.target.value); }}
-                style={{ background: 'transparent', border: 'none', color: '#f59e0b', fontSize: '1.2rem', fontWeight: 700, width: '95px', textAlign: 'right', outline: 'none' }}
-                placeholder="0.00"
-              />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.25rem', marginBottom: '0.15rem' }}>
-              <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Tasa:</span>
-              <input
-                type="number"
-                value={veRates.custom || ''}
-                onChange={e => setVeRates({ ...veRates, custom: Number(e.target.value) })}
-                style={{ background: '#232c3d', border: '1px solid #2a3447', color: '#f1f5f9', width: '68px', padding: '2px 6px', borderRadius: '6px', fontSize: '0.75rem', textAlign: 'right' }}
-                placeholder="0.00"
-              />
-            </div>
-          </div>
+          {(() => {
+            const customDisplayVal = calcBaseCurrency === 'CUSTOM'
+              ? formatCalcLiveInput(calcBaseAmount)
+              : (activeAmountBs && activeRates.custom ? formatCalcNumber(activeAmountBs / activeRates.custom, 2) : '');
+            const charLen = (customDisplayVal || '0.00').length;
+            return (
+              <div
+                onClick={() => customInputRef.current?.focus()}
+                style={{ textAlign: 'right', flex: 1, minWidth: 0, cursor: 'text' }}
+              >
+                <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'flex-end', gap: '3px', color: '#f59e0b' }}>
+                  <span style={{ fontSize: '1.2rem', fontWeight: 700, flexShrink: 0, userSelect: 'none' }}>$</span>
+                  <input
+                    ref={customInputRef}
+                    type="text"
+                    inputMode="decimal"
+                    value={customDisplayVal}
+                    onChange={e => {
+                      setCalcBaseCurrency('CUSTOM');
+                      setCalcBaseAmount(sanitizeCalcInput(e.target.value));
+                    }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#f59e0b',
+                      fontSize: '1.2rem',
+                      fontWeight: 700,
+                      width: `${charLen + 0.6}ch`,
+                      maxWidth: '170px',
+                      textAlign: 'right',
+                      outline: 'none',
+                      padding: 0
+                    }}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div
+                  onClick={e => e.stopPropagation()}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.25rem', marginBottom: '0.15rem' }}
+                >
+                  <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Tasa:</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={veRates.custom ? formatCalcLiveInput(veRates.custom) : ''}
+                    onChange={e => {
+                      const cleaned = sanitizeCalcInput(e.target.value);
+                      setVeRates({ ...veRates, custom: cleaned === '' ? 0 : cleaned });
+                    }}
+                    style={{ background: '#232c3d', border: '1px solid #2a3447', color: '#f1f5f9', width: '78px', padding: '2px 6px', borderRadius: '6px', fontSize: '0.75rem', textAlign: 'right' }}
+                    placeholder="0.00"
+                  />
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 

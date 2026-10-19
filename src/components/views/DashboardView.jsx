@@ -524,17 +524,37 @@ export default function DashboardView({
                 );
               };
 
+              const centerValue = activeItem ? activeItem.value : totalPieUsd;
+              const centerAmountText = `$${centerValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+              const totalShortText = `Total: $${totalPieUsd.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+              const longestLen = Math.max(
+                centerAmountText.length,
+                activeItem ? Math.min(14, translateCategory(activeItem.name).length) : 10,
+                activeItem ? totalShortText.length - 2 : 0
+              );
+
+              const extraRadius = Math.max(0, (longestLen - 8) * 2.5) + (activeItem ? 5 : 0);
+              const adaptiveInnerRadius = Math.min(72, Math.round(56 + extraRadius));
+              const adaptiveOuterRadius = adaptiveInnerRadius + 24;
+              const adaptiveChartHeight = Math.max(235, (adaptiveOuterRadius + 34) * 2);
+              const safeCenterWidth = Math.round(adaptiveInnerRadius * 1.66);
+              const amountFontSize = centerAmountText.length > 11
+                ? '0.84rem'
+                : centerAmountText.length > 9
+                  ? '0.92rem'
+                  : '1rem';
+
               return (
                 <>
-                  <div style={{ position: 'relative', width: '100%', height: '215px' }}>
-                    <ResponsiveContainer width="100%" height={215}>
-                      <PieChart margin={{ top: 18, right: 24, bottom: 18, left: 24 }} style={{ outline: 'none' }}>
+                  <div style={{ position: 'relative', width: '100%', height: `${adaptiveChartHeight}px`, transition: 'height 0.2s ease' }}>
+                    <ResponsiveContainer width="100%" height={adaptiveChartHeight}>
+                      <PieChart margin={{ top: 20, right: 28, bottom: 20, left: 28 }} style={{ outline: 'none' }}>
                         <Pie
                           data={pieData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={44}
-                          outerRadius={66}
+                          innerRadius={adaptiveInnerRadius}
+                          outerRadius={adaptiveOuterRadius}
                           paddingAngle={4}
                           dataKey="value"
                           stroke="none"
@@ -557,7 +577,7 @@ export default function DashboardView({
                       </PieChart>
                     </ResponsiveContainer>
 
-                    {/* Monto total siempre en el centro del anillo */}
+                    {/* Monto total siempre en el centro del anillo, adaptativo sin solaparse */}
                     <div
                       onClick={() => setSelectedPieCategory(null)}
                       style={{
@@ -565,24 +585,27 @@ export default function DashboardView({
                         top: '50%',
                         left: '50%',
                         transform: 'translate(-50%, -50%)',
-                        width: '88px',
+                        width: `${safeCenterWidth}px`,
+                        padding: '0 4px',
+                        boxSizing: 'border-box',
                         textAlign: 'center',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
                         cursor: activeItem ? 'pointer' : 'default',
-                        userSelect: 'none'
+                        userSelect: 'none',
+                        pointerEvents: activeItem ? 'auto' : 'none'
                       }}
                     >
                       {activeItem ? (
                         <>
                           <span
                             style={{
-                              fontSize: '0.66rem',
+                              fontSize: '0.68rem',
                               fontWeight: 700,
                               color: activeColor,
-                              maxWidth: '84px',
+                              maxWidth: `${safeCenterWidth - 8}px`,
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
@@ -593,33 +616,35 @@ export default function DashboardView({
                           </span>
                           <span
                             style={{
-                              fontSize: '0.95rem',
+                              fontSize: amountFontSize,
                               fontWeight: 700,
                               color: '#f1f5f9',
                               lineHeight: 1.25,
-                              marginTop: '2px'
+                              marginTop: '2px',
+                              whiteSpace: 'nowrap'
                             }}
                           >
-                            ${activeItem.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {centerAmountText}
                           </span>
                           <span
                             style={{
                               fontSize: '0.62rem',
                               fontWeight: 500,
                               color: '#94a3b8',
-                              marginTop: '1px'
+                              marginTop: '1px',
+                              whiteSpace: 'nowrap'
                             }}
                           >
-                            Total: ${totalPieUsd.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                            {totalShortText}
                           </span>
                         </>
                       ) : (
                         <>
-                          <span style={{ fontSize: '0.68rem', color: '#94a3b8', fontWeight: 500 }}>
+                          <span style={{ fontSize: '0.7rem', color: '#94a3b8', fontWeight: 500, whiteSpace: 'nowrap' }}>
                             Total Gastos
                           </span>
-                          <span style={{ fontSize: '0.96rem', fontWeight: 700, color: '#f1f5f9', marginTop: '2px' }}>
-                            ${totalPieUsd.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          <span style={{ fontSize: amountFontSize, fontWeight: 700, color: '#f1f5f9', marginTop: '2px', whiteSpace: 'nowrap' }}>
+                            {centerAmountText}
                           </span>
                         </>
                       )}

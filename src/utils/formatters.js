@@ -12,17 +12,29 @@ export const getCurrencySymbol = (name) => {
   switch (name.toUpperCase()) {
     case 'VES': return 'Bs. ';
     case 'USD':
-    case 'USDT': return '$';
+    case 'USDT':
+    case 'USDC': return '$';
+    case 'EUR': return '€';
+    case 'GBP': return '£';
+    case 'BRL': return 'R$ ';
+    case 'PEN': return 'S/ ';
+    case 'JPY':
+    case 'CNY': return '¥';
     default: return '';
   }
 };
 
 export const getRateString = (name, rate) => {
-  if (!name || name.toUpperCase() === 'USD' || name.toUpperCase() === 'USDT' || !rate) return null;
-  if (name.toUpperCase() === 'VES') {
+  if (!name || name.toUpperCase() === 'USD' || !rate || rate <= 0) return null;
+  const upper = name.toUpperCase();
+  if (upper === 'VES') {
     return `1 USD = Bs. ${(1 / rate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
-  return `1 ${name.toUpperCase()} = $${rate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  if (['COP', 'ARS', 'CLP', 'PYG', 'JPY', 'MXN', 'BRL', 'PEN', 'DOP', 'CRC', 'UYU', 'BOB'].includes(upper) && rate < 1) {
+    return `1 USD = ${(1 / rate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${upper}`;
+  }
+  const maxDecimals = rate < 0.01 ? 6 : rate < 1 ? 4 : 2;
+  return `1 ${upper} = $${rate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: maxDecimals })}`;
 };
 
 export const translateFrequency = (freq) => {
@@ -78,12 +90,12 @@ export const getTxRateSnapshot = (tx, rates = {}) => {
   if (rates && rates[curr] != null && !isNaN(Number(rates[curr])) && Number(rates[curr]) > 0) {
     return Number(rates[curr]);
   }
-  if (curr === 'USD' || curr === 'USDT') return 1;
+  if (curr === 'USD' || curr === 'USDT' || curr === 'USDC') return 1;
   return 0;
 };
 
 export const getTxUsdEquivalent = (tx, rates = {}) => {
-  if (tx && tx.usdEquivalent != null && !isNaN(Number(tx.usdEquivalent))) {
+  if (tx && tx.usdEquivalent != null && !isNaN(Number(tx.usdEquivalent)) && Number(tx.usdEquivalent) > 0) {
     return Number(tx.usdEquivalent);
   }
   const rate = getTxRateSnapshot(tx, rates);
@@ -94,13 +106,14 @@ export const formatTxRate = (currency, rate) => {
   const curr = (currency || '').toUpperCase();
   const numRate = Number(rate) || 0;
   if (!numRate) return '---';
-  if (curr === 'USD' || curr === 'USDT') {
+  if (curr === 'USD') {
     return '1 USD = $1.00';
   }
   if (curr === 'VES') {
     return `1 USD = Bs. ${(1 / numRate).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   }
-  return `1 ${curr} = $${numRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const maxDecimals = numRate < 0.01 ? 6 : numRate < 1 ? 4 : 2;
+  return `1 ${curr} = $${numRate.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: maxDecimals })}`;
 };
 
 export const getBudgetColor = (percent) => {

@@ -35,7 +35,7 @@ function App() {
   const { user } = auth;
 
   const { assets, setAssets, addAsset, deleteAsset, updateAssetBalance } = useAssets(user);
-  const { rates, setRates } = useRates();
+  const { rates, setRates, binanceSymbols, knownFiatCurrencies } = useRates(assets);
   const { transactions, setTransactions, addTransaction, deleteTransaction, updateTransaction } = useTransactions(rates, user);
   const { obligations, setObligations, addObligation, deleteObligation, updateObligation } = useObligations(user);
   const { budgets, setBudgets, updateAllBudgets } = useBudgets(user);
@@ -337,7 +337,7 @@ function App() {
     }
 
     const payCurr = asset.name.toUpperCase();
-    const payRateSnapshot = rates[payCurr] ?? (payCurr === 'USD' || payCurr === 'USDT' ? 1 : 0);
+    const payRateSnapshot = rates[payCurr] ?? (payCurr === 'USD' || payCurr === 'USDT' || payCurr === 'USDC' ? 1 : 0);
     const payUsdEquivalent = actualAmountNum * payRateSnapshot;
 
     const tx = {
@@ -458,7 +458,7 @@ function App() {
       const txCurr = newTx.currency.toUpperCase();
       const rateSnapshot = (oldTx.currency.toUpperCase() === txCurr && oldTx.rateSnapshot != null && Number(oldTx.rateSnapshot) > 0)
         ? Number(oldTx.rateSnapshot)
-        : (rates[txCurr] ?? (txCurr === 'USD' || txCurr === 'USDT' ? 1 : 0));
+        : (rates[txCurr] ?? (txCurr === 'USD' || txCurr === 'USDT' || txCurr === 'USDC' ? 1 : 0));
       const usdEquivalent = amountNum * rateSnapshot;
 
       updateTransaction(newTx.id, {
@@ -491,7 +491,7 @@ function App() {
     }
 
     const txCurr = newTx.currency.toUpperCase();
-    const txRateSnapshot = rates[txCurr] ?? (txCurr === 'USD' || txCurr === 'USDT' ? 1 : 0);
+    const txRateSnapshot = rates[txCurr] ?? (txCurr === 'USD' || txCurr === 'USDT' || txCurr === 'USDC' ? 1 : 0);
     const txUsdEquivalent = amountNum * txRateSnapshot;
 
     addTransaction({
@@ -537,7 +537,7 @@ function App() {
     }
 
     const srcCurr = sourceAsset.name.toUpperCase();
-    const srcRateSnapshot = rates[srcCurr] ?? (srcCurr === 'USD' || srcCurr === 'USDT' ? 1 : 0);
+    const srcRateSnapshot = rates[srcCurr] ?? (srcCurr === 'USD' || srcCurr === 'USDT' || srcCurr === 'USDC' ? 1 : 0);
     const transferUsdEquivalent = amountDeductedNum * srcRateSnapshot;
     const transferId = crypto.randomUUID();
 
@@ -641,12 +641,16 @@ function App() {
 
   // Computations for Summary
   const grandTotalUsd = assets.reduce((total, asset) => {
-    return total + (Number(asset.amount) * (rates[asset.name] || 0));
+    const sym = (asset.name || '').trim().toUpperCase();
+    const rateVal = rates[sym] ?? (sym === 'USD' || sym === 'USDT' || sym === 'USDC' ? 1 : 0);
+    return total + (Number(asset.amount) * rateVal);
   }, 0);
 
   const accountTotalsUsd = assets.reduce((acc, asset) => {
     if (!acc[asset.location]) acc[asset.location] = 0;
-    acc[asset.location] += Number(asset.amount) * (rates[asset.name] || 0);
+    const sym = (asset.name || '').trim().toUpperCase();
+    const rateVal = rates[sym] ?? (sym === 'USD' || sym === 'USDT' || sym === 'USDC' ? 1 : 0);
+    acc[asset.location] += Number(asset.amount) * rateVal;
     return acc;
   }, {});
 
@@ -1192,6 +1196,10 @@ function App() {
         onAddAsset={handleAddAsset}
         showToast={showToast}
         initialType={assetInitialType}
+        rates={rates}
+        setRates={setRates}
+        binanceSymbols={binanceSymbols}
+        knownFiatCurrencies={knownFiatCurrencies}
       />
 
       <BalanceAdjustModal
