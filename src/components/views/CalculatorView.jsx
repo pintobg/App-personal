@@ -1429,6 +1429,30 @@ export default function CalculatorView({
             🔄 Buscar Actualización de la App
           </button>
 
+          <a
+            href="https://pintobg.github.io/App-personal/Finanzas.apk"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn"
+            style={{
+              padding: '0.85rem 1rem',
+              borderRadius: '12px',
+              border: '1px solid #1f5143',
+              background: '#14332b',
+              color: '#10b981',
+              fontWeight: 600,
+              fontSize: '0.9rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              textDecoration: 'none',
+              cursor: 'pointer'
+            }}
+          >
+            📥 Descargar APK Directo (.apk)
+          </a>
+
           <button
             type="button"
             className="btn"

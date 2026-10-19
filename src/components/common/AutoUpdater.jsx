@@ -116,10 +116,15 @@ export default function AutoUpdater({ showToast }) {
       });
 
       if (Capacitor.isNativePlatform()) {
-        const bundle = await CapacitorUpdater.download({
+        const downloadOptions = {
           url: remote.bundleUrl,
           version: shortVer
-        });
+        };
+        if (remote.checksum) {
+          downloadOptions.checksum = remote.checksum;
+        }
+
+        const bundle = await CapacitorUpdater.download(downloadOptions);
 
         localStorage.setItem(INSTALLED_VERSION_KEY, remote.version);
         localStorage.setItem(JUST_UPDATED_KEY, shortVer);
@@ -140,7 +145,8 @@ export default function AutoUpdater({ showToast }) {
       isUpdatingRef.current = false;
       setStatusBanner(null);
       if (manual && showToast) {
-        showToast('No se pudo verificar actualizaciones. Revisa tu conexión.', 'error');
+        const errDetail = err?.message || 'Error de conexión';
+        showToast(`No se pudo actualizar: ${errDetail}`, 'error');
       }
     }
   }, [showToast]);

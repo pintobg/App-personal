@@ -16,18 +16,19 @@ export default function Toast({ message, toast }) {
         transform: 'translateX(-50%)',
         background: '#1b2230',
         border: `1px solid ${isError ? '#4d2631' : '#1f5143'}`,
-        borderRadius: '9999px',
-        padding: '0.6rem 1.25rem',
+        borderRadius: '16px',
+        padding: '0.65rem 1.15rem',
         color: '#f1f5f9',
-        boxShadow: '0 8px 20px rgba(0, 0, 0, 0.4)',
+        boxShadow: '0 8px 20px rgba(0, 0, 0, 0.45)',
         fontSize: '0.85rem',
         fontWeight: 600,
         display: 'flex',
         alignItems: 'center',
-        gap: '0.5rem',
+        gap: '0.55rem',
         zIndex: 9999,
-        whiteSpace: 'nowrap',
+        width: 'auto',
         maxWidth: '92vw',
+        boxSizing: 'border-box',
         animation: 'slideDownFade 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards'
       }}
     >
@@ -48,7 +49,7 @@ export default function Toast({ message, toast }) {
       >
         {isError ? '✕' : '✓'}
       </span>
-      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{text}</span>
+      <span style={{ wordBreak: 'break-word', lineHeight: 1.35 }}>{text}</span>
     </div>
   );
 }

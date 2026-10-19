@@ -48,18 +48,20 @@ jobs:
         run: |
           npm run build
           SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+          cd dist
+          zip -r ../dist.zip .
+          cd ..
+          CHECKSUM=$(sha256sum dist.zip | awk '{print $1}')
           cat <<EOF > dist/version.json
           {
             "version": "${GITHUB_SHA}",
             "shortVersion": "v-${SHORT_SHA}",
             "updatedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
             "bundleUrl": "https://pintobg.github.io/App-personal/dist.zip",
-            "apkUrl": "https://pintobg.github.io/App-personal/Finanzas.apk"
+            "apkUrl": "https://pintobg.github.io/App-personal/Finanzas.apk",
+            "checksum": "${CHECKSUM}"
           }
           EOF
-          cd dist
-          zip -r ../dist.zip .
-          cd ..
           npx cap sync android
 
       - name: 6. Dar permisos de ejecución a Gradle y compilar el APK
