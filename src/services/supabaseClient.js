@@ -10,6 +10,12 @@ export const isSupabaseConfigured = Boolean(
   supabaseAnonKey !== 'tu-anon-public-key'
 );
 
+if (import.meta.env.PROD && !isSupabaseConfigured) {
+  console.error(
+    '[SupabaseClient] Variables VITE_SUPABASE_URL o VITE_SUPABASE_ANON_KEY no configuradas en entorno de producción. La app operará en modo solo local.'
+  );
+}
+
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {

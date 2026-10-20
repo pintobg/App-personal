@@ -26,6 +26,7 @@ import ConfirmModal from './components/modals/ConfirmModal';
 import Toast from './components/common/Toast';
 import PwaInstallPrompt from './components/common/PwaInstallPrompt';
 import AutoUpdater from './components/common/AutoUpdater';
+import { exportBackup } from './utils/backup';
 import { formatAmount, getTxUsdEquivalent, translateCategory } from './utils/formatters';
 import { generateTestData, TEST_DATA_SEED_KEY } from './utils/testData';
 import './App.css';
@@ -756,6 +757,19 @@ function App() {
     });
   };
 
+  const handleExportBackup = async () => {
+    try {
+      const filename = await exportBackup({ assets, transactions, obligations, veRates, budgets });
+      showToast(`Copia de seguridad exportada con éxito (${filename})`);
+    } catch (err) {
+      if (err?.message && String(err.message).toLowerCase().includes('cancel')) {
+        return;
+      }
+      showToast('Error al exportar copia de seguridad', 'error');
+      console.error(err);
+    }
+  };
+
   return (
     <div className="app-container">
       <PwaInstallPrompt />
@@ -808,6 +822,8 @@ function App() {
                 onDeleteAsset={handleDeleteAsset}
                 auth={auth}
                 onOpenAuthModal={() => setIsAuthModalOpen(true)}
+                onExportBackup={handleExportBackup}
+                onNavigateToCalculator={() => setCurrentPage('calculator')}
               />
             )}
 
@@ -1274,6 +1290,7 @@ function App() {
         showToast={showToast}
         localState={{ assets, transactions, obligations, budgets }}
         onRequestConfirm={requestConfirm}
+        onExportBackup={handleExportBackup}
       />
 
       <ConfirmModal

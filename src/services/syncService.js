@@ -260,8 +260,8 @@ export const syncService = {
 
         saveQueue(remainingQueue);
         setSyncStatus(remainingQueue.length === 0 ? 'synced' : 'error');
-      } else {
-        // Demo Cloud Simulation
+      } else if (!import.meta.env.PROD) {
+        // Demo Cloud Simulation (solo en desarrollo)
         for (const item of queue) {
           const { table, action, payload, userId } = item;
           const cloud = getDemoCloudData(userId);
@@ -303,6 +303,10 @@ export const syncService = {
 
         saveQueue([]);
         setSyncStatus('synced');
+      } else {
+        // En producción sin Supabase configurado, limpiamos cola y marcamos estado local
+        saveQueue([]);
+        setSyncStatus('guest');
       }
     } catch (err) {
       console.error('Error flushing sync queue:', err);
@@ -339,11 +343,14 @@ export const syncService = {
           obligations: remoteObs,
           budgets: remoteBudgets
         };
-      } else {
-        // Demo Cloud
+      } else if (!import.meta.env.PROD) {
+        // Demo Cloud (solo en desarrollo)
         const data = getDemoCloudData(userId);
         setSyncStatus('synced');
         return data;
+      } else {
+        setSyncStatus('guest');
+        return null;
       }
     } catch (err) {
       console.error('Error fetching remote data:', err);
@@ -386,9 +393,12 @@ export const syncService = {
           }));
           await supabase.from('budgets').upsert(dbBudgets);
         }
-      } else {
-        // Demo Cloud
+      } else if (!import.meta.env.PROD) {
+        // Demo Cloud (solo en desarrollo)
         saveDemoCloudData(userId, { assets, transactions, obligations, budgets });
+      } else {
+        setSyncStatus('guest');
+        return false;
       }
 
       setSyncStatus('synced');

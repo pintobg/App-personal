@@ -16,7 +16,9 @@ export default function BalancesView({
   onAdjustAsset,
   onDeleteAsset,
   auth,
-  onOpenAuthModal
+  onOpenAuthModal,
+  onExportBackup,
+  onNavigateToCalculator
 }) {
   const [expandedCurrencies, setExpandedCurrencies] = useState({});
   const [expandedAccounts, setExpandedAccounts] = useState({});
@@ -147,6 +149,55 @@ export default function BalancesView({
         <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
           Bs {rates['VES'] ? (1 / rates['VES']).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '...'} / $
         </div>
+
+        {/* Banner visible y fijo si Supabase no está configurado */}
+        {auth && !auth.isSupabaseConfigured && (
+          <div
+            style={{
+              marginTop: '1rem',
+              background: '#231c12',
+              border: '1px solid #5a3e1b',
+              borderRadius: '14px',
+              padding: '0.85rem 1rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.65rem'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem' }}>
+              <span style={{ fontSize: '1.1rem', lineHeight: '1.2' }}>📱</span>
+              <div style={{ fontSize: '0.82rem', color: '#fde68a', lineHeight: '1.35', fontWeight: 500 }}>
+                Tus datos están guardados solo en este teléfono. Haz respaldos frecuentes.
+              </div>
+            </div>
+            <div>
+              <button
+                type="button"
+                onClick={onExportBackup || onNavigateToCalculator}
+                style={{
+                  background: '#f59e0b',
+                  color: '#1a1306',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '6px 12px',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px'
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                Exportar respaldo
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* PESTAÑAS DE NAVEGACIÓN DE CUENTAS */}

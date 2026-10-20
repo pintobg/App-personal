@@ -54,8 +54,8 @@ export function useAuth() {
           return () => {
             authListener?.subscription?.unsubscribe();
           };
-        } else {
-          // Demo / Mock Mode recovery
+        } else if (!import.meta.env.PROD) {
+          // Demo / Mock Mode recovery (solo en desarrollo)
           const stored = localStorage.getItem(DEMO_SESSION_KEY);
           if (stored) {
             const parsed = JSON.parse(stored);
@@ -65,6 +65,13 @@ export function useAuth() {
           } else {
             setIsGuest(true);
           }
+          setLoading(false);
+        } else {
+          // Producción sin Supabase configurado: modo local / invitado forzado
+          localStorage.removeItem(DEMO_SESSION_KEY);
+          setUser(null);
+          setSession(null);
+          setIsGuest(true);
           setLoading(false);
         }
       } catch (err) {
@@ -94,8 +101,8 @@ export function useAuth() {
           }
           return { success: true, user: data.user };
         }
-      } else {
-        // Demo sign in
+      } else if (!import.meta.env.PROD) {
+        // Demo sign in (solo en desarrollo)
         const demoId = 'usr_' + btoa(email.toLowerCase()).replace(/=/g, '');
         const demoUser = { id: demoId, email, user_metadata: { name: email.split('@')[0] } };
         const demoSession = { access_token: 'demo-token-' + Date.now(), user: demoUser };
@@ -109,6 +116,11 @@ export function useAuth() {
           await syncService.uploadLocalData(demoId, localState);
         }
         return { success: true, user: demoUser };
+      } else {
+        return {
+          success: false,
+          error: 'El servicio de sincronización en la nube no está configurado en esta versión. Tus datos se mantienen solo en este teléfono.'
+        };
       }
     } catch (err) {
       console.error('Error during sign in:', err);
@@ -139,8 +151,8 @@ export function useAuth() {
             needsEmailConfirmation: !data.session
           };
         }
-      } else {
-        // Demo sign up
+      } else if (!import.meta.env.PROD) {
+        // Demo sign up (solo en desarrollo)
         const demoId = 'usr_' + btoa(email.toLowerCase()).replace(/=/g, '');
         const demoUser = { id: demoId, email, user_metadata: { name: email.split('@')[0] } };
         const demoSession = { access_token: 'demo-token-' + Date.now(), user: demoUser };
@@ -154,6 +166,11 @@ export function useAuth() {
           await syncService.uploadLocalData(demoId, localState);
         }
         return { success: true, user: demoUser, needsEmailConfirmation: false };
+      } else {
+        return {
+          success: false,
+          error: 'El servicio de sincronización en la nube no está configurado en esta versión. Tus datos se mantienen solo en este teléfono.'
+        };
       }
     } catch (err) {
       console.error('Error during sign up:', err);

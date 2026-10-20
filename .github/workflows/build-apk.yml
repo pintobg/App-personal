@@ -45,6 +45,8 @@ jobs:
       - name: 5. Compilar aplicación web (Vite) y generar paquete OTA (dist.zip + version.json)
         env:
           GITHUB_SHA: ${{ github.sha }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: |
           npm run build
           SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
