@@ -93,8 +93,9 @@ jobs:
         run: |
           set -e
           
-          # 1. Empaquetar el bundle web en dist.zip
-          npx @capgo/cli bundle zip com.braian.finanzas --path ./dist --name dist.zip --bundle "0.0.0" --no-code-check
+          # 1. Empaquetar el bundle web en dist.zip usando la utilidad nativa zip de Linux
+          echo "Empaquetando contenido de dist en dist.zip..."
+          (cd dist && zip -r ../dist.zip .)
           
           SESSION_KEY=""
           
@@ -105,7 +106,7 @@ jobs:
             chmod 600 capgo_private.key
             
             PLAIN_CHECKSUM=$(node -e 'console.log(require("crypto").createHash("sha256").update(require("fs").readFileSync("dist.zip")).digest("hex"))')
-            ENCRYPT_OUT=$(npx @capgo/cli bundle encrypt dist.zip "$PLAIN_CHECKSUM" --key capgo_private.key --json 2>/dev/null || echo "{}")
+            ENCRYPT_OUT=$(npx -y @capgo/cli bundle encrypt dist.zip "$PLAIN_CHECKSUM" --key capgo_private.key --json 2>/dev/null || echo "{}")
             
             SESSION_KEY=$(node -e 'try { const o = JSON.parse(process.argv[1]); console.log(o.ivSessionKey || ""); } catch { console.log(""); }' "$ENCRYPT_OUT")
             ENCRYPTED_FILE=$(node -e 'try { const o = JSON.parse(process.argv[1]); console.log(o.filename || ""); } catch { console.log(""); }' "$ENCRYPT_OUT")
