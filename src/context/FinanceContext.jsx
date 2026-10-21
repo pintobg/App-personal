@@ -6,7 +6,7 @@ import { useTransactions } from '../hooks/useTransactions';
 import { useObligations } from '../hooks/useObligations';
 import { useBudgets } from '../hooks/useBudgets';
 import { syncService } from '../services/syncService';
-import { db, clearAllDB } from '../services/db';
+import { clearAllDB } from '../services/db';
 import { exportBackup } from '../utils/backup';
 import { mergeById, mergeBudgets } from '../services/merge';
 import { migrateTransactionsAssetIds } from '../domain/balances';
@@ -16,7 +16,7 @@ import {
   executePayObligation as runPayObligation,
   executeBulkDelete as runBulkDelete
 } from '../domain/operations';
-import { convert, round, sub } from '../domain/money';
+import { convert, round } from '../domain/money';
 
 const FinanceContext = createContext(null);
 

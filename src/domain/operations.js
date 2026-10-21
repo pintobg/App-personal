@@ -4,7 +4,7 @@ import {
   calculateTransferDeltas,
   calculateTransferReversalDeltas
 } from './balances';
-import { getNextDueDate, todayLocal } from '../utils/dates';
+import { getNextDueDate } from '../utils/dates';
 
 /**
  * Busca una cuenta en la lista de activos primero por assetId, luego por moneda + ubicación.
