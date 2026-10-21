@@ -10,6 +10,7 @@ import ConfirmModal from '../modals/ConfirmModal';
 import PinLockModal from '../modals/PinLockModal';
 import SecuritySettingsModal from '../modals/SecuritySettingsModal';
 import GoalModal from '../modals/GoalModal';
+import ReportsModal from '../modals/ReportsModal';
 import { todayLocal } from '../../utils/dates';
 
 export default function AppModals({
@@ -85,7 +86,10 @@ export default function AppModals({
   editingGoal,
   setEditingGoal,
   handleSaveGoal,
-  handleDeleteGoal
+  handleDeleteGoal,
+  // ReportsModal
+  isReportsModalOpen,
+  setIsReportsModalOpen
 }) {
   return (
     <>
@@ -158,6 +162,7 @@ export default function AppModals({
         onClose={() => setIsObModalOpen(false)}
         newOb={newOb}
         setNewOb={setNewOb}
+        assets={assets}
         onSubmit={handleAddObligation}
       />
 
@@ -209,6 +214,16 @@ export default function AppModals({
         assets={assets}
         onSave={handleSaveGoal}
         onDelete={handleDeleteGoal}
+      />
+
+      <ReportsModal
+        isOpen={isReportsModalOpen}
+        onClose={() => setIsReportsModalOpen(false)}
+        transactions={transactions}
+        assets={assets}
+        budgets={budgets}
+        rates={rates}
+        showToast={showToast}
       />
 
       <ConfirmModal

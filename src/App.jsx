@@ -228,6 +228,7 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
         flippedTxId={modalState.flippedTxId}
         setFlippedTxId={modalState.setFlippedTxId}
         handleEditTransaction={modalState.handleEditTransaction}
+        onOpenReportsModal={() => modalState.setIsReportsModalOpen(true)}
       />
 
       <FabOverlay
@@ -316,6 +317,8 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
         setEditingGoal={modalState.setEditingGoal}
         handleSaveGoal={modalState.handleSaveGoal}
         handleDeleteGoal={modalState.handleDeleteGoal}
+        isReportsModalOpen={modalState.isReportsModalOpen}
+        setIsReportsModalOpen={modalState.setIsReportsModalOpen}
       />
     </div>
   );

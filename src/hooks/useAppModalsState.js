@@ -75,12 +75,13 @@ export function useAppModalsState(requestConfirm, showToast) {
   const [payData, setPayData] = useState({ assetId: '', actualAmount: '', rateType: 'BCV_USD', customRate: '' });
   const [flippedObId, setFlippedObId] = useState(null);
 
-  // Budget, Auth, Security, Goal & FAB
+  // Budget, Auth, Security, Goal, Reports & FAB
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState(null);
+  const [isReportsModalOpen, setIsReportsModalOpen] = useState(false);
   const [isFabExpanded, setIsFabExpanded] = useState(false);
 
   // Handlers
@@ -104,27 +105,45 @@ export function useAppModalsState(requestConfirm, showToast) {
     });
   };
 
-  const handleAddObligation = (e) => {
-    e.preventDefault();
-    const parsedAmount = parseAmount(newOb.amount);
-    if (!newOb.title || parsedAmount === null || parsedAmount <= 0 || !newOb.currency || !newOb.category) {
+  const handleAddObligation = (e, overrideOb) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const obToSave = overrideOb || newOb;
+    const parsedAmount = parseAmount(obToSave.amount);
+    if (!obToSave.title || parsedAmount === null || parsedAmount <= 0 || !obToSave.currency || !obToSave.category) {
       showToast('Completa todos los campos con un monto válido', 'error');
       return;
     }
-    const finalInstallments = newOb.frequency === 'one-time' ? '1' : newOb.totalInstallments;
-    const finalAmount = round(parsedAmount, newOb.currency);
+    const finalInstallments = obToSave.frequency === 'one-time' ? '1' : (obToSave.totalInstallments || '1');
+    const finalAmount = round(parsedAmount, obToSave.currency);
 
-    if (newOb.id) {
-      updateObligation(newOb.id, { ...newOb, amount: finalAmount, totalInstallments: finalInstallments });
+    // Si es compra en cuotas y se pagó una inicial desde una cuenta
+    if (obToSave.isInstallmentPurchase && Number(obToSave.downPayment) > 0 && obToSave.downPaymentAssetId) {
+      saveTransaction({
+        type: 'spent',
+        amount: String(obToSave.downPayment),
+        assetId: obToSave.downPaymentAssetId,
+        category: obToSave.category,
+        subcategory: `Inicial ${obToSave.title}`,
+        date: todayLocal()
+      });
+    }
+
+    if (obToSave.id) {
+      updateObligation(obToSave.id, { ...obToSave, amount: finalAmount, totalInstallments: finalInstallments });
+      showToast('Obligación actualizada');
     } else {
-      addObligation({ ...newOb, amount: finalAmount, totalInstallments: finalInstallments });
+      addObligation({ ...obToSave, amount: finalAmount, totalInstallments: finalInstallments });
+      if (obToSave.isInstallmentPurchase && Number(obToSave.downPayment) > 0) {
+        showToast(`Compra en cuotas creada (${finalInstallments} cuotas de $${finalAmount}) e inicial registrada`);
+      } else {
+        showToast('Obligación creada');
+      }
     }
 
     setIsObModalOpen(false);
     setNewOb({
       id: '', type: 'pay', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: todayLocal(), totalInstallments: '', paidInstallments: 0
     });
-    showToast(newOb.id ? 'Obligación actualizada' : 'Obligación creada');
   };
 
   const handleDeleteObligation = (id) => {
@@ -313,6 +332,8 @@ export function useAppModalsState(requestConfirm, showToast) {
     setIsGoalModalOpen,
     editingGoal,
     setEditingGoal,
+    isReportsModalOpen,
+    setIsReportsModalOpen,
     isFabExpanded,
     setIsFabExpanded,
     // handlers

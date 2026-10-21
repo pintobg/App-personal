@@ -24,7 +24,8 @@ export default function TransactionsView({
   flippedTxId,
   setFlippedTxId,
   rates = {},
-  onEdit
+  onEdit,
+  onOpenReportsModal
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [dateRangeFilter, setDateRangeFilter] = useState('all'); // 'all' | 'this_month' | 'last_month' | 'custom'
@@ -201,13 +202,48 @@ export default function TransactionsView({
 
   return (
     <div className="view-container" style={{ padding: '0 1rem', marginTop: '2rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '0.5rem', flexWrap: 'wrap' }}>
         <h2 className="section-title" style={{ padding: 0, color: '#fff', fontSize: 'clamp(1rem, 4vw, 1.2rem)', margin: 0 }}>Historial de Transacciones</h2>
-        {!deleteMode && (
-          <button className="btn" style={{ padding: '0.25rem', display: 'flex', alignItems: 'center', background: 'transparent', color: '#ef4444', opacity: 0.9 }} onClick={() => setDeleteMode(true)}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-          </button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          {onOpenReportsModal && (
+            <button
+              type="button"
+              className="btn"
+              onClick={onOpenReportsModal}
+              title="Exportar reportes (CSV y PDF)"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                background: '#1e293b',
+                border: '1px solid #334155',
+                color: '#38bdf8',
+                borderRadius: '8px',
+                padding: '4px 10px',
+                fontSize: '0.78rem',
+                fontWeight: 600,
+                cursor: 'pointer'
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span>Exportar</span>
+            </button>
+          )}
+          {!deleteMode && (
+            <button
+              className="btn"
+              style={{ padding: '0.25rem', display: 'flex', alignItems: 'center', background: 'transparent', color: '#ef4444', opacity: 0.9 }}
+              onClick={() => setDeleteMode(true)}
+              title="Borrado múltiple"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* SEARCH BAR */}

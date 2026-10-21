@@ -80,7 +80,8 @@ export default function PageRouter({
   toggleSelectTx,
   flippedTxId,
   setFlippedTxId,
-  handleEditTransaction
+  handleEditTransaction,
+  onOpenReportsModal
 }) {
   return (
     <div className="content-area" key={currentPage}>
@@ -245,6 +246,7 @@ export default function PageRouter({
               setFlippedTxId={setFlippedTxId}
               rates={rates}
               onEdit={handleEditTransaction}
+              onOpenReportsModal={onOpenReportsModal}
             />
           )}
         </Suspense>
