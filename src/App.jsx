@@ -1,11 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
-import { useAssets } from './hooks/useAssets';
-import { useTransactions } from './hooks/useTransactions';
-import { useExchangeRates } from './hooks/useExchangeRates';
-import { useObligations } from './hooks/useObligations';
-import { useBudgets } from './hooks/useBudgets';
-import { useAuth } from './hooks/useAuth';
-import { syncService } from './services/syncService';
+import { FinanceProvider, useFinance } from './context/FinanceContext';
 
 const DashboardView = lazy(() => import('./components/views/DashboardView'));
 const BalancesView = lazy(() => import('./components/views/BalancesView'));
@@ -29,54 +23,60 @@ import { useAppLock } from './hooks/useAppLock';
 import Toast from './components/common/Toast';
 import PwaInstallPrompt from './components/common/PwaInstallPrompt';
 import AutoUpdater from './components/common/AutoUpdater';
-import { exportBackup } from './utils/backup';
-import { todayLocal, toLocalDateString, parseLocalDate, getNextDueDate } from './utils/dates';
-import { mergeById, mergeBudgets } from './services/merge';
-import { calculateTransactionEditDelta, calculateTransferDeltas, calculateTransferReversalDeltas, migrateTransactionsAssetIds } from './domain/balances';
-import { add, sub, convert, round, parseAmount } from './domain/money';
-import {
-  executeAddOrEditTransaction,
-  executeTransfer,
-  executePayObligation,
-  executeBulkDelete
-} from './domain/operations';
+import { todayLocal, toLocalDateString, parseLocalDate } from './utils/dates';
+import { add, convert, round, parseAmount } from './domain/money';
 import { formatAmount, getTxUsdEquivalent, translateCategory } from './utils/formatters';
 import { generateTestData, TEST_DATA_SEED_KEY } from './utils/testData';
 import './App.css';
 
-function App() {
-  const auth = useAuth();
-  const { user } = auth;
-
-  const { assets, setAssets, addAsset, deleteAsset, updateAssetBalance } = useAssets(user);
+function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm }) {
+  const finance = useFinance();
   const {
+    auth,
+    assets,
+    transactions,
+    obligations,
+    budgets,
     rates,
-    setRates,
     ratesDetails,
     veRates,
     binanceSymbols,
     knownFiatCurrencies,
-    refreshRates,
     isFetchingRates,
-    setCustomRate
-  } = useExchangeRates(assets);
-  const { transactions, setTransactions, addTransaction, deleteTransaction, updateTransaction } = useTransactions(rates, user);
-  const { obligations, setObligations, addObligation, deleteObligation, updateObligation } = useObligations(user);
-  const { budgets, setBudgets, updateAllBudgets } = useBudgets(user);
+    setCustomRate,
+    refreshRates,
+    addAsset,
+    deleteAsset,
+    addObligation,
+    deleteObligation,
+    updateObligation,
+    updateAllBudgets,
+    setAssets,
+    setTransactions,
+    setObligations,
+    setBudgets,
+    setRates,
+    saveTransaction,
+    transferFunds,
+    payObligation: runPayObligation,
+    bulkDeleteTransactions,
+    adjustAssetBalance,
+    syncNow,
+    exportBackup,
+    clearLocalData
+  } = finance;
 
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-
-  const [currentPage, setCurrentPage] = useState('balances'); // 'dashboard', 'balances', 'transactions', 'obligations', 'calculator'
-  const [timeFrame, setTimeFrame] = useState('monthly'); // 'daily', 'weekly', 'monthly', 'all'
+  // Navegación
+  const [currentPage, setCurrentPage] = useState('balances');
+  const [timeFrame, setTimeFrame] = useState('monthly');
   const [isBalanceHidden, setIsBalanceHidden] = useState(false);
-  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
-  const [txFilter, setTxFilter] = useState('all'); // 'all', 'income', 'spent', 'transfer'
+  const [txFilter, setTxFilter] = useState('all');
 
-  // Calculator State
+  // Calculadora
   const [calcBaseAmount, setCalcBaseAmount] = useState('');
   const [calcBaseCurrency, setCalcBaseCurrency] = useState('BS');
 
-  const getAmountInBs = () => {
+  const amountBs = (() => {
     if (!calcBaseAmount) return '';
     const num = Number(calcBaseAmount);
     if (isNaN(num)) return '';
@@ -88,22 +88,16 @@ function App() {
       case 'CUSTOM': return num * (veRates.custom || 0);
       default: return '';
     }
-  };
-  const amountBs = getAmountInBs();
+  })();
 
-  useEffect(() => {
-    setIsFabExpanded(false);
-  }, [currentPage]);
-
-  // Balances State
+  // Modales
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
   const [assetInitialType, setAssetInitialType] = useState('fiat');
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedFilters, setSelectedFilters] = useState([]);
   const [adjustingAsset, setAdjustingAsset] = useState(null);
 
-  // Transactions State
-  const [txModalMode, setTxModalMode] = useState(null); // 'select', 'form', or null
+  const [txModalMode, setTxModalMode] = useState(null);
   const [txValidationError, setTxValidationError] = useState('');
   const [newTx, setNewTx] = useState({
     id: '', assetId: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal()
@@ -111,131 +105,12 @@ function App() {
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedTxs, setSelectedTxs] = useState([]);
   const [flippedTxId, setFlippedTxId] = useState(null);
-  const [isFabExpanded, setIsFabExpanded] = useState(false);
-  const [toast, setToast] = useState(null);
-  const [confirmConfig, setConfirmConfig] = useState(null);
-
-  const requestConfirm = (options) => {
-    setConfirmConfig({ isOpen: true, ...options });
-  };
-
-  const showToast = (msg, type = 'success') => {
-    setToast(typeof msg === 'string' && type !== 'success' ? { message: msg, type } : msg);
-    setTimeout(() => setToast(null), 3000);
-  };
-
-  const appLock = useAppLock({ showToast });
-  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
-
-  useEffect(() => {
-    try {
-      const pendingToast = sessionStorage.getItem('pending_toast');
-      if (pendingToast) {
-        sessionStorage.removeItem('pending_toast');
-        const parsed = JSON.parse(pendingToast);
-        showToast(parsed.message, parsed.type);
-      }
-    } catch {
-      // Ignore sessionStorage errors
-    }
-  }, []);
-
-  useEffect(() => {
-    if (user?.id) {
-      const owner = localStorage.getItem('finanzas_data_owner');
-      const hasLocalData = (assets.length > 0 || transactions.length > 0 || obligations.length > 0);
-
-      // Si hay un dueño guardado previo y es distinto al usuario logueado
-      if (owner && owner !== user.id && hasLocalData) {
-        requestConfirm({
-          title: 'Cuenta diferente detectada',
-          message: 'Hay datos en este teléfono de otra sesión. ¿Deseas conservarlos y combinarlos con tu cuenta, o empezar con los datos de tu cuenta en la nube?',
-          confirmText: 'Combinar y subir',
-          cancelText: 'Usar solo mi nube',
-          onConfirm: async () => {
-            localStorage.setItem('finanzas_data_owner', user.id);
-            await handleSyncNow();
-          },
-          onCancel: async () => {
-            localStorage.setItem('finanzas_data_owner', user.id);
-            localStorage.removeItem('finanzas_sync_queue');
-            const remote = await syncService.fetchRemoteAll(user.id);
-            if (remote) {
-              setAssets(mergeById([], remote.assets || []));
-              setTransactions(mergeById([], remote.transactions || []));
-              setObligations(mergeById([], remote.obligations || []));
-              setBudgets(mergeBudgets({}, remote.budgets || {}));
-            } else {
-              setAssets([]);
-              setTransactions([]);
-              setObligations([]);
-              setBudgets({});
-            }
-          }
-        });
-      } else {
-        localStorage.setItem('finanzas_data_owner', user.id);
-        handleSyncNow();
-      }
-    }
-  }, [user?.id]);
-
-  // Migración local: asignar assetId (y destAssetId) a movimientos antiguos
-  useEffect(() => {
-    if (assets.length > 0 && transactions.length > 0) {
-      const hasUnmigrated = transactions.some(
-        t => (!t.assetId && t.origin) || (t.type === 'transfer' && !t.destAssetId && t.destOrigin)
-      );
-      if (hasUnmigrated) {
-        const { migratedTransactions, hasChanges } = migrateTransactionsAssetIds(transactions, assets);
-        if (hasChanges) {
-          setTransactions(migratedTransactions);
-        }
-      }
-    }
-  }, [assets, transactions, setTransactions]);
-
-  const handleSyncNow = async () => {
-    if (!user?.id) {
-      setIsAuthModalOpen(true);
-      return;
-    }
-    showToast('Sincronizando con la nube...');
-    // 1. Flush local pending queue first
-    await syncService.flushQueue();
-
-    // 2. Fetch remote
-    const remote = await syncService.fetchRemoteAll(user.id);
-    if (remote) {
-      // 3. Merge by ID with local state
-      setAssets(prev => {
-        const merged = mergeById(prev, remote.assets || []);
-        return merged;
-      });
-      setTransactions(prev => {
-        const merged = mergeById(prev, remote.transactions || []);
-        return merged;
-      });
-      setObligations(prev => {
-        const merged = mergeById(prev, remote.obligations || []);
-        return merged;
-      });
-      setBudgets(prev => {
-        const merged = mergeBudgets(prev, remote.budgets || {});
-        return merged;
-      });
-      showToast('Datos sincronizados con éxito');
-    } else {
-      showToast('Sincronización completada');
-    }
-  };
 
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [newTransfer, setNewTransfer] = useState({
     sourceAssetId: '', amountDeducted: '', destAssetId: '', amountReceived: '', hasCommission: false, commissionAmount: ''
   });
 
-  // Obligations State
   const [isObModalOpen, setIsObModalOpen] = useState(false);
   const [newOb, setNewOb] = useState({
     id: '', type: 'pay', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: todayLocal(), totalInstallments: '', paidInstallments: 0
@@ -243,6 +118,17 @@ function App() {
   const [payingOb, setPayingOb] = useState(null);
   const [payData, setPayData] = useState({ assetId: '', actualAmount: '', rateType: 'BCV_USD', customRate: '' });
   const [flippedObId, setFlippedObId] = useState(null);
+
+  const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
+  const [isFabExpanded, setIsFabExpanded] = useState(false);
+
+  const appLock = useAppLock({ showToast });
+
+  useEffect(() => {
+    setIsFabExpanded(false);
+  }, [currentPage]);
 
   // Bloquear scroll de fondo cuando cualquier modal esté abierto
   const isAnyModalActive = Boolean(
@@ -269,53 +155,14 @@ function App() {
     }
   }, [isAnyModalActive]);
 
-  // Asset Actions
+  // Manejadores
   const handleAddAsset = (assetData) => {
     addAsset(assetData);
   };
 
   const handleAdjustBalance = (asset, delta, newAmount) => {
     if (!asset || delta === 0) return;
-    const currentAsset = assets.find(a => a.id === asset.id);
-    if (!currentAsset) {
-      showToast('La cuenta a ajustar no existe', 'error');
-      return;
-    }
-
-    const parsedDelta = parseAmount(delta);
-    if (isNaN(parsedDelta) || parsedDelta === 0) return;
-    const roundedDelta = round(parsedDelta, asset.name);
-
-    const updated = updateAssetBalance(asset.id, roundedDelta);
-    if (!updated) {
-      showToast('Error al actualizar el saldo de la cuenta', 'error');
-      return;
-    }
-
-    const curr = (asset.name || '').toUpperCase();
-    const rateSnapshot = rates[curr] ?? (curr === 'USD' || curr === 'USDT' || curr === 'USDC' ? 1 : 0);
-    const diffAbs = Math.abs(roundedDelta);
-    const usdEquivalent = convert(diffAbs, curr, 'USD', rates);
-    const parsedNew = parseAmount(newAmount);
-    const targetAmountDisplay = !isNaN(parsedNew) ? round(parsedNew, asset.name) : round(add(asset.amount, roundedDelta), asset.name);
-
-    addTransaction({
-      id: crypto.randomUUID(),
-      assetId: asset.id,
-      type: 'adjustment',
-      currency: asset.name,
-      amount: diffAbs,
-      delta: roundedDelta,
-      origin: asset.location,
-      category: 'Ajuste de saldo',
-      subcategory: roundedDelta > 0 ? 'Ajuste positivo' : 'Ajuste negativo',
-      notes: `Ajuste manual de ${asset.amount} a ${targetAmountDisplay} ${asset.name}`,
-      date: new Date().toISOString(),
-      rateSnapshot,
-      usdEquivalent
-    });
-
-    showToast('Balance ajustado');
+    adjustAssetBalance(asset, newAmount, delta);
   };
 
   const handleDeleteAsset = (id, name, location) => {
@@ -331,7 +178,6 @@ function App() {
     });
   };
 
-  // Obligation Actions
   const handleAddObligation = (e) => {
     e.preventDefault();
     const parsedAmount = parseAmount(newOb.amount);
@@ -348,15 +194,18 @@ function App() {
     } else {
       addObligation({ ...newOb, amount: finalAmount, totalInstallments: finalInstallments });
     }
+
     setIsObModalOpen(false);
-    setNewOb({ id: '', type: 'pay', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: todayLocal(), totalInstallments: '', paidInstallments: 0, dateCreated: '' });
-    showToast('Deuda guardada');
+    setNewOb({
+      id: '', type: 'pay', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: todayLocal(), totalInstallments: '', paidInstallments: 0
+    });
+    showToast(newOb.id ? 'Obligación actualizada' : 'Obligación creada');
   };
 
-  const handleDeleteObligation = (id, message = '¿Eliminar esta obligación?') => {
+  const handleDeleteObligation = (id) => {
     requestConfirm({
       title: 'Eliminar obligación',
-      message,
+      message: '¿Estás seguro de que quieres eliminar este compromiso?',
       confirmText: 'Eliminar',
       variant: 'danger',
       onConfirm: () => {
@@ -366,42 +215,17 @@ function App() {
     });
   };
 
-  const applyDomainResult = (result) => {
-    if (!result) return false;
-    if (!result.success) {
-      if (result.error) showToast(result.error, 'error');
-      return false;
-    }
-    if (result.nextAssets) setAssets(result.nextAssets);
-    if (result.nextTransactions) setTransactions(result.nextTransactions);
-    if (result.nextObligations) setObligations(result.nextObligations);
-
-    if (user?.id && result.syncChanges?.length) {
-      result.syncChanges.forEach(change => {
-        syncService.queueChange(change.table, change.type, change.record, user.id);
-      });
-    }
-
-    if (result.toastMessage) showToast(result.toastMessage);
-    return true;
-  };
-
   const handlePayObligationSubmit = (e) => {
     e.preventDefault();
     if (!payingOb || !payData.assetId || !payData.actualAmount) return;
 
-    const result = executePayObligation(
-      { assets, transactions, obligations, rates, veRates },
-      { payingOb, payData }
-    );
-
-    if (applyDomainResult(result)) {
+    const res = runPayObligation(payingOb, payData);
+    if (res.success) {
       setPayingOb(null);
       setPayData({ assetId: '', actualAmount: '', rateType: 'BCV_USD', customRate: '' });
     }
   };
 
-  // Transaction Actions
   const handleEditTransaction = (tx) => {
     const targetAsset = (tx.assetId && assets.find(a => a.id === tx.assetId)) ||
                         assets.find(a => (a.name || '').toUpperCase() === (tx.currency || '').toUpperCase() && a.location === tx.origin);
@@ -410,7 +234,7 @@ function App() {
       assetId: targetAsset ? targetAsset.id : (tx.assetId || ''),
       type: tx.type,
       currency: tx.currency,
-      amount: tx.amount.toString(),
+      amount: tx.amount,
       origin: tx.origin,
       category: tx.category || '',
       subcategory: tx.subcategory || '',
@@ -424,38 +248,27 @@ function App() {
     e.preventDefault();
     setTxValidationError('');
 
-    const result = executeAddOrEditTransaction(
-      { assets, transactions, rates },
-      newTx
-    );
-
-    if (result.success) {
-      applyDomainResult(result);
+    const res = saveTransaction(newTx);
+    if (res.success) {
       setTxModalMode(null);
       setTxValidationError('');
       setNewTx({ id: '', assetId: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
     } else {
-      setTxValidationError(result.error);
-      showToast(result.error, 'error');
+      setTxValidationError(res.error);
     }
   };
+
   const handleTransferSubmit = (e) => {
     e.preventDefault();
     setTxValidationError('');
 
-    const result = executeTransfer(
-      { assets, transactions, rates },
-      newTransfer
-    );
-
-    if (result.success) {
-      applyDomainResult(result);
+    const res = transferFunds(newTransfer);
+    if (res.success) {
       setIsTransferModalOpen(false);
       setTxValidationError('');
       setNewTransfer({ sourceAssetId: '', amountDeducted: '', destAssetId: '', amountReceived: '', hasCommission: false, commissionAmount: '' });
     } else {
-      setTxValidationError(result.error);
-      showToast(result.error, 'error');
+      setTxValidationError(res.error);
     }
   };
 
@@ -471,8 +284,7 @@ function App() {
       confirmText: 'Eliminar',
       variant: 'danger',
       onConfirm: () => {
-        const result = executeBulkDelete({ assets, transactions }, selectedTxs);
-        applyDomainResult(result);
+        bulkDeleteTransactions(selectedTxs);
         setSelectedTxs([]);
         setDeleteMode(false);
       }
@@ -487,16 +299,15 @@ function App() {
     }
   };
 
-  // Computations for Summary
+  // Resumen y cálculos
   const grandTotalUsd = assets.reduce((total, asset) => {
-    const sym = (asset.name || '').trim().toUpperCase();
-    const usdVal = convert(asset.amount, sym, 'USD', rates);
-    return add(total, usdVal);
+    const sym = (asset.name || 'USD').toUpperCase();
+    return add(total, convert(asset.amount, sym, 'USD', rates));
   }, 0);
 
   const accountTotalsUsd = assets.reduce((acc, asset) => {
     if (!acc[asset.location]) acc[asset.location] = 0;
-    const sym = (asset.name || '').trim().toUpperCase();
+    const sym = (asset.name || 'USD').toUpperCase();
     const usdVal = convert(asset.amount, sym, 'USD', rates);
     acc[asset.location] = add(acc[asset.location], usdVal);
     return acc;
@@ -519,7 +330,7 @@ function App() {
   const nextPayments = obligations.filter(ob => ob.type === 'pay' && (!ob.totalInstallments || Number(ob.paidInstallments) < Number(ob.totalInstallments))).slice(0, 3);
   const nextCollections = obligations.filter(ob => ob.type === 'receive' && (!ob.totalInstallments || Number(ob.paidInstallments) < Number(ob.totalInstallments))).slice(0, 3);
 
-  // Dashboard Analytics Computations
+  // Filtros de fecha para Analytics
   const now = new Date();
   const filterDate = new Date();
   if (timeFrame === 'daily') {
@@ -565,13 +376,7 @@ function App() {
       variant: 'danger',
       onConfirm: () => {
         const mock = generateTestData(rates);
-        localStorage.setItem('personal_assets', JSON.stringify(mock.assets));
-        localStorage.setItem('personal_transactions', JSON.stringify(mock.transactions));
-        localStorage.setItem('obligations', JSON.stringify(mock.obligations));
-        localStorage.setItem('personal_budgets', JSON.stringify(mock.budgets));
-        localStorage.removeItem('finanzas_sync_queue');
         localStorage.setItem(TEST_DATA_SEED_KEY, 'applied');
-
         setAssets(mock.assets);
         setTransactions(mock.transactions);
         setObligations(mock.obligations);
@@ -588,33 +393,10 @@ function App() {
       confirmText: 'Sí, limpiar todo',
       variant: 'danger',
       onConfirm: () => {
-        localStorage.setItem('personal_assets', JSON.stringify([]));
-        localStorage.setItem('personal_transactions', JSON.stringify([]));
-        localStorage.setItem('obligations', JSON.stringify([]));
-        localStorage.setItem('personal_budgets', JSON.stringify({}));
-        localStorage.removeItem('finanzas_sync_queue');
-        localStorage.removeItem(TEST_DATA_SEED_KEY);
-
-        setAssets([]);
-        setTransactions([]);
-        setObligations([]);
-        setBudgets({});
+        clearLocalData();
         showToast('Todos los datos fueron eliminados. App lista desde cero.');
       }
     });
-  };
-
-  const handleExportBackup = async () => {
-    try {
-      const filename = await exportBackup({ assets, transactions, obligations, veRates, budgets });
-      showToast(`Copia de seguridad exportada con éxito (${filename})`);
-    } catch (err) {
-      if (err?.message && String(err.message).toLowerCase().includes('cancel')) {
-        return;
-      }
-      showToast('Error al exportar copia de seguridad', 'error');
-      console.error(err);
-    }
   };
 
   return (
@@ -624,7 +406,6 @@ function App() {
       <div className="content-area" key={currentPage}>
         <div className="page-enter">
           <Suspense fallback={<div style={{ padding: '3rem 1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>Cargando...</div>}>
-            {/* DASHBOARD PAGE */}
             {currentPage === 'dashboard' && (
               <DashboardView
                 isBalanceHidden={isBalanceHidden}
@@ -652,7 +433,6 @@ function App() {
               />
             )}
 
-            {/* BALANCES PAGE */}
             {currentPage === 'balances' && (
               <BalancesView
                 grandTotalUsd={grandTotalUsd}
@@ -673,12 +453,11 @@ function App() {
                 onAdjustBalance={handleAdjustBalance}
                 auth={auth}
                 onOpenAuthModal={() => setIsAuthModalOpen(true)}
-                onExportBackup={handleExportBackup}
+                onExportBackup={exportBackup}
                 onNavigateToCalculator={() => setCurrentPage('calculator')}
               />
             )}
 
-            {/* OBLIGATIONS PAGE */}
             {currentPage === 'obligations' && (
               <ObligationsView
                 obligations={obligations}
@@ -701,7 +480,6 @@ function App() {
               />
             )}
 
-            {/* CALCULATOR PAGE */}
             {currentPage === 'calculator' && (
               <CalculatorView
                 calcBaseCurrency={calcBaseCurrency}
@@ -726,7 +504,7 @@ function App() {
                 onClearAllData={clearAllAppData}
                 auth={auth}
                 onOpenAuthModal={() => setIsAuthModalOpen(true)}
-                onSyncNow={handleSyncNow}
+                onSyncNow={syncNow}
                 onRequestConfirm={requestConfirm}
                 onRestoreBackup={(data) => {
                   setAssets(data.assets);
@@ -738,7 +516,6 @@ function App() {
               />
             )}
 
-            {/* TRANSACTIONS PAGE */}
             {currentPage === 'transactions' && (
               <TransactionsView
                 transactions={transactions}
@@ -903,11 +680,10 @@ function App() {
                   >
                     <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#311b22', color: '#ef4444' }}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="12" y1="5" x2="12" y2="19"></line>
-                        <polyline points="19 12 12 19 5 12"></polyline>
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                       </svg>
                     </span>
-                    <span style={{ color: '#f1f5f9' }}>Lo que debo / Cuentas</span>
+                    <span style={{ color: '#f1f5f9' }}>Deuda por pagar</span>
                   </button>
 
                   <button
@@ -934,11 +710,10 @@ function App() {
                   >
                     <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#14332b', color: '#10b981' }}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="12" y1="19" x2="12" y2="5"></line>
-                        <polyline points="5 12 12 5 19 12"></polyline>
+                        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                       </svg>
                     </span>
-                    <span style={{ color: '#f1f5f9' }}>Me deben</span>
+                    <span style={{ color: '#f1f5f9' }}>Cobro pendiente</span>
                   </button>
                 </div>
               )}
@@ -965,11 +740,11 @@ function App() {
                   >
                     <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#14332b', color: '#10b981' }}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                        <line x1="12" y1="2" x2="12" y2="22"></line>
                         <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                       </svg>
                     </span>
-                    <span style={{ color: '#f1f5f9' }}>Cuenta Fiat / Banco</span>
+                    <span style={{ color: '#f1f5f9' }}>Cuenta Bancaria / Efectivo</span>
                   </button>
 
                   <button
@@ -990,73 +765,100 @@ function App() {
                       cursor: 'pointer'
                     }}
                   >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#312615', color: '#f59e0b' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#172742', color: '#3b82f6' }}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="9"></circle>
-                        <path d="M10 8h3a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2h-3"></path>
-                        <path d="M10 12h3.5a2 2 0 0 1 2 2v0a2 2 0 0 1-2 2H10"></path>
-                        <path d="M10 6v12"></path>
+                        <path d="M11.767 19.089c4.924.868 6.14-6.025 1.216-6.894m-1.216 6.894L5.86 18.047m5.908 1.042-.347 1.97m1.563-8.864c4.924.869 6.14-6.025 1.215-6.893m-1.215 6.893-3.94-.694m5.155-6.2-5.155-.909m5.155.91-.348 1.97M7.076 11.153l-3.94-.694m3.94.694 1.216-6.894m-1.216 6.894L5.86 18.047m1.216-6.894L4.86 6.279"></path>
                       </svg>
                     </span>
-                    <span style={{ color: '#f1f5f9' }}>Billetera Cripto</span>
+                    <span style={{ color: '#f1f5f9' }}>Criptomoneda / Token</span>
                   </button>
                 </div>
               )}
 
               <button
-                type="button"
-                className="fab"
-                style={{
-                  transform: isFabExpanded ? 'rotate(45deg)' : 'none',
-                  transition: 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
-                  zIndex: 70
-                }}
+                className={`fab-btn ${isFabExpanded ? 'expanded' : ''}`}
                 onClick={() => setIsFabExpanded(!isFabExpanded)}
+                aria-label="Acciones rápidas"
+                style={{
+                  position: 'fixed',
+                  bottom: 'calc(60px + env(safe-area-inset-bottom))',
+                  right: '1.25rem',
+                  zIndex: 80
+                }}
               >
-                +
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'transform 0.25s ease', transform: isFabExpanded ? 'rotate(45deg)' : 'none' }}>
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
               </button>
             </>
           )}
         </>
       )}
 
-      {/* BOTTOM NAV */}
-      <nav className="floating-nav">
-        <button className={`nav-item ${currentPage === 'dashboard' ? 'active' : ''}`} onClick={() => { setCurrentPage('dashboard'); setIsFabExpanded(false); }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
-            <path d="M22 12A10 10 0 0 0 12 2v10z" />
+      {/* BOTTOM NAVIGATION BAR */}
+      <nav className="bottom-nav">
+        <button
+          className={`nav-btn ${currentPage === 'dashboard' ? 'active' : ''}`}
+          onClick={() => setCurrentPage('dashboard')}
+          type="button"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="7" height="9" />
+            <rect x="14" y="3" width="7" height="5" />
+            <rect x="14" y="12" width="7" height="9" />
+            <rect x="3" y="16" width="7" height="5" />
           </svg>
           Inicio
         </button>
-        <button className={`nav-item ${currentPage === 'balances' ? 'active' : ''}`} onClick={() => { setCurrentPage('balances'); setIsFabExpanded(false); }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
-            <rect x="14" y="9" width="7" height="6" rx="1.5" />
-            <circle cx="17" cy="12" r="0.8" fill="currentColor" />
+
+        <button
+          className={`nav-btn ${currentPage === 'balances' ? 'active' : ''}`}
+          onClick={() => setCurrentPage('balances')}
+          type="button"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="2" y="4" width="20" height="16" rx="2" />
+            <line x1="12" y1="8" x2="12" y2="16" />
+            <line x1="8" y1="12" x2="16" y2="12" />
           </svg>
           Cuentas
         </button>
-        <button className={`nav-item ${currentPage === 'transactions' ? 'active' : ''}`} onClick={() => { setCurrentPage('transactions'); setIsFabExpanded(false); }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M7 20V4m0 0L3 8m4-4 4 4" />
-            <path d="M17 4v16m0 0 4-4m-4 4-4-4" />
+
+        <button
+          className={`nav-btn ${currentPage === 'transactions' ? 'active' : ''}`}
+          onClick={() => setCurrentPage('transactions')}
+          type="button"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="12" y1="1" x2="12" y2="23" />
+            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
           </svg>
           Movimientos
         </button>
-        <button className={`nav-item ${currentPage === 'obligations' ? 'active' : ''}`} onClick={() => { setCurrentPage('obligations'); setIsFabExpanded(false); }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 2h12a2 2 0 0 1 2 2v17l-3-2-3 2-3-2-3 2-3-2V4a2 2 0 0 1 2-2z" />
-            <path d="M12 6.5v8" />
-            <path d="M14.2 8.5a1.8 1.3 0 0 0-2.2-1.2h-.8a1.3 1.3 0 0 0 0 2.6h1.6a1.3 1.3 0 0 1 0 2.6H12a1.8 1.3 0 0 1-2.2-1.2" />
+
+        <button
+          className={`nav-btn ${currentPage === 'obligations' ? 'active' : ''}`}
+          onClick={() => setCurrentPage('obligations')}
+          type="button"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="16" y1="13" x2="8" y2="13" />
+            <line x1="16" y1="17" x2="8" y2="17" />
+            <polyline points="10 9 9 9 8 9" />
           </svg>
           Deudas
         </button>
-        <button className={`nav-item ${currentPage === 'calculator' ? 'active' : ''}`} onClick={() => { setCurrentPage('calculator'); setIsFabExpanded(false); }}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M17 2.1l4 4-4 4" />
-            <path d="M3 11v-1a4 4 0 0 1 4-4h14" />
-            <path d="M7 21.9l-4-4 4-4" />
+
+        <button
+          className={`nav-btn ${currentPage === 'calculator' ? 'active' : ''}`}
+          onClick={() => setCurrentPage('calculator')}
+          type="button"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
             <path d="M21 13v1a4 4 0 0 1-4 4H3" />
             <path d="M12 8.5v7" />
             <path d="M13.8 10.2a1.5 1.1 0 0 0-1.8-.9h-.7a1.1 1.1 0 0 0 0 2.2h1.4a1.1 1.1 0 0 1 0 2.2H12a1.5 1.1 0 0 1-1.8-.9" />
@@ -1146,25 +948,14 @@ function App() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         auth={auth}
-        onSyncNow={handleSyncNow}
+        onSyncNow={syncNow}
         showToast={showToast}
         localState={{ assets, transactions, obligations, budgets }}
         onRequestConfirm={requestConfirm}
-        onExportBackup={handleExportBackup}
+        onExportBackup={exportBackup}
         onOpenSecurityModal={() => setIsSecurityModalOpen(true)}
         hasPin={appLock.hasPin}
-        onClearLocalData={() => {
-          localStorage.removeItem('personal_assets');
-          localStorage.removeItem('personal_transactions');
-          localStorage.removeItem('obligations');
-          localStorage.removeItem('personal_budgets');
-          localStorage.removeItem('finanzas_sync_queue');
-          localStorage.removeItem('finanzas_data_owner');
-          setAssets([]);
-          setTransactions([]);
-          setObligations([]);
-          setBudgets({});
-        }}
+        onClearLocalData={clearLocalData}
       />
 
       <ConfirmModal
@@ -1172,7 +963,6 @@ function App() {
         onCancel={() => setConfirmConfig(null)}
       />
 
-      {/* BLOQUEO DE LA APP */}
       <PinLockModal
         isOpen={appLock.isLocked}
         bioEnabled={appLock.bioEnabled}
@@ -1182,7 +972,6 @@ function App() {
         onUnlockWithBiometrics={appLock.unlockWithBiometrics}
       />
 
-      {/* CONFIGURACIÓN DE SEGURIDAD (PIN Y BIOMETRÍA) */}
       <SecuritySettingsModal
         isOpen={isSecurityModalOpen}
         onClose={() => setIsSecurityModalOpen(false)}
@@ -1197,9 +986,46 @@ function App() {
       />
 
       {/* TOAST */}
-      <Toast message={toast} />
+      <Toast message={showToast ? undefined : null} />
     </div>
   );
 }
 
-export default App;
+export default function App() {
+  const [toast, setToast] = useState(null);
+  const [confirmConfig, setConfirmConfig] = useState(null);
+
+  const showToast = (msg, type = 'success') => {
+    setToast(typeof msg === 'string' && type !== 'success' ? { message: msg, type } : msg);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const requestConfirm = (options) => {
+    setConfirmConfig({ isOpen: true, ...options });
+  };
+
+  useEffect(() => {
+    try {
+      const pendingToast = sessionStorage.getItem('pending_toast');
+      if (pendingToast) {
+        sessionStorage.removeItem('pending_toast');
+        const parsed = JSON.parse(pendingToast);
+        showToast(parsed.message, parsed.type);
+      }
+    } catch {
+      // Ignore sessionStorage errors
+    }
+  }, []);
+
+  return (
+    <FinanceProvider showToast={showToast} requestConfirm={requestConfirm}>
+      <AppContent
+        showToast={showToast}
+        confirmConfig={confirmConfig}
+        setConfirmConfig={setConfirmConfig}
+        requestConfirm={requestConfirm}
+      />
+      <Toast message={toast} />
+    </FinanceProvider>
+  );
+}
