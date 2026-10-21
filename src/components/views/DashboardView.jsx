@@ -439,8 +439,8 @@ export default function DashboardView({
               paddingBottom: '2px'
             }}
           >
-            {['daily', 'weekly', 'monthly', 'all'].map(tf => {
-              const tfLabels = { daily: 'Diario', weekly: 'Semanal', monthly: 'Mensual', all: 'Todo' };
+            {['daily', 'weekly', 'monthly', 'last30', 'all'].map(tf => {
+              const tfLabels = { daily: 'Diario', weekly: 'Semanal', monthly: 'Mensual', last30: 'Últimos 30 días', all: 'Todo' };
               return (
                 <button
                   key={tf}

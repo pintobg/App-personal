@@ -347,24 +347,40 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
   // Filtros de fecha y métricas para Analytics memoizados
   const { filteredSpents, filteredIncomes, totalSpentUsd, totalIncomeUsd, pieData } = useMemo(() => {
     const now = new Date();
-    const filterDate = new Date();
+    let filterStart = null;
+    let filterEnd = null;
+
     if (timeFrame === 'daily') {
-      filterDate.setHours(0, 0, 0, 0);
+      filterStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
     } else if (timeFrame === 'weekly') {
-      filterDate.setDate(now.getDate() - 7);
+      filterStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     } else if (timeFrame === 'monthly') {
-      filterDate.setMonth(now.getMonth() - 1);
+      // Mes calendario actual
+      filterStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      filterEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    } else if (timeFrame === 'last30') {
+      // Últimos 30 días móviles
+      filterStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
     }
+
+    const matchesDate = (txDate) => {
+      if (!filterStart) return true;
+      const d = parseLocalDate(toLocalDateString(txDate));
+      if (filterEnd) {
+        return d >= filterStart && d <= filterEnd;
+      }
+      return d >= filterStart;
+    };
 
     const allSpents = transactions.filter(t => t.type === 'spent');
     const spents = timeFrame === 'all'
       ? allSpents
-      : allSpents.filter(t => parseLocalDate(toLocalDateString(t.date)) >= filterDate);
+      : allSpents.filter(t => matchesDate(t.date));
 
     const allIncomes = transactions.filter(t => t.type === 'income');
     const incomes = timeFrame === 'all'
       ? allIncomes
-      : allIncomes.filter(t => parseLocalDate(toLocalDateString(t.date)) >= filterDate);
+      : allIncomes.filter(t => matchesDate(t.date));
 
     const spentUsd = spents.reduce((acc, t) => add(acc, getTxUsdEquivalent(t, rates)), 0);
     const incomeUsd = incomes.reduce((acc, t) => add(acc, getTxUsdEquivalent(t, rates)), 0);
