@@ -6,6 +6,7 @@ import { useTransactions } from '../hooks/useTransactions';
 import { useObligations } from '../hooks/useObligations';
 import { useBudgets } from '../hooks/useBudgets';
 import { syncService } from '../services/syncService';
+import { db, clearAllDB } from '../services/db';
 import { exportBackup } from '../utils/backup';
 import { mergeById, mergeBudgets } from '../services/merge';
 import { migrateTransactionsAssetIds } from '../domain/balances';
@@ -246,6 +247,7 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     localStorage.removeItem('personal_budgets');
     localStorage.removeItem('finanzas_sync_queue');
     localStorage.removeItem('finanzas_data_owner');
+    clearAllDB();
     setAssets([]);
     setTransactions([]);
     setObligations([]);

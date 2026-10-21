@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { getTxRateSnapshot } from '../utils/formatters';
 import { syncService } from '../services/syncService';
+import { loadTransactionsFromDB, persistTransactionsToDB } from '../services/db';
 
 export function useTransactions(currentRates = {}, user = null) {
   const [transactions, setTransactions] = useState(() => {
@@ -22,8 +23,26 @@ export function useTransactions(currentRates = {}, user = null) {
     transactionsRef.current = transactions;
   }, [transactions]);
 
+  // Cargar de IndexedDB con migración automática al montar
   useEffect(() => {
-    localStorage.setItem('personal_transactions', JSON.stringify(transactions));
+    let isMounted = true;
+    loadTransactionsFromDB().then(dbTxs => {
+      if (isMounted && Array.isArray(dbTxs) && dbTxs.length > 0) {
+        setTransactions(prev => {
+          // Si el estado inicial estaba vacío o difiere, adoptar los de IndexedDB
+          if (prev.length === 0) return dbTxs;
+          return prev;
+        });
+      }
+    }).catch(err => {
+      console.warn('[useTransactions] Error loading from DB:', err);
+    });
+    return () => { isMounted = false; };
+  }, []);
+
+  // Persistir en IndexedDB (y localStorage como fallback)
+  useEffect(() => {
+    persistTransactionsToDB(transactions);
   }, [transactions]);
 
   const addTransaction = (transaction, customRates) => {
