@@ -85,6 +85,29 @@ jobs:
           name: web-dist
           path: dist
 
+      - name: Configurar Java 17 para Android
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Instalar dependencias para Capacitor
+        run: npm ci
+
+      - name: Sincronizar Capacitor y compilar APK de Android
+        run: |
+          npx cap sync android
+          chmod +x android/gradlew
+          (cd android && ./gradlew assembleDebug --no-daemon)
+          cp android/app/build/outputs/apk/debug/app-debug.apk dist/Finanzas.apk
+
+      - name: Subir APK como artefacto de GitHub Actions
+        uses: actions/upload-artifact@v4
+        with:
+          name: Finanzas-APK
+          path: dist/Finanzas.apk
+          retention-days: 30
+
       - name: Generar bundle OTA firmado y calcular checksum
         id: bundle_step
         env:
@@ -93,9 +116,9 @@ jobs:
         run: |
           set -e
           
-          # 1. Empaquetar el bundle web en dist.zip usando la utilidad nativa zip de Linux
+          # 1. Empaquetar el bundle web en dist.zip (excluyendo el archivo .apk)
           echo "Empaquetando contenido de dist en dist.zip..."
-          (cd dist && zip -r ../dist.zip .)
+          (cd dist && zip -r ../dist.zip . -x "Finanzas.apk")
           
           SESSION_KEY=""
           
