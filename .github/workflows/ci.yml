@@ -61,6 +61,10 @@ jobs:
     needs: verify
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -88,29 +92,23 @@ jobs:
           CAPGO_PRIVATE_KEY: ${{ secrets.CAPGO_PRIVATE_KEY }}
         run: |
           set -e
-          SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
           
-          # Empaquetar el bundle web
+          # 1. Empaquetar el bundle web en dist.zip
           npx @capgo/cli bundle zip com.braian.finanzas --path ./dist --name dist.zip --bundle "0.0.0" --no-code-check
           
-          ZIP_FILE="dist.zip"
-          if [ ! -f "$ZIP_FILE" ]; then
-            # Buscar el zip generado si el nombre incluyó appId
-            ZIP_FILE=$(ls *.zip | head -n 1)
-          fi
+          SESSION_KEY=""
           
-          # Firmar y cifrar el bundle si la llave privada está configurada en Secrets
+          # 2. Firmar/Cifrar el bundle si la llave privada está configurada en Secrets
           if [ -n "$CAPGO_PRIVATE_KEY" ]; then
             echo "Firmando bundle OTA con llave privada..."
             echo "$CAPGO_PRIVATE_KEY" > capgo_private.key
             chmod 600 capgo_private.key
             
-            PLAIN_CHECKSUM=$(sha256sum "$ZIP_FILE" | awk '{print $1}')
-            ENCRYPT_OUT=$(npx @capgo/cli bundle encrypt "$ZIP_FILE" "$PLAIN_CHECKSUM" --key capgo_private.key --json)
+            PLAIN_CHECKSUM=$(node -e 'console.log(require("crypto").createHash("sha256").update(require("fs").readFileSync("dist.zip")).digest("hex"))')
+            ENCRYPT_OUT=$(npx @capgo/cli bundle encrypt dist.zip "$PLAIN_CHECKSUM" --key capgo_private.key --json 2>/dev/null || echo "{}")
             
-            # Extraer sessionKey / ivSessionKey si la CLI generó cifrado
-            SESSION_KEY=$(echo "$ENCRYPT_OUT" | jq -r '.ivSessionKey // empty')
-            ENCRYPTED_FILE=$(echo "$ENCRYPT_OUT" | jq -r '.filename // empty')
+            SESSION_KEY=$(node -e 'try { const o = JSON.parse(process.argv[1]); console.log(o.ivSessionKey || ""); } catch { console.log(""); }' "$ENCRYPT_OUT")
+            ENCRYPTED_FILE=$(node -e 'try { const o = JSON.parse(process.argv[1]); console.log(o.filename || ""); } catch { console.log(""); }' "$ENCRYPT_OUT")
             
             if [ -n "$ENCRYPTED_FILE" ] && [ -f "$ENCRYPTED_FILE" ]; then
               mv "$ENCRYPTED_FILE" dist.zip
@@ -119,38 +117,36 @@ jobs:
             rm -f capgo_private.key
           else
             echo "Aviso: CAPGO_PRIVATE_KEY no está configurada. Continuando con bundle estándar..."
-            SESSION_KEY=""
           fi
           
-          # Checksum final del paquete zip que descargarán los teléfonos
-          FINAL_CHECKSUM=$(sha256sum dist.zip | awk '{print $1}')
-          
-          # Generar manifiesto version.json
-          if [ -n "$SESSION_KEY" ]; then
-            cat <<EOF > dist/version.json
-          {
-            "version": "${GITHUB_SHA}",
-            "shortVersion": "v-${SHORT_SHA}",
-            "updatedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-            "bundleUrl": "https://pintobg.github.io/App-personal/dist.zip",
-            "checksum": "${FINAL_CHECKSUM}",
-            "sessionKey": "${SESSION_KEY}"
-          }
-          EOF
-          else
-            cat <<EOF > dist/version.json
-          {
-            "version": "${GITHUB_SHA}",
-            "shortVersion": "v-${SHORT_SHA}",
-            "updatedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-            "bundleUrl": "https://pintobg.github.io/App-personal/dist.zip",
-            "checksum": "${FINAL_CHECKSUM}"
-          }
-          EOF
-          fi
-          
-          # Mover dist.zip dentro de dist para ser publicado en GitHub Pages
-          cp dist.zip dist/dist.zip
+          # 3. Generar version.json y colocar dist.zip dentro de dist con Node.js
+          export SESSION_KEY
+          node -e '
+            const fs = require("fs");
+            const crypto = require("crypto");
+            
+            const zipBuffer = fs.readFileSync("dist.zip");
+            const finalChecksum = crypto.createHash("sha256").update(zipBuffer).digest("hex");
+            const sha = process.env.GITHUB_SHA || "unknown";
+            const shortSha = sha.slice(0, 7);
+            const sessionKey = process.env.SESSION_KEY || "";
+            
+            const manifest = {
+              version: sha,
+              shortVersion: `v-${shortSha}`,
+              updatedAt: new Date().toISOString(),
+              bundleUrl: "https://pintobg.github.io/App-personal/dist.zip",
+              checksum: finalChecksum
+            };
+            
+            if (sessionKey) {
+              manifest.sessionKey = sessionKey;
+            }
+            
+            fs.writeFileSync("dist/version.json", JSON.stringify(manifest, null, 2));
+            fs.copyFileSync("dist.zip", "dist/dist.zip");
+            console.log("Manifiesto version.json generado con checksum SHA256:", finalChecksum);
+          '
 
       - name: Configurar GitHub Pages
         uses: actions/configure-pages@v5
