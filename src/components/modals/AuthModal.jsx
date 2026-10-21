@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import ReferenceRateSelector from '../common/ReferenceRateSelector';
+import NotificationSettingsSection from '../common/NotificationSettingsSection';
 
 export default function AuthModal({
   isOpen,
@@ -346,6 +347,12 @@ export default function AuthModal({
               </div>
             </div>
 
+            {/* SECCIÓN NOTIFICACIONES Y RECORDATORIOS */}
+            <NotificationSettingsSection
+              obligations={localState?.obligations || []}
+              showToast={showToast}
+            />
+
             {onOpenSecurityModal && (
               <div
                 onClick={() => {
@@ -550,6 +557,12 @@ export default function AuthModal({
                 />
               </div>
             </div>
+
+            {/* SECCIÓN NOTIFICACIONES Y RECORDATORIOS */}
+            <NotificationSettingsSection
+              obligations={localState?.obligations || []}
+              showToast={showToast}
+            />
 
             {onOpenSecurityModal && (
               <div

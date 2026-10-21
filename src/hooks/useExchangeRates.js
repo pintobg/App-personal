@@ -11,6 +11,7 @@ import {
   loadRateHistoryFromCache,
   fetchRateHistory
 } from '../services/ratesService';
+import { checkAndNotifyBcvChange } from '../services/notificationService';
 
 export function useExchangeRates(assets = []) {
   // Carga inicial desde caché si existe
@@ -118,6 +119,22 @@ export function useExchangeRates(assets = []) {
       setRates(currentRates => {
         setRatesDetails(currentDetails => {
           saveCachedRatesData(currentRates, currentDetails, customRateRef.current);
+
+          // Verificar si aplica alerta de variación BCV
+          const bcvVal = currentDetails.bcvUsd?.valor;
+          if (bcvVal && Number(bcvVal) > 0) {
+            const history = loadRateHistoryFromCache();
+            if (Array.isArray(history) && history.length >= 2) {
+              const prevItem = history[history.length - 2];
+              if (prevItem && prevItem.bcvUsd) {
+                checkAndNotifyBcvChange({
+                  currentBcv: Number(bcvVal),
+                  previousBcv: Number(prevItem.bcvUsd)
+                });
+              }
+            }
+          }
+
           return currentDetails;
         });
         return currentRates;

@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { syncService } from '../services/syncService';
+import {
+  scheduleObligationReminders,
+  cancelObligationReminders,
+  syncAllObligationReminders
+} from '../services/notificationService';
 
 export const useObligations = (user = null) => {
   const [obligations, setObligations] = useState(() => {
@@ -20,12 +25,20 @@ export const useObligations = (user = null) => {
     localStorage.setItem('obligations', JSON.stringify(obligations));
   }, [obligations]);
 
+  // Programar recordatorios locales al montar
+  useEffect(() => {
+    if (obligations.length > 0) {
+      syncAllObligationReminders(obligations);
+    }
+  }, []);
+
   const addObligation = (obligation) => {
     const nowIso = new Date().toISOString();
     const newOb = {
       id: obligation.id || crypto.randomUUID(),
       dateCreated: obligation.dateCreated || nowIso,
       updated_at: nowIso,
+      reminderEnabled: obligation.reminderEnabled !== false,
       ...obligation
     };
     const nextList = [newOb, ...obligationsRef.current];
@@ -35,6 +48,8 @@ export const useObligations = (user = null) => {
     if (user?.id) {
       syncService.queueChange('obligations', 'upsert', newOb, user.id);
     }
+
+    scheduleObligationReminders(newOb);
     return newOb;
   };
 
@@ -48,6 +63,8 @@ export const useObligations = (user = null) => {
     if (user?.id) {
       syncService.queueChange('obligations', 'delete', { id, deleted_at: nowIso, updated_at: nowIso, ...existing }, user.id);
     }
+
+    cancelObligationReminders(id);
   };
 
   const updateObligation = (id, updates) => {
@@ -66,6 +83,8 @@ export const useObligations = (user = null) => {
     if (user?.id) {
       syncService.queueChange('obligations', 'upsert', updatedOb, user.id);
     }
+
+    scheduleObligationReminders(updatedOb);
     return updatedOb;
   };
 

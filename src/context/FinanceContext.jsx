@@ -17,6 +17,7 @@ import {
   executeBulkDelete as runBulkDelete
 } from '../domain/operations';
 import { convert, round } from '../domain/money';
+import { scheduleObligationReminders } from '../services/notificationService';
 
 const FinanceContext = createContext(null);
 
@@ -74,7 +75,12 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
 
     if (result.nextAssets) setAssets(result.nextAssets);
     if (result.nextTransactions) setTransactions(result.nextTransactions);
-    if (result.nextObligations) setObligations(result.nextObligations);
+    if (result.nextObligations) {
+      setObligations(result.nextObligations);
+      result.nextObligations.forEach(ob => {
+        scheduleObligationReminders(ob);
+      });
+    }
 
     if (user?.id && result.syncChanges?.length) {
       result.syncChanges.forEach((change) => {

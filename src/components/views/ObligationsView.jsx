@@ -1,10 +1,13 @@
 import EmptyState from '../common/EmptyState';
 import { translateCategory, translateFrequency, getCurrencySymbol, formatAmount } from '../../utils/formatters';
+import { convertForPayment } from '../../domain/money';
 
 export default function ObligationsView({
   obligations,
   flippedObId,
   setFlippedObId,
+  rates = {},
+  veRates = {},
   onEdit,
   onPay,
   onDelete
@@ -13,6 +16,43 @@ export default function ObligationsView({
   const pendingPay = obligations.filter(ob => ob.type === 'pay' && !isCompleted(ob));
   const pendingReceive = obligations.filter(ob => ob.type === 'receive' && !isCompleted(ob));
   const completedHistory = obligations.filter(isCompleted);
+
+  const getIndexedBsInfo = (ob) => {
+    if (!ob.payInBs || (ob.currency || '').toUpperCase() === 'VES') return null;
+
+    const chosenRate = ob.indexRateType || ((ob.currency || '').toUpperCase() === 'EUR' ? 'BCV_EUR' : 'BCV_USD');
+    let activeRate = null;
+    let label = 'BCV hoy';
+
+    if (chosenRate === 'PARALELO') {
+      activeRate = veRates?.paralelo;
+      label = 'Paralelo hoy';
+    } else if (chosenRate === 'BCV_EUR' || chosenRate === 'EUR') {
+      activeRate = veRates?.bcvEur || veRates?.bcvUsd;
+      label = 'BCV EUR hoy';
+    } else {
+      activeRate = veRates?.bcvUsd || rates?.bcvUsd || rates?.VES;
+      label = 'BCV hoy';
+    }
+
+    if (!activeRate || activeRate <= 0) return null;
+
+    const bsAmount = convertForPayment(
+      ob.amount,
+      ob.currency,
+      'VES',
+      { ...rates, ...veRates },
+      activeRate
+    );
+
+    if (bsAmount == null) return null;
+
+    return {
+      bsAmount,
+      label,
+      text: `${getCurrencySymbol(ob.currency)}${formatAmount(ob.amount, ob.currency)} = Bs. ${formatAmount(bsAmount, 'VES')} (${label})`
+    };
+  };
 
   return (
     <div className="view-container" style={{ padding: '0 1rem', marginTop: '2rem' }}>
@@ -38,11 +78,20 @@ export default function ObligationsView({
                     </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem', whiteSpace: 'nowrap', flexShrink: 0 }}>
                   <div style={{ fontSize: '1rem', fontWeight: 700, color: '#ef4444' }}>
                     -{getCurrencySymbol(ob.currency)}{formatAmount(ob.amount, ob.currency)} {ob.currency.toUpperCase()}
                   </div>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  {(() => {
+                    const info = getIndexedBsInfo(ob);
+                    if (!info) return null;
+                    return (
+                      <div style={{ fontSize: '0.74rem', color: '#10b981', fontWeight: 600 }}>
+                        {info.text}
+                      </div>
+                    );
+                  })()}
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.25rem' }}>
                     <button
                       title="Editar"
                       style={{ background: '#f59e0b', border: 'none', color: '#fff', fontSize: '0.75rem', borderRadius: '8px', padding: '0.4rem', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -70,6 +119,14 @@ export default function ObligationsView({
               <div className="tx-flip-back glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '1rem 1.15rem', borderRadius: '16px', gap: '0.5rem' }}>
                 <div style={{ fontWeight: 600, color: '#f1f5f9' }}>Detalles de la Deuda</div>
                 <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Frecuencia: {translateFrequency(ob.frequency)}</div>
+                {ob.payInBs && (
+                  <div style={{ fontSize: '0.82rem', color: '#10b981', fontWeight: 600 }}>
+                    Se paga en Bs. a tasa {ob.indexRateType || 'BCV'}
+                  </div>
+                )}
+                <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                  {ob.reminderEnabled !== false ? '🔔 Recordatorio a las 9:00 a.m. activo' : '🔕 Recordatorio desactivado'}
+                </div>
                 {ob.totalInstallments && (
                   <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Progreso: {ob.paidInstallments || 0} de {ob.totalInstallments} pagos</div>
                 )}
@@ -118,11 +175,20 @@ export default function ObligationsView({
                     </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem', whiteSpace: 'nowrap', flexShrink: 0 }}>
                   <div style={{ fontSize: '1rem', fontWeight: 700, color: '#10b981' }}>
                     +{getCurrencySymbol(ob.currency)}{formatAmount(ob.amount, ob.currency)} {ob.currency.toUpperCase()}
                   </div>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  {(() => {
+                    const info = getIndexedBsInfo(ob);
+                    if (!info) return null;
+                    return (
+                      <div style={{ fontSize: '0.74rem', color: '#10b981', fontWeight: 600 }}>
+                        {info.text}
+                      </div>
+                    );
+                  })()}
+                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.25rem' }}>
                     <button
                       title="Editar"
                       style={{ background: '#f59e0b', border: 'none', color: '#fff', fontSize: '0.75rem', borderRadius: '8px', padding: '0.4rem', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
@@ -150,6 +216,14 @@ export default function ObligationsView({
               <div className="tx-flip-back glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '1rem 1.15rem', borderRadius: '16px', gap: '0.5rem' }}>
                 <div style={{ fontWeight: 600, color: '#f1f5f9' }}>Detalles de Crédito</div>
                 <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Frecuencia: {translateFrequency(ob.frequency)}</div>
+                {ob.payInBs && (
+                  <div style={{ fontSize: '0.82rem', color: '#10b981', fontWeight: 600 }}>
+                    Se cobra en Bs. a tasa {ob.indexRateType || 'BCV'}
+                  </div>
+                )}
+                <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                  {ob.reminderEnabled !== false ? '🔔 Recordatorio a las 9:00 a.m. activo' : '🔕 Recordatorio desactivado'}
+                </div>
                 {ob.totalInstallments && (
                   <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Progreso: {ob.paidInstallments || 0} de {ob.totalInstallments} pagos</div>
                 )}
