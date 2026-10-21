@@ -25,6 +25,8 @@ import {
 import { COLORS } from '../../utils/constants';
 import { toLocalDateString, parseLocalDate } from '../../utils/dates';
 import { getRateStatus } from '../../services/ratesService';
+import { calculateExchangeGap } from '../../domain/rates';
+import ReferenceRateSelector from '../common/ReferenceRateSelector';
 
 const CATEGORY_ICONS = {
   'Vivienda': '🏠',
@@ -45,6 +47,10 @@ export default function DashboardView({
   isBalanceHidden,
   setIsBalanceHidden,
   grandTotalUsd,
+  alternateGrandTotalUsd,
+  referenceRate,
+  setReferenceRate,
+  rateHistory,
   rates,
   ratesDetails,
   totalIncomeUsd,
@@ -66,6 +72,41 @@ export default function DashboardView({
   const [evolutionGrouping, setEvolutionGrouping] = useState('monthly'); // 'weekly' | 'monthly'
   const [selectedPieCategory, setSelectedPieCategory] = useState(null);
   const [detailCategory, setDetailCategory] = useState(null); // { name, color } | null
+
+  // Cálculo de Brecha Cambiaria e Histórico de los últimos 30 días
+  const exchangeGapData = useMemo(() => {
+    const bcv = Number(ratesDetails?.bcvUsd?.valor || rates?.bcvUsd || rates?.VES || 0);
+    const par = Number(ratesDetails?.paralelo?.valor || rates?.paralelo || 0);
+    const currentGap = calculateExchangeGap(par, bcv);
+
+    const historyPoints = (rateHistory || [])
+      .slice(-30)
+      .map(item => {
+        const itemBcv = Number(item.bcvUsd || 0);
+        const itemPar = Number(item.paralelo || 0);
+        const gap = calculateExchangeGap(itemPar, itemBcv);
+        let shortDate = item.date;
+        if (item.date && item.date.length >= 10) {
+          const parts = item.date.substring(5, 10).split('-');
+          if (parts.length === 2) shortDate = `${parts[1]}/${parts[0]}`;
+        }
+        return {
+          date: shortDate,
+          fullDate: item.date,
+          gap,
+          bcv: itemBcv,
+          paralelo: itemPar
+        };
+      })
+      .filter(p => p.gap !== 0 || p.bcv > 0);
+
+    return {
+      currentGap,
+      bcv,
+      paralelo: par,
+      historyPoints
+    };
+  }, [rates, ratesDetails, rateHistory]);
 
   const budgetStats = useMemo(() => {
     const now = new Date();
@@ -246,19 +287,25 @@ export default function DashboardView({
   return (
     <div className="view-container" style={{ padding: '0 1rem 2rem', color: 'var(--text-primary)' }}>
       <div style={{ marginTop: '1rem', marginBottom: '2.5rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#98989d', fontSize: '0.9rem' }}>
-            Mi balance
-            <button
-              onClick={() => setIsBalanceHidden(!isBalanceHidden)}
-              style={{ background: 'transparent', border: 'none', color: '#98989d', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
-            >
-              {isBalanceHidden ? (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-              ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-              )}
-            </button>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#98989d', fontSize: '0.9rem' }}>
+              Mi balance
+              <button
+                onClick={() => setIsBalanceHidden(!isBalanceHidden)}
+                style={{ background: 'transparent', border: 'none', color: '#98989d', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
+              >
+                {isBalanceHidden ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                )}
+              </button>
+            </div>
+            <ReferenceRateSelector
+              referenceRate={referenceRate}
+              setReferenceRate={setReferenceRate}
+            />
           </div>
 
           {onOpenAuthModal && (
@@ -299,6 +346,13 @@ export default function DashboardView({
           <span style={{ fontSize: 'clamp(1.2rem, 5vw, 1.6rem)' }}>$</span>
           {isBalanceHidden ? '***' : formatAmount(grandTotalUsd, 'USD')}
         </div>
+        {alternateGrandTotalUsd != null && (
+          <div style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: '0.35rem', fontWeight: 500 }}>
+            {referenceRate === 'paralelo'
+              ? `A tasa BCV: $${isBalanceHidden ? '***' : formatAmount(alternateGrandTotalUsd, 'USD')}`
+              : `A tasa Paralelo: $${isBalanceHidden ? '***' : formatAmount(alternateGrandTotalUsd, 'USD')}`}
+          </div>
+        )}
         <div style={{ fontSize: '0.85rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
           {rates?.['VES'] ? (
             <>
@@ -358,6 +412,89 @@ export default function DashboardView({
             $ {isBalanceHidden ? '***' : formatAmount(totalSpentUsd, 'USD')}
           </div>
         </div>
+      </div>
+
+      {/* TARJETA BRECHA CAMBIARIA */}
+      <div
+        className="glass-card"
+        style={{
+          padding: '1rem 1.15rem',
+          borderRadius: '16px',
+          backgroundColor: '#1b2230',
+          marginBottom: '2rem',
+          border: '1px solid #2a3447'
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.95rem' }}>
+              ⚖️
+            </div>
+            <div>
+              <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f1f5f9' }}>
+                Brecha cambiaria
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                Últimos 30 días • (Paralelo − BCV) / BCV
+              </div>
+            </div>
+          </div>
+          <div
+            style={{
+              padding: '4px 10px',
+              borderRadius: '9999px',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              background: exchangeGapData.currentGap > 15 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+              color: exchangeGapData.currentGap > 15 ? '#ef4444' : '#10b981',
+              border: `1px solid ${exchangeGapData.currentGap > 15 ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
+            }}
+          >
+            {exchangeGapData.currentGap >= 0 ? '+' : ''}{exchangeGapData.currentGap}%
+          </div>
+        </div>
+
+        <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginBottom: '0.75rem' }}>
+          Oficial BCV: <span style={{ color: '#f1f5f9', fontWeight: 600 }}>{formatAmount(exchangeGapData.bcv, 'VES')} Bs.</span> • Paralelo: <span style={{ color: '#f1f5f9', fontWeight: 600 }}>{formatAmount(exchangeGapData.paralelo, 'VES')} Bs.</span>
+        </div>
+
+        {exchangeGapData.historyPoints.length > 0 ? (
+          <div style={{ width: '100%', height: 130 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={exchangeGapData.historyPoints} margin={{ top: 5, right: 5, left: -25, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="gapGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#2a3447" vertical={false} />
+                <XAxis dataKey="date" tick={{ fill: '#64748b', fontSize: 10 }} tickLine={false} axisLine={{ stroke: '#2a3447' }} />
+                <YAxis tick={{ fill: '#64748b', fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(val) => `${val}%`} />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', padding: '6px 10px', fontSize: '0.75rem', color: '#f1f5f9' }}>
+                          <div style={{ color: '#94a3b8', marginBottom: '2px' }}>{data.fullDate || data.date}</div>
+                          <div style={{ fontWeight: 700, color: '#10b981' }}>Brecha: {data.gap}%</div>
+                          <div style={{ fontSize: '0.7rem', color: '#cbd5e1' }}>BCV: {formatAmount(data.bcv, 'VES')} | Par: {formatAmount(data.paralelo, 'VES')}</div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Area type="monotone" dataKey="gap" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#gapGradient)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '1rem', color: '#64748b', fontSize: '0.8rem' }}>
+            Consultando histórico cambiario...
+          </div>
+        )}
       </div>
 
       <div style={{ width: '50%', margin: '0 auto 2rem', borderBottom: '1px solid #2a3447' }}></div>

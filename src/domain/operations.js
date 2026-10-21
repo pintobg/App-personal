@@ -1,4 +1,5 @@
 import { add, sub, convert, round, parseAmount } from './money';
+import { calculateEffectiveExchangeRate } from './rates';
 import {
   calculateTransactionEditDelta,
   calculateTransferDeltas,
@@ -284,9 +285,25 @@ export function executeTransfer({ assets, transactions, rates = {} }, transferPa
 
   const nowIso = new Date().toISOString();
   const srcCurr = sourceAsset.name.toUpperCase();
+  const destCurr = destAsset.name.toUpperCase();
   const srcRateSnapshot = rates[srcCurr] ?? (['USD', 'USDT', 'USDC'].includes(srcCurr) ? 1 : 0);
   const transferUsdEquivalent = convert(roundedDeducted, srcCurr, 'USD', rates);
   const transferId = crypto.randomUUID();
+
+  let effectiveRateData = null;
+  if (srcCurr !== destCurr) {
+    effectiveRateData = calculateEffectiveExchangeRate({
+      fromCurrency: sourceAsset.name,
+      fromAmount: roundedDeducted,
+      toCurrency: destAsset.name,
+      toAmount: roundedReceived,
+      commission: roundedCommission,
+      ratesSnapshot: {
+        bcvUsd: rates.bcvUsd || rates.VES,
+        paralelo: rates.paralelo || rates.VES_PARALELO
+      }
+    });
+  }
 
   const transferTx = {
     id: transferId,
@@ -304,6 +321,8 @@ export function executeTransfer({ assets, transactions, rates = {} }, transferPa
     subcategory: `Hacia ${destAsset.location}`,
     rateSnapshot: srcRateSnapshot,
     usdEquivalent: transferUsdEquivalent,
+    effectiveRate: effectiveRateData?.rate ?? null,
+    effectiveRateData: effectiveRateData ?? null,
     date: nowIso,
     updated_at: nowIso
   };

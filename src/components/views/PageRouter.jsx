@@ -11,6 +11,11 @@ export default function PageRouter({
   isBalanceHidden,
   setIsBalanceHidden,
   grandTotalUsd,
+  alternateGrandTotalUsd,
+  referenceRate,
+  setReferenceRate,
+  rateHistory,
+  refreshRateHistory,
   rates,
   ratesDetails,
   totalIncomeUsd,
@@ -82,6 +87,11 @@ export default function PageRouter({
               isBalanceHidden={isBalanceHidden}
               setIsBalanceHidden={setIsBalanceHidden}
               grandTotalUsd={grandTotalUsd}
+              alternateGrandTotalUsd={alternateGrandTotalUsd}
+              referenceRate={referenceRate}
+              setReferenceRate={setReferenceRate}
+              rateHistory={rateHistory}
+              refreshRateHistory={refreshRateHistory}
               rates={rates}
               ratesDetails={ratesDetails}
               totalIncomeUsd={totalIncomeUsd}
@@ -107,6 +117,9 @@ export default function PageRouter({
           {currentPage === 'balances' && (
             <BalancesView
               grandTotalUsd={grandTotalUsd}
+              alternateGrandTotalUsd={alternateGrandTotalUsd}
+              referenceRate={referenceRate}
+              setReferenceRate={setReferenceRate}
               rates={rates}
               ratesDetails={ratesDetails}
               assets={assets}

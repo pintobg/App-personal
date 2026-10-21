@@ -11,6 +11,19 @@ export function useFinanceMetrics({ assets, transactions, obligations, rates, ti
     }, 0);
   }, [assets, rates]);
 
+  const alternateGrandTotalUsd = useMemo(() => {
+    const isParalelo = rates?.referenceType === 'paralelo';
+    const altRates = {
+      ...rates,
+      referenceType: isParalelo ? 'bcv' : 'paralelo',
+      VES: isParalelo ? (rates?.bcvUsd || rates?.VES) : (rates?.paralelo || rates?.bcvUsd || rates?.VES)
+    };
+    return assets.reduce((total, asset) => {
+      const sym = (asset.name || 'USD').toUpperCase();
+      return add(total, convert(asset.amount, sym, 'USD', altRates));
+    }, 0);
+  }, [assets, rates]);
+
   const accountTotalsUsd = useMemo(() => {
     return assets.reduce((acc, asset) => {
       if (!acc[asset.location]) acc[asset.location] = 0;
@@ -97,6 +110,7 @@ export function useFinanceMetrics({ assets, transactions, obligations, rates, ti
 
   return {
     grandTotalUsd,
+    alternateGrandTotalUsd,
     accountTotalsUsd,
     assetsByLocation,
     uniqueAssetNames,

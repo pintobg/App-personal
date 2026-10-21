@@ -100,7 +100,21 @@ export function convert(amount, from, to, rates = {}) {
   if (['USD', 'USDT', 'USDC'].includes(fromCurr)) {
     amountInUsd = bAmount;
   } else if (fromCurr === 'VES') {
-    const rawVes = rates.VES != null ? rates.VES : (rates.bcvUsd != null ? rates.bcvUsd : null);
+    // Si se especificó una tasa de referencia elegida ('bcv', 'paralelo', 'custom') o un valor numérico
+    let rawVes = null;
+    if (rates.referenceType) {
+      if (rates.referenceType === 'paralelo') {
+        rawVes = rates.paralelo || rates.VES_PARALELO;
+      } else if (rates.referenceType === 'custom') {
+        rawVes = rates.custom || rates.VES_CUSTOM;
+      } else {
+        rawVes = rates.bcvUsd || rates.VES;
+      }
+    }
+    if (rawVes == null) {
+      rawVes = rates.VES != null ? rates.VES : (rates.bcvUsd != null ? rates.bcvUsd : null);
+    }
+
     if (!rawVes || Number(rawVes) <= 0) {
       return 0;
     }
@@ -125,7 +139,20 @@ export function convert(amount, from, to, rates = {}) {
   if (['USD', 'USDT', 'USDC'].includes(toCurr)) {
     targetAmount = amountInUsd;
   } else if (toCurr === 'VES') {
-    const rawVes = rates.VES != null ? rates.VES : (rates.bcvUsd != null ? rates.bcvUsd : null);
+    let rawVes = null;
+    if (rates.referenceType) {
+      if (rates.referenceType === 'paralelo') {
+        rawVes = rates.paralelo || rates.VES_PARALELO;
+      } else if (rates.referenceType === 'custom') {
+        rawVes = rates.custom || rates.VES_CUSTOM;
+      } else {
+        rawVes = rates.bcvUsd || rates.VES;
+      }
+    }
+    if (rawVes == null) {
+      rawVes = rates.VES != null ? rates.VES : (rates.bcvUsd != null ? rates.bcvUsd : null);
+    }
+
     if (!rawVes || Number(rawVes) <= 0) {
       return 0;
     }

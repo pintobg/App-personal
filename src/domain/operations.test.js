@@ -74,6 +74,38 @@ describe('Domain: operations.js (Funciones puras de negocio)', () => {
     expect(result.nextTransactions).toHaveLength(2);
   });
 
+  it('executeTransfer: calcula tasa efectiva y comparativa con BCV al cambiar monedas distintas (ej. USDT a VES)', () => {
+    const state = {
+      assets: initialAssets,
+      transactions: [],
+      rates: {
+        USDT: 1,
+        VES: 50,
+        bcvUsd: 50,
+        paralelo: 55
+      }
+    };
+    const payload = {
+      sourceAssetId: 'ast-3', // 300 USDT
+      destAssetId: 'ast-2',   // 20000 VES
+      amountDeducted: '100',
+      amountReceived: '5200', // 52 Bs por USDT
+      hasCommission: false,
+      commissionAmount: '0'
+    };
+
+    const result = executeTransfer(state, payload);
+    expect(result.success).toBe(true);
+    const transferTx = result.nextTransactions[0];
+    expect(transferTx.effectiveRate).toBe(52);
+    expect(transferTx.effectiveRateData).toBeDefined();
+    expect(transferTx.effectiveRateData.unitText).toBe('Bs./USDT');
+    // Con BCV a 50, (52 - 50) / 50 = +4.00%
+    expect(transferTx.effectiveRateData.bcvDiffPct).toBe(4);
+    // Con Paralelo a 55, (52 - 55) / 55 = -5.45%
+    expect(transferTx.effectiveRateData.paraleloDiffPct).toBe(-5.45);
+  });
+
   it('executePayObligation: registra pago de deuda, genera movimiento y avanza cuotas', () => {
     const obligations = [
       {

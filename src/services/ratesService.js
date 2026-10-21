@@ -11,6 +11,8 @@
 export const CACHED_RATES_KEY = 'finanzas_cached_rates';
 export const CACHED_RATES_DETAILS_KEY = 'finanzas_cached_rates_details';
 export const CUSTOM_RATE_KEY = 'finanzas_custom_rate';
+export const RATE_REFERENCE_KEY = 'finanzas_rate_reference';
+export const HISTORY_CACHE_KEY = 'veRates_history_v1';
 
 export const KNOWN_FIAT_CURRENCIES = [
   { code: 'VES', name: 'Bolívar Venezolano (Bs.)' },
@@ -503,4 +505,114 @@ export function getRateStatus(rateInfo) {
     isStale: false,
     label: `Actualizado: ${formattedTime}`
   };
+}
+
+/**
+ * Carga el historial de tasas de cambio venezolanas desde la caché local.
+ * @returns {Array} Lista de registros con { date, bcvUsd, bcvEur, paralelo }
+ */
+export function loadRateHistoryFromCache() {
+  try {
+    const raw = localStorage.getItem(HISTORY_CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed?.items) && parsed.items.length > 0) {
+        return parsed.items;
+      }
+    }
+  } catch {
+    // Ignorar errores de caché
+  }
+  return [];
+}
+
+/**
+ * Consulta y unifica el historial de tasas de cambio venezolanas de los últimos meses.
+ * @param {Object} currentRates - { bcvUsd, bcvEur, paralelo } actuales para fallback
+ * @returns {Promise<Array>} Lista ordenada cronológicamente de { date, bcvUsd, bcvEur, paralelo }
+ */
+export async function fetchRateHistory(currentRates = {}) {
+  try {
+    const [resUsd, resEur, resPar] = await Promise.allSettled([
+      fetch('https://ve.dolarapi.com/v1/historicos/dolares/oficial'),
+      fetch('https://ve.dolarapi.com/v1/historicos/euros/oficial'),
+      fetch('https://ve.dolarapi.com/v1/historicos/dolares/paralelo')
+    ]);
+
+    const byDate = new Map();
+
+    const ensureDate = (fecha) => {
+      if (!byDate.has(fecha)) {
+        byDate.set(fecha, { date: fecha, bcvUsd: null, bcvEur: null, paralelo: null });
+      }
+      return byDate.get(fecha);
+    };
+
+    if (resUsd.status === 'fulfilled' && resUsd.value.ok) {
+      const list = await resUsd.value.json();
+      if (Array.isArray(list)) {
+        list.forEach(item => {
+          if (item?.fecha && Number(item?.promedio) > 0) {
+            ensureDate(item.fecha).bcvUsd = Number(Number(item.promedio).toFixed(4));
+          }
+        });
+      }
+    }
+
+    if (resEur.status === 'fulfilled' && resEur.value.ok) {
+      const list = await resEur.value.json();
+      if (Array.isArray(list)) {
+        list.forEach(item => {
+          if (item?.fecha && Number(item?.promedio) > 0) {
+            ensureDate(item.fecha).bcvEur = Number(Number(item.promedio).toFixed(4));
+          }
+        });
+      }
+    }
+
+    if (resPar.status === 'fulfilled' && resPar.value.ok) {
+      const list = await resPar.value.json();
+      if (Array.isArray(list)) {
+        list.forEach(item => {
+          if (item?.fecha && Number(item?.promedio) > 0) {
+            ensureDate(item.fecha).paralelo = Number(Number(item.promedio).toFixed(4));
+          }
+        });
+      }
+    }
+
+    const sortedDates = Array.from(byDate.keys()).sort();
+    if (sortedDates.length > 0) {
+      let lastUsd = currentRates?.bcvUsd || 0;
+      let lastEur = currentRates?.bcvEur || 0;
+      let lastPar = currentRates?.paralelo || 0;
+
+      const merged = sortedDates.map(d => {
+        const row = byDate.get(d);
+        if (row.bcvUsd) lastUsd = row.bcvUsd;
+        if (row.bcvEur) lastEur = row.bcvEur;
+        if (row.paralelo) lastPar = row.paralelo;
+        return {
+          date: d,
+          bcvUsd: row.bcvUsd || lastUsd,
+          bcvEur: row.bcvEur || lastEur,
+          paralelo: row.paralelo || lastPar
+        };
+      });
+
+      const recent = merged.slice(-180);
+      try {
+        localStorage.setItem(HISTORY_CACHE_KEY, JSON.stringify({
+          updatedAt: new Date().toISOString(),
+          items: recent
+        }));
+      } catch {
+        // Ignorar límites de almacenamiento
+      }
+      return recent;
+    }
+  } catch (err) {
+    console.error('[ratesService] Error al descargar historial de tasas:', err);
+  }
+  return loadRateHistoryFromCache();
 }

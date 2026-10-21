@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import ReferenceRateSelector from '../common/ReferenceRateSelector';
 
 export default function AuthModal({
   isOpen,
@@ -11,7 +12,9 @@ export default function AuthModal({
   onExportBackup,
   onClearLocalData,
   onOpenSecurityModal,
-  hasPin
+  hasPin,
+  referenceRate,
+  setReferenceRate
 }) {
   const [tab, setTab] = useState('signin'); // 'signin' | 'signup'
   const [email, setEmail] = useState('');
@@ -311,6 +314,38 @@ export default function AuthModal({
               </div>
             )}
 
+            {/* AJUSTE GLOBAL: TASA DE REFERENCIA */}
+            <div
+              style={{
+                background: '#17202f',
+                border: '1px solid #233148',
+                borderRadius: '14px',
+                padding: '0.85rem 1rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.65rem'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <span style={{ fontSize: '1.2rem' }}>💱</span>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#f1f5f9' }}>Tasa de referencia global</div>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                      Valora tus bolívares en dólares
+                    </div>
+                  </div>
+                </div>
+                <ReferenceRateSelector
+                  referenceRate={referenceRate}
+                  setReferenceRate={(newRef) => {
+                    if (setReferenceRate) setReferenceRate(newRef);
+                    if (showToast) showToast(`Tasa de referencia cambiada a ${newRef.toUpperCase()}`);
+                  }}
+                />
+              </div>
+            </div>
+
             {onOpenSecurityModal && (
               <div
                 onClick={() => {
@@ -484,7 +519,39 @@ export default function AuthModal({
                 Subir y respaldar mis datos locales actuales a esta cuenta
               </label>
 
-              {onOpenSecurityModal && (
+              {/* AJUSTE GLOBAL: TASA DE REFERENCIA */}
+            <div
+              style={{
+                background: '#17202f',
+                border: '1px solid #233148',
+                borderRadius: '14px',
+                padding: '0.85rem 1rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.65rem'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <span style={{ fontSize: '1.2rem' }}>💱</span>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#f1f5f9' }}>Tasa de referencia global</div>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                      Valora tus bolívares en dólares
+                    </div>
+                  </div>
+                </div>
+                <ReferenceRateSelector
+                  referenceRate={referenceRate}
+                  setReferenceRate={(newRef) => {
+                    if (setReferenceRate) setReferenceRate(newRef);
+                    if (showToast) showToast(`Tasa de referencia cambiada a ${newRef.toUpperCase()}`);
+                  }}
+                />
+              </div>
+            </div>
+
+            {onOpenSecurityModal && (
               <div
                 onClick={() => {
                   onClose();

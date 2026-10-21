@@ -10,6 +10,7 @@ import {
   formatTxRate
 } from '../../utils/formatters';
 import { toLocalDateString, parseLocalDate } from '../../utils/dates';
+import { calculateEffectiveExchangeRate } from '../../domain/rates';
 
 export default function TransactionsView({
   transactions,
@@ -59,10 +60,61 @@ export default function TransactionsView({
     ...uniqueAccounts.map(acc => ({ value: acc, label: acc }))
   ];
 
+  // Estadísticas del mes para "Mis cambios"
+  const exchangeMonthStats = useMemo(() => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const monthExchanges = (transactions || []).filter(tx => {
+      if (tx.type !== 'transfer' || tx.currency === tx.destCurrency) return false;
+      const d = parseLocalDate(toLocalDateString(tx.date));
+      return d >= startOfMonth && d <= endOfMonth;
+    });
+
+    if (monthExchanges.length === 0) {
+      return { count: 0, averageRate: 0, hasData: false };
+    }
+
+    const vesExchanges = monthExchanges.map(tx => {
+      if (tx.effectiveRate != null && Number(tx.effectiveRate) > 0) {
+        return Number(tx.effectiveRate);
+      }
+      const calculated = calculateEffectiveExchangeRate({
+        fromCurrency: tx.currency,
+        fromAmount: tx.amount,
+        toCurrency: tx.destCurrency,
+        toAmount: tx.destAmount,
+        commission: tx.commission || 0,
+        ratesSnapshot: {
+          bcvUsd: rates.bcvUsd || rates.VES,
+          paralelo: rates.paralelo || rates.VES_PARALELO
+        }
+      });
+      return calculated ? calculated.rate : null;
+    }).filter(r => r != null && r > 0);
+
+    if (vesExchanges.length === 0) {
+      return { count: monthExchanges.length, averageRate: 0, hasData: false };
+    }
+
+    const sumRates = vesExchanges.reduce((acc, r) => acc + r, 0);
+    const avg = Number((sumRates / vesExchanges.length).toFixed(2));
+
+    return {
+      count: monthExchanges.length,
+      averageRate: avg,
+      hasData: true
+    };
+  }, [transactions, rates]);
+
   const filteredTransactions = useMemo(() => {
     return transactions.filter(tx => {
-      // 1. Type filter (Todas, Ingresos, Gastos, Transferencias)
-      if (txFilter !== 'all' && tx.type !== txFilter) {
+      // 1. Type filter (Todas, Ingresos, Gastos, Transferencias, Ajustes, Mis cambios)
+      if (txFilter === 'exchanges') {
+        const isExchange = tx.type === 'transfer' && tx.currency !== tx.destCurrency;
+        if (!isExchange) return false;
+      } else if (txFilter !== 'all' && tx.type !== txFilter) {
         return false;
       }
 
@@ -300,12 +352,55 @@ export default function TransactionsView({
           Transferencias
         </button>
         <button
+          onClick={() => setTxFilter('exchanges')}
+          style={{ background: 'transparent', border: 'none', padding: '0.5rem 0', color: txFilter === 'exchanges' ? '#10b981' : '#94a3b8', borderBottom: txFilter === 'exchanges' ? '2px solid #10b981' : '2px solid transparent', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+        >
+          Mis cambios
+        </button>
+        <button
           onClick={() => setTxFilter('adjustment')}
           style={{ background: 'transparent', border: 'none', padding: '0.5rem 0', color: txFilter === 'adjustment' ? '#10b981' : '#94a3b8', borderBottom: txFilter === 'adjustment' ? '2px solid #10b981' : '2px solid transparent', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           Ajustes
         </button>
       </div>
+
+      {/* BANNER SECCIÓN MIS CAMBIOS CON TASA PROMEDIO DEL MES */}
+      {txFilter === 'exchanges' && (
+        <div
+          className="glass-card"
+          style={{
+            padding: '0.85rem 1rem',
+            borderRadius: '14px',
+            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(30, 41, 59, 0.5) 100%)',
+            border: '1px solid rgba(16, 185, 129, 0.25)',
+            marginBottom: '1rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '0.5rem'
+          }}
+        >
+          <div>
+            <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>
+              Mis cambios • Mes en curso
+            </div>
+            <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#f1f5f9', marginTop: '2px' }}>
+              {exchangeMonthStats.hasData ? (
+                <>
+                  Tasa promedio: <span style={{ color: '#10b981' }}>{formatAmount(exchangeMonthStats.averageRate, 'VES')} Bs./$</span>
+                </>
+              ) : (
+                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Sin operaciones de cambio este mes</span>
+              )}
+            </div>
+          </div>
+          <div style={{ fontSize: '0.78rem', color: '#94a3b8', background: '#1b2230', padding: '4px 10px', borderRadius: '8px', border: '1px solid #2a3447' }}>
+            {exchangeMonthStats.count} {exchangeMonthStats.count === 1 ? 'operación' : 'operaciones'}
+          </div>
+        </div>
+      )}
 
       {/* FILTER SUMMARY & RESET ACTION */}
       {hasActiveFilters && (
@@ -368,12 +463,19 @@ export default function TransactionsView({
                           </svg>
                         )}
                         <span>
-                          {tx.type === 'transfer' ? 'Transferencia' : (tx.type === 'income' ? 'Ingreso' : (tx.type === 'adjustment' ? 'Ajuste de saldo' : 'Gasto'))}
+                          {tx.type === 'transfer'
+                            ? (tx.currency !== tx.destCurrency ? 'Cambio de divisa' : 'Transferencia')
+                            : (tx.type === 'income' ? 'Ingreso' : (tx.type === 'adjustment' ? 'Ajuste de saldo' : 'Gasto'))}
                         </span>
                       </div>
                       <div style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
                         <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tx.type === 'transfer' ? `${tx.origin} ➔ ${tx.destOrigin}` : tx.origin}</div>
                         <div style={{ opacity: 0.7 }}>{toLocalDateString(tx.date)}</div>
+                        {tx.type === 'transfer' && tx.currency !== tx.destCurrency && (tx.effectiveRate || tx.effectiveRateData) && (
+                          <div style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 600 }}>
+                            Tasa: {formatAmount(tx.effectiveRate || tx.effectiveRateData?.rate, 'VES')} Bs./$
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -429,16 +531,52 @@ export default function TransactionsView({
                   {tx.type === 'transfer' ? (
                     <>
                       <div style={{ fontWeight: 600, color: '#f1f5f9', marginBottom: '0.25rem' }}>Detalles de Cambio</div>
-                      {tx.currency !== tx.destCurrency && Number(tx.amount) > 0 && Number(tx.destAmount) > 0 ? (
-                        <>
-                          <div style={{ fontSize: '0.875rem', color: '#10b981' }}>
-                            1 {tx.currency.toUpperCase()} = {(Number(tx.destAmount) / Number(tx.amount)).toLocaleString(undefined, { maximumFractionDigits: 4 })} {tx.destCurrency?.toUpperCase()}
-                          </div>
-                          <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-                            1 {tx.destCurrency?.toUpperCase()} = {(Number(tx.amount) / Number(tx.destAmount)).toLocaleString(undefined, { maximumFractionDigits: 6 })} {tx.currency.toUpperCase()}
-                          </div>
-                        </>
-                      ) : (
+                      {tx.currency !== tx.destCurrency && Number(tx.amount) > 0 && Number(tx.destAmount) > 0 ? (() => {
+                        const effectiveInfo = tx.effectiveRateData || calculateEffectiveExchangeRate({
+                          fromCurrency: tx.currency,
+                          fromAmount: tx.amount,
+                          toCurrency: tx.destCurrency,
+                          toAmount: tx.destAmount,
+                          commission: tx.commission || 0,
+                          ratesSnapshot: {
+                            bcvUsd: rates.bcvUsd || rates.VES,
+                            paralelo: rates.paralelo || rates.VES_PARALELO
+                          }
+                        });
+
+                        const effRate = effectiveInfo?.rate ?? Number((Number(tx.destAmount) / Number(tx.amount)).toFixed(2));
+                        const unitText = effectiveInfo?.unitText || `Bs./${tx.currency.toUpperCase()}`;
+
+                        let bcvDiffText = '';
+                        if (effectiveInfo?.bcvDiffPct != null) {
+                          const diff = effectiveInfo.bcvDiffPct;
+                          const sign = diff >= 0 ? '+' : '';
+                          bcvDiffText = `${sign}${diff}% sobre BCV`;
+                        }
+
+                        let parDiffText = '';
+                        if (effectiveInfo?.paraleloDiffPct != null) {
+                          const diff = effectiveInfo.paraleloDiffPct;
+                          const sign = diff >= 0 ? '+' : '';
+                          parDiffText = `${sign}${diff}% vs Paralelo`;
+                        }
+
+                        return (
+                          <>
+                            <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#10b981', textAlign: 'center' }}>
+                              Cambiaste a {formatAmount(effRate, 'VES')} {unitText}{bcvDiffText ? `: ${bcvDiffText}` : ''}
+                            </div>
+                            {parDiffText && (
+                              <div style={{ fontSize: '0.75rem', color: '#94a3b8', textAlign: 'center' }}>
+                                ({parDiffText})
+                              </div>
+                            )}
+                            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>
+                              1 {tx.currency.toUpperCase()} = {(Number(tx.destAmount) / Number(tx.amount)).toLocaleString(undefined, { maximumFractionDigits: 4 })} {tx.destCurrency?.toUpperCase()}
+                            </div>
+                          </>
+                        );
+                      })() : (
                         <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Transferencia del mismo activo ({tx.currency.toUpperCase()}).</div>
                       )}
                       {Number(tx.commission) > 0 && (

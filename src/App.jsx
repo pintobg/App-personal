@@ -25,6 +25,10 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
     rates,
     ratesDetails,
     veRates,
+    referenceRate,
+    setReferenceRate,
+    rateHistory,
+    refreshRateHistory,
     binanceSymbols,
     knownFiatCurrencies,
     isFetchingRates,
@@ -151,6 +155,11 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
         isBalanceHidden={isBalanceHidden}
         setIsBalanceHidden={setIsBalanceHidden}
         grandTotalUsd={metrics.grandTotalUsd}
+        alternateGrandTotalUsd={metrics.alternateGrandTotalUsd}
+        referenceRate={referenceRate}
+        setReferenceRate={setReferenceRate}
+        rateHistory={rateHistory}
+        refreshRateHistory={refreshRateHistory}
         rates={rates}
         ratesDetails={ratesDetails}
         totalIncomeUsd={metrics.totalIncomeUsd}
@@ -245,6 +254,8 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
         assetInitialType={modalState.assetInitialType}
         rates={rates}
         setRates={setRates}
+        referenceRate={referenceRate}
+        setReferenceRate={setReferenceRate}
         binanceSymbols={binanceSymbols}
         knownFiatCurrencies={knownFiatCurrencies}
         adjustingAsset={modalState.adjustingAsset}

@@ -2,12 +2,16 @@ import { useState, useMemo } from 'react';
 import EmptyState from '../common/EmptyState';
 import CurrencyIcon from '../common/CurrencyIcon';
 import VerifyBalancesModal from '../modals/VerifyBalancesModal';
+import ReferenceRateSelector from '../common/ReferenceRateSelector';
 import { formatAmount, getRateString } from '../../utils/formatters';
 import { convert, add } from '../../domain/money';
 import { getRateStatus } from '../../services/ratesService';
 
 export default function BalancesView({
   grandTotalUsd,
+  alternateGrandTotalUsd,
+  referenceRate,
+  setReferenceRate,
   rates,
   ratesDetails,
   assets,
@@ -123,9 +127,15 @@ export default function BalancesView({
   return (
     <>
       <div style={{ padding: '0 1rem', marginTop: '1.5rem', marginBottom: '1.5rem', width: '100%', boxSizing: 'border-box' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-          <div style={{ color: '#98989d', fontSize: '0.9rem' }}>
-            Balance General
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div style={{ color: '#98989d', fontSize: '0.9rem' }}>
+              Balance General
+            </div>
+            <ReferenceRateSelector
+              referenceRate={referenceRate}
+              setReferenceRate={setReferenceRate}
+            />
           </div>
           {onOpenAuthModal && (
             <button
@@ -165,6 +175,13 @@ export default function BalancesView({
           <span style={{ fontSize: 'clamp(1.2rem, 5vw, 1.6rem)' }}>$</span>
           {formatAmount(grandTotalUsd, 'USD')}
         </div>
+        {alternateGrandTotalUsd != null && (
+          <div style={{ fontSize: '0.78rem', color: '#64748b', marginBottom: '0.35rem', fontWeight: 500 }}>
+            {referenceRate === 'paralelo'
+              ? `A tasa BCV: $${formatAmount(alternateGrandTotalUsd, 'USD')}`
+              : `A tasa Paralelo: $${formatAmount(alternateGrandTotalUsd, 'USD')}`}
+          </div>
+        )}
         <div style={{ fontSize: '0.85rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
           {rates?.['VES'] ? (
             <>

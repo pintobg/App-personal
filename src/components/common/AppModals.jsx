@@ -20,6 +20,8 @@ export default function AppModals({
   assetInitialType,
   rates,
   setRates,
+  referenceRate,
+  setReferenceRate,
   binanceSymbols,
   knownFiatCurrencies,
   // BalanceAdjustModal
@@ -166,6 +168,8 @@ export default function AppModals({
         onExportBackup={exportBackup}
         onOpenSecurityModal={() => setIsSecurityModalOpen(true)}
         hasPin={appLock.hasPin}
+        referenceRate={referenceRate}
+        setReferenceRate={setReferenceRate}
         onClearLocalData={clearLocalData}
       />
 

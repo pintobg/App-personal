@@ -6,12 +6,25 @@ import {
   fetchAllExchangeRates,
   loadCachedRatesData,
   saveCachedRatesData,
-  CUSTOM_RATE_KEY
+  CUSTOM_RATE_KEY,
+  RATE_REFERENCE_KEY,
+  loadRateHistoryFromCache,
+  fetchRateHistory
 } from '../services/ratesService';
 
 export function useExchangeRates(assets = []) {
   // Carga inicial desde caché si existe
   const initialCache = useMemo(() => loadCachedRatesData(), []);
+
+  const [referenceRate, setReferenceRateState] = useState(() => {
+    try {
+      return localStorage.getItem(RATE_REFERENCE_KEY) || 'bcv';
+    } catch {
+      return 'bcv';
+    }
+  });
+
+  const [rateHistory, setRateHistory] = useState(() => loadRateHistoryFromCache());
 
   const [rates, setRates] = useState(() => ({
     ...BASE_STABLE_RATES,
@@ -163,6 +176,40 @@ export function useExchangeRates(assets = []) {
     }));
   }, []);
 
+  // Cambiar la tasa de referencia global (bcv, paralelo, custom)
+  const setReferenceRate = useCallback((newRef) => {
+    const valid = ['bcv', 'paralelo', 'custom'].includes(newRef) ? newRef : 'bcv';
+    setReferenceRateState(valid);
+    try {
+      localStorage.setItem(RATE_REFERENCE_KEY, valid);
+    } catch {
+      // Ignorar error de cuota
+    }
+  }, []);
+
+  // Carga y sincronización del histórico de 30/180 días
+  const refreshRateHistory = useCallback(async () => {
+    try {
+      const history = await fetchRateHistory({
+        bcvUsd: ratesDetails.bcvUsd?.valor,
+        bcvEur: ratesDetails.bcvEur?.valor,
+        paralelo: ratesDetails.paralelo?.valor
+      });
+      if (Array.isArray(history) && history.length > 0) {
+        setRateHistory(history);
+      }
+    } catch (e) {
+      console.warn('[useExchangeRates] Fallo al refrescar historial:', e);
+    }
+  }, [ratesDetails.bcvUsd?.valor, ratesDetails.bcvEur?.valor, ratesDetails.paralelo?.valor]);
+
+  // Consultar histórico al iniciar si la caché está vacía
+  useEffect(() => {
+    if (!rateHistory || rateHistory.length === 0) {
+      refreshRateHistory();
+    }
+  }, []);
+
   // Objeto estructurado veRates para compatibilidad con calculadora y modales
   const veRates = useMemo(() => {
     return {
@@ -175,11 +222,39 @@ export function useExchangeRates(assets = []) {
     };
   }, [ratesDetails, customRate]);
 
+  // Tasas enriquecidas con la tasa de referencia activa
+  const computedRates = useMemo(() => {
+    const bcvVal = ratesDetails.bcvUsd?.valor || rates.bcvUsd || rates.VES;
+    const parVal = ratesDetails.paralelo?.valor || rates.paralelo;
+    const custVal = customRate > 0 ? customRate : (ratesDetails.custom?.valor || rates.custom);
+
+    let activeVes = bcvVal;
+    if (referenceRate === 'paralelo' && parVal) {
+      activeVes = parVal;
+    } else if (referenceRate === 'custom' && custVal) {
+      activeVes = custVal;
+    }
+
+    return {
+      ...rates,
+      referenceType: referenceRate,
+      VES: activeVes,
+      bcvUsd: bcvVal,
+      paralelo: parVal,
+      custom: custVal
+    };
+  }, [rates, ratesDetails, customRate, referenceRate]);
+
   return {
-    rates,
+    rates: computedRates,
+    rawRates: rates,
     setRates,
     ratesDetails,
     veRates,
+    referenceRate,
+    setReferenceRate,
+    rateHistory,
+    refreshRateHistory,
     loading,
     isFetchingRates,
     binanceSymbols,
