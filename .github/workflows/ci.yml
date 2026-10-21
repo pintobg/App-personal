@@ -1,0 +1,165 @@
+name: CI / CD - Verificación y Publicación OTA
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages-and-ci-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  # 1. Pipeline de calidad: se ejecuta en cada push y cada pull request
+  verify:
+    name: 1. Calidad, Pruebas y Build (CI)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Instalar dependencias limpias (npm ci)
+        run: npm ci
+
+      - name: Validar estilo y sintaxis (npm run lint)
+        run: npm run lint
+
+      - name: Ejecutar pruebas unitarias e integración (npm test)
+        run: npm test
+
+      - name: Compilar aplicación web para producción (npm run build)
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: npm run build
+
+      - name: Guardar artefacto de build compilado
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-dist
+          path: dist
+          retention-days: 1
+
+  # 2. Publicación OTA: se ejecuta solo en la rama principal y solo si el job de verify pasó en verde
+  deploy-ota:
+    name: 2. Generar Paquete OTA Firmado y Publicar
+    needs: verify
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Descargar código del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Descargar artefacto de build
+        uses: actions/download-artifact@v4
+        with:
+          name: web-dist
+          path: dist
+
+      - name: Generar bundle OTA firmado y calcular checksum
+        id: bundle_step
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          CAPGO_PRIVATE_KEY: ${{ secrets.CAPGO_PRIVATE_KEY }}
+        run: |
+          set -e
+          SHORT_SHA=$(echo "${GITHUB_SHA}" | cut -c1-7)
+          
+          # Empaquetar el bundle web
+          npx @capgo/cli bundle zip com.braian.finanzas --path ./dist --name dist.zip --bundle "0.0.0" --no-code-check
+          
+          ZIP_FILE="dist.zip"
+          if [ ! -f "$ZIP_FILE" ]; then
+            # Buscar el zip generado si el nombre incluyó appId
+            ZIP_FILE=$(ls *.zip | head -n 1)
+          fi
+          
+          # Firmar y cifrar el bundle si la llave privada está configurada en Secrets
+          if [ -n "$CAPGO_PRIVATE_KEY" ]; then
+            echo "Firmando bundle OTA con llave privada..."
+            echo "$CAPGO_PRIVATE_KEY" > capgo_private.key
+            chmod 600 capgo_private.key
+            
+            PLAIN_CHECKSUM=$(sha256sum "$ZIP_FILE" | awk '{print $1}')
+            ENCRYPT_OUT=$(npx @capgo/cli bundle encrypt "$ZIP_FILE" "$PLAIN_CHECKSUM" --key capgo_private.key --json)
+            
+            # Extraer sessionKey / ivSessionKey si la CLI generó cifrado
+            SESSION_KEY=$(echo "$ENCRYPT_OUT" | jq -r '.ivSessionKey // empty')
+            ENCRYPTED_FILE=$(echo "$ENCRYPT_OUT" | jq -r '.filename // empty')
+            
+            if [ -n "$ENCRYPTED_FILE" ] && [ -f "$ENCRYPTED_FILE" ]; then
+              mv "$ENCRYPTED_FILE" dist.zip
+            fi
+            
+            rm -f capgo_private.key
+          else
+            echo "Aviso: CAPGO_PRIVATE_KEY no está configurada. Continuando con bundle estándar..."
+            SESSION_KEY=""
+          fi
+          
+          # Checksum final del paquete zip que descargarán los teléfonos
+          FINAL_CHECKSUM=$(sha256sum dist.zip | awk '{print $1}')
+          
+          # Generar manifiesto version.json
+          if [ -n "$SESSION_KEY" ]; then
+            cat <<EOF > dist/version.json
+          {
+            "version": "${GITHUB_SHA}",
+            "shortVersion": "v-${SHORT_SHA}",
+            "updatedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "bundleUrl": "https://pintobg.github.io/App-personal/dist.zip",
+            "checksum": "${FINAL_CHECKSUM}",
+            "sessionKey": "${SESSION_KEY}"
+          }
+          EOF
+          else
+            cat <<EOF > dist/version.json
+          {
+            "version": "${GITHUB_SHA}",
+            "shortVersion": "v-${SHORT_SHA}",
+            "updatedAt": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+            "bundleUrl": "https://pintobg.github.io/App-personal/dist.zip",
+            "checksum": "${FINAL_CHECKSUM}"
+          }
+          EOF
+          fi
+          
+          # Mover dist.zip dentro de dist para ser publicado en GitHub Pages
+          cp dist.zip dist/dist.zip
+
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Subir artefacto para GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+
+      - name: Publicar versión en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

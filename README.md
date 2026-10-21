@@ -25,6 +25,7 @@ Aplicación web progresiva (PWA) y móvil (Capacitor 8 para Android) para el con
 - **Backend / Nube:** Supabase (PostgreSQL con Row Level Security y autenticación segura).
 - **Aritmética y Dominio:** `big.js` en capas de dominio desacopladas (`src/domain/money.js`, `src/domain/balances.js`, `src/domain/operations.js`).
 - **Testing:** Vitest + React Testing Library con suites unitarias y de integración.
+- **CI / CD:** GitHub Actions con verificación rigurosa y publicación OTA en GitHub Pages.
 
 ---
 
@@ -64,6 +65,52 @@ VITE_SUPABASE_ANON_KEY=tu-clave-anon-publica
 - `npm run lint`: Ejecuta el análisis de código estático con Oxlint.
 - `npm run cap:sync`: Compila la app y sincroniza los recursos web con el proyecto nativo Android.
 - `npm run cap:open`: Abre el proyecto Android nativo en Android Studio.
+
+---
+
+## 🔄 Proceso de Publicación y Actualizaciones OTA (CI/CD)
+
+El flujo de integración continua está definido en [`.github/workflows/ci.yml`](file:///.github/workflows/ci.yml) para proteger la estabilidad de la app y garantizar que ningún cambio con errores llegue a los teléfonos:
+
+```mermaid
+flowchart TD
+    A["Push / Pull Request"] --> B["Job 1: verify"]
+    B --> C["npm ci"]
+    C --> D["npm run lint"]
+    D --> E["npm test (88+ tests)"]
+    E --> F["npm run build"]
+    F -->|¿Falla algún paso?| G["❌ Pipeline se detiene<br/>No se publica nada"]
+    F -->|¿Todo en verde?| H{"¿Es rama principal<br/>main / master?"}
+    H -->|No: Pull Request| I["✅ Verificación exitosa<br/>(sin despliegue)"]
+    H -->|Sí: Push a main| J["Job 2: deploy-ota"]
+    J --> K["Empaquetar bundle OTA (dist.zip)"]
+    K --> L["Firmar/cifrar con CAPGO_PRIVATE_KEY"]
+    L --> M["Calcular Checksum SHA-256"]
+    M --> N["Generar y publicar version.json en GitHub Pages"]
+    N --> O["📱 Los teléfonos detectan nueva versión<br/>y actualizan automáticamente"]
+```
+
+### 1. Verificación en cada cambio (Job `verify`)
+En cada `push` y cada `pull request` hacia cualquier rama, GitHub Actions ejecuta:
+1. `npm ci`: Instalación limpia y determinista de dependencias.
+2. `npm run lint`: Validación de código y calidad con Oxlint.
+3. `npm test`: Ejecución de todas las pruebas unitarias y de integración con Vitest.
+4. `npm run build`: Compilación de la aplicación web con inyección de variables de producción.
+
+Si **cualquier prueba o paso falla**, el pipeline se cancela inmediatamente: **no se genera ningún artefacto ni se publica `version.json`**.
+
+### 2. Publicación de Actualizaciones OTA (Job `deploy-ota`)
+Solo cuando todos los pasos del job `verify` pasan en verde y el commit se encuentra en la rama principal (`main` o `master`):
+1. Se empaquetan los activos web compilados en `dist.zip`.
+2. Se firma y cifra el bundle utilizando la clave privada RSA configurada en GitHub Secrets (`CAPGO_PRIVATE_KEY`).
+3. Se calcula el checksum SHA-256 del bundle final.
+4. Se genera el manifiesto [`dist/version.json`](https://pintobg.github.io/App-personal/version.json) con los metadatos necesarios:
+   - `version`: Hash de commit (`github.sha`).
+   - `shortVersion`: Versión corta para el banner informativo en la app.
+   - `bundleUrl`: Enlace de descarga directo al paquete `.zip`.
+   - `checksum`: Huella SHA-256 obligatoria para verificación de integridad.
+   - `sessionKey`: Llave de sesión cifrada con la clave RSA (para desencriptación en el dispositivo).
+5. Se publica en **GitHub Pages**. En la próxima apertura de la app (o cada 6 horas), el cliente compara versiones, valida la firma criptográfica y el checksum, y aplica la actualización en caliente sin requerir reinstalación del APK.
 
 ---
 
