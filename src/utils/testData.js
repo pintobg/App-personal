@@ -20,21 +20,31 @@ export function generateTestData(rates = {}) {
     return toLocalDateString(d);
   };
 
+  // IDs dinámicos para activos
+  const banescoId = crypto.randomUUID();
+  const mercantilId = crypto.randomUUID();
+  const efectivoId = crypto.randomUUID();
+  const zelleId = crypto.randomUUID();
+  const zinliId = crypto.randomUUID();
+  const usdtBinanceId = crypto.randomUUID();
+  const btcBinanceId = crypto.randomUUID();
+
   // 1. Balances / Cuentas de prueba (Fiat y Cripto)
   const assets = [
-    { id: 'asset-ves-banesco', name: 'VES', type: 'fiat', amount: 18500, location: 'Banesco' },
-    { id: 'asset-ves-mercantil', name: 'VES', type: 'fiat', amount: 6420, location: 'Mercantil' },
-    { id: 'asset-usd-efectivo', name: 'USD', type: 'fiat', amount: 280, location: 'Efectivo (Cash)' },
-    { id: 'asset-usd-zelle', name: 'USD', type: 'fiat', amount: 640, location: 'Zelle' },
-    { id: 'asset-eur-zinli', name: 'EUR', type: 'fiat', amount: 95, location: 'Zinli' },
-    { id: 'asset-usdt-binance', name: 'USDT', type: 'crypto', amount: 1150.50, location: 'Binance' },
-    { id: 'asset-btc-binance', name: 'BTC', type: 'crypto', amount: 0.0125, location: 'Binance' }
+    { id: banescoId, name: 'VES', type: 'fiat', amount: 18500, initialAmount: 18500, location: 'Banesco' },
+    { id: mercantilId, name: 'VES', type: 'fiat', amount: 6420, initialAmount: 6420, location: 'Mercantil' },
+    { id: efectivoId, name: 'USD', type: 'fiat', amount: 280, initialAmount: 280, location: 'Efectivo (Cash)' },
+    { id: zelleId, name: 'USD', type: 'fiat', amount: 640, initialAmount: 640, location: 'Zelle' },
+    { id: zinliId, name: 'EUR', type: 'fiat', amount: 95, initialAmount: 95, location: 'Zinli' },
+    { id: usdtBinanceId, name: 'USDT', type: 'crypto', amount: 1150.50, initialAmount: 1150.50, location: 'Binance' },
+    { id: btcBinanceId, name: 'BTC', type: 'crypto', amount: 0.0125, initialAmount: 0.0125, location: 'Binance' }
   ];
 
   // 2. Movimientos de prueba (Ingresos, Gastos en varias categorías, Pagos de deuda y Transferencias)
   const transactions = [
     {
-      id: 'tx-1',
+      id: crypto.randomUUID(),
+      assetId: zelleId,
       type: 'spent',
       currency: 'USD',
       amount: 42.50,
@@ -46,7 +56,8 @@ export function generateTestData(rates = {}) {
       usdEquivalent: 42.50
     },
     {
-      id: 'tx-2',
+      id: crypto.randomUUID(),
+      assetId: banescoId,
       type: 'spent',
       currency: 'VES',
       amount: 1484,
@@ -58,7 +69,8 @@ export function generateTestData(rates = {}) {
       usdEquivalent: Number((1484 * vesRate).toFixed(2))
     },
     {
-      id: 'tx-3',
+      id: crypto.randomUUID(),
+      assetId: usdtBinanceId,
       type: 'income',
       currency: 'USDT',
       amount: 850,
@@ -70,7 +82,9 @@ export function generateTestData(rates = {}) {
       usdEquivalent: 850
     },
     {
-      id: 'tx-4',
+      id: crypto.randomUUID(),
+      assetId: usdtBinanceId,
+      destAssetId: banescoId,
       type: 'transfer',
       currency: 'USDT',
       amount: 50,
@@ -85,7 +99,8 @@ export function generateTestData(rates = {}) {
       usdEquivalent: 50
     },
     {
-      id: 'tx-5',
+      id: crypto.randomUUID(),
+      assetId: efectivoId,
       type: 'spent',
       currency: 'USD',
       amount: 65,
@@ -97,7 +112,8 @@ export function generateTestData(rates = {}) {
       usdEquivalent: 65
     },
     {
-      id: 'tx-6',
+      id: crypto.randomUUID(),
+      assetId: usdtBinanceId,
       type: 'spent',
       currency: 'USDT',
       amount: 120,
@@ -109,7 +125,8 @@ export function generateTestData(rates = {}) {
       usdEquivalent: 120
     },
     {
-      id: 'tx-7',
+      id: crypto.randomUUID(),
+      assetId: zelleId,
       type: 'spent',
       currency: 'USD',
       amount: 55,
@@ -121,7 +138,8 @@ export function generateTestData(rates = {}) {
       usdEquivalent: 55
     },
     {
-      id: 'tx-8',
+      id: crypto.randomUUID(),
+      assetId: zinliId,
       type: 'spent',
       currency: 'EUR',
       amount: 25,
@@ -133,7 +151,8 @@ export function generateTestData(rates = {}) {
       usdEquivalent: Number((25 * eurRate).toFixed(2))
     },
     {
-      id: 'tx-9',
+      id: crypto.randomUUID(),
+      assetId: zelleId,
       type: 'income',
       currency: 'USD',
       amount: 420,
@@ -145,7 +164,8 @@ export function generateTestData(rates = {}) {
       usdEquivalent: 420
     },
     {
-      id: 'tx-10',
+      id: crypto.randomUUID(),
+      assetId: zelleId,
       type: 'spent',
       currency: 'USD',
       amount: 220,
@@ -157,7 +177,8 @@ export function generateTestData(rates = {}) {
       usdEquivalent: 220
     },
     {
-      id: 'tx-11',
+      id: crypto.randomUUID(),
+      assetId: mercantilId,
       type: 'spent',
       currency: 'VES',
       amount: 8900,
@@ -169,7 +190,8 @@ export function generateTestData(rates = {}) {
       usdEquivalent: Number((8900 * vesRate).toFixed(2))
     },
     {
-      id: 'tx-12',
+      id: crypto.randomUUID(),
+      assetId: usdtBinanceId,
       type: 'income',
       currency: 'USDT',
       amount: 950,
@@ -181,7 +203,8 @@ export function generateTestData(rates = {}) {
       usdEquivalent: 950
     },
     {
-      id: 'tx-13',
+      id: crypto.randomUUID(),
+      assetId: zelleId,
       type: 'spent',
       currency: 'USD',
       amount: 310,
@@ -193,7 +216,8 @@ export function generateTestData(rates = {}) {
       usdEquivalent: 310
     },
     {
-      id: 'tx-14',
+      id: crypto.randomUUID(),
+      assetId: btcBinanceId,
       type: 'income',
       currency: 'BTC',
       amount: 0.005,
@@ -206,10 +230,25 @@ export function generateTestData(rates = {}) {
     }
   ];
 
+  // Ajustar initialAmount de cada cuenta para que coincida exactamente con la suma de movimientos
+  assets.forEach(asset => {
+    let deltaSum = 0;
+    transactions.forEach(t => {
+      if (t.type === 'income' && t.assetId === asset.id) deltaSum += t.amount;
+      if (t.type === 'spent' && t.assetId === asset.id) deltaSum -= t.amount;
+      if (t.type === 'adjustment' && t.assetId === asset.id) deltaSum += (t.delta != null ? t.delta : t.amount);
+      if (t.type === 'transfer') {
+        if (t.assetId === asset.id) deltaSum -= t.amount;
+        if (t.destAssetId === asset.id) deltaSum += t.destAmount;
+      }
+    });
+    asset.initialAmount = Number((asset.amount - deltaSum).toFixed(6));
+  });
+
   // 3. Deudas, Cobros y Pagos completados de prueba
   const obligations = [
     {
-      id: 'ob-pay-1',
+      id: crypto.randomUUID(),
       type: 'pay',
       title: 'Cuota Laptop Trabajo',
       amount: 120,
@@ -222,7 +261,7 @@ export function generateTestData(rates = {}) {
       dateCreated: daysAgo(60)
     },
     {
-      id: 'ob-pay-2',
+      id: crypto.randomUUID(),
       type: 'pay',
       title: 'Internet Fibra Óptica',
       amount: 35,
@@ -235,7 +274,7 @@ export function generateTestData(rates = {}) {
       dateCreated: daysAgo(120)
     },
     {
-      id: 'ob-pay-3',
+      id: crypto.randomUUID(),
       type: 'pay',
       title: 'Condominio Residencial',
       amount: 2200,
@@ -248,7 +287,7 @@ export function generateTestData(rates = {}) {
       dateCreated: daysAgo(270)
     },
     {
-      id: 'ob-rec-1',
+      id: crypto.randomUUID(),
       type: 'receive',
       title: 'Préstamo a Carlos M.',
       amount: 80,
@@ -261,7 +300,7 @@ export function generateTestData(rates = {}) {
       dateCreated: daysAgo(15)
     },
     {
-      id: 'ob-rec-2',
+      id: crypto.randomUUID(),
       type: 'receive',
       title: 'Adelanto Diseño Web',
       amount: 150,
@@ -274,7 +313,7 @@ export function generateTestData(rates = {}) {
       dateCreated: daysAgo(4)
     },
     {
-      id: 'ob-done-1',
+      id: crypto.randomUUID(),
       type: 'pay',
       title: 'Seguro Médico Trimestral',
       amount: 90,
@@ -287,7 +326,7 @@ export function generateTestData(rates = {}) {
       dateCreated: daysAgo(90)
     },
     {
-      id: 'ob-done-2',
+      id: crypto.randomUUID(),
       type: 'receive',
       title: 'Reembolso Cena Grupal',
       amount: 45,

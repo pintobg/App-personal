@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react';
+import { parseAmount, sub } from '../../domain/money';
 
-export default function BalanceAdjustModal({ asset, onClose, onAdjustBalance, showToast }) {
+export default function BalanceAdjustModal({ asset, onClose, onAdjustBalance }) {
   const [newAdjustedAmount, setNewAdjustedAmount] = useState('');
+  const [error, setError] = useState('');
 
   useEffect(() => {
     if (asset) {
       setNewAdjustedAmount(asset.amount != null ? asset.amount.toString() : '');
+      setError('');
     } else {
       setNewAdjustedAmount('');
+      setError('');
     }
   }, [asset]);
 
@@ -15,23 +19,27 @@ export default function BalanceAdjustModal({ asset, onClose, onAdjustBalance, sh
 
   const handleClose = () => {
     setNewAdjustedAmount('');
+    setError('');
     onClose();
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!asset || !newAdjustedAmount) return;
-    const amountNum = Number(newAdjustedAmount);
-    if (isNaN(amountNum)) return;
+    if (!asset || newAdjustedAmount === '') return;
+    const amountNum = parseAmount(newAdjustedAmount);
+    if (amountNum === null) {
+      setError('Ingresa un monto válido (ej. 1.234,56 o 1234.56)');
+      return;
+    }
 
-    const delta = amountNum - Number(asset.amount);
+    const delta = sub(amountNum, Number(asset.amount) || 0);
     if (delta !== 0) {
-      onAdjustBalance(asset.name, asset.location, delta);
+      onAdjustBalance(asset, delta, amountNum);
     }
 
     setNewAdjustedAmount('');
+    setError('');
     onClose();
-    if (showToast) showToast('Balance ajustado');
   };
 
   return (
@@ -49,15 +57,23 @@ export default function BalanceAdjustModal({ asset, onClose, onAdjustBalance, sh
           <div className="input-group">
             <label>Nuevo Balance para {asset.name} ({asset.location})</label>
             <input
-              type="number"
-              step="any"
+              type="text"
+              inputMode="decimal"
               className="input-field"
-              placeholder="0.00"
+              placeholder="0,00"
               value={newAdjustedAmount}
-              onChange={e => setNewAdjustedAmount(e.target.value)}
+              onChange={e => {
+                setNewAdjustedAmount(e.target.value);
+                if (error) setError('');
+              }}
               autoFocus
               required
             />
+            {error && (
+              <div style={{ color: 'var(--danger-color)', fontSize: '0.85rem', marginTop: '0.5rem' }}>
+                {error}
+              </div>
+            )}
           </div>
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={handleClose}>

@@ -3,6 +3,7 @@ import CustomSelect from '../common/CustomSelect';
 import CurrencyIcon from '../common/CurrencyIcon';
 import { VENEZUELAN_BANKS, INTERNATIONAL_WALLETS_BANKS, CRYPTO_WALLETS } from '../../utils/constants';
 import { KNOWN_FIAT_CURRENCIES } from '../../hooks/useRates';
+import { parseAmount, round } from '../../domain/money';
 
 const PRESET_FIAT = ['VES', 'USD', 'EUR'];
 const PRESET_CRYPTO = ['USDT', 'USDC', 'BTC', 'ETH', 'SOL', 'BNB', 'ZEC', 'LTC'];
@@ -257,7 +258,13 @@ export default function AssetModal({
       return;
     }
     if (!newAsset.name || !newAsset.amount || !newAsset.location) return;
-    onAddAsset({ ...newAsset, name: newAsset.name.trim().toUpperCase(), amount: Number(newAsset.amount) });
+    const parsed = parseAmount(newAsset.amount);
+    if (parsed === null) {
+      setAssetValidationError('Por favor ingresa un monto válido (ej. 1.234,56 o 1234.56).');
+      return;
+    }
+    const cleanSym = newAsset.name.trim().toUpperCase();
+    onAddAsset({ ...newAsset, name: cleanSym, amount: round(parsed, cleanSym) });
     resetModal();
     if (showToast) showToast('Cuenta guardada con éxito');
   };
@@ -623,10 +630,10 @@ export default function AssetModal({
                 </div>
                 <label>Balance Inicial ({newAsset.name})</label>
                 <input
-                  type="number"
-                  step="any"
+                  type="text"
+                  inputMode="decimal"
                   className="input-field"
-                  placeholder="0.00"
+                  placeholder="0,00"
                   value={newAsset.amount}
                   onChange={e => setNewAsset({ ...newAsset, amount: e.target.value })}
                   autoFocus

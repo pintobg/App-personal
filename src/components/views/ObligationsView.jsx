@@ -9,9 +9,10 @@ export default function ObligationsView({
   onPay,
   onDelete
 }) {
-  const pendingPay = obligations.filter(ob => ob.type === 'pay' && (!ob.totalInstallments || Number(ob.paidInstallments) < Number(ob.totalInstallments)));
-  const pendingReceive = obligations.filter(ob => ob.type === 'receive' && (!ob.totalInstallments || Number(ob.paidInstallments) < Number(ob.totalInstallments)));
-  const completedHistory = obligations.filter(ob => ob.totalInstallments && Number(ob.paidInstallments) >= Number(ob.totalInstallments));
+  const isCompleted = ob => ob.status === 'paid' || (Boolean(ob.totalInstallments) && Number(ob.paidInstallments) >= Number(ob.totalInstallments));
+  const pendingPay = obligations.filter(ob => ob.type === 'pay' && !isCompleted(ob));
+  const pendingReceive = obligations.filter(ob => ob.type === 'receive' && !isCompleted(ob));
+  const completedHistory = obligations.filter(isCompleted);
 
   return (
     <div className="view-container" style={{ padding: '0 1rem', marginTop: '2rem' }}>
@@ -223,7 +224,7 @@ export default function ObligationsView({
               <div className="tx-flip-back glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '1rem 1.15rem', borderRadius: '16px', gap: '0.5rem', opacity: 0.8 }}>
                 <div style={{ fontWeight: 600, color: '#fff' }}>Detalles de Historial</div>
                 <div style={{ fontSize: '0.875rem', color: '#98989d' }}>Frecuencia: {translateFrequency(ob.frequency)}</div>
-                <div style={{ fontSize: '0.875rem', color: '#10b981' }}>Completado: {ob.totalInstallments} pagos</div>
+                <div style={{ fontSize: '0.875rem', color: '#10b981' }}>Completado: {ob.totalInstallments ? `${ob.paidInstallments || 0} de ${ob.totalInstallments} pagos` : 'Totalmente completado'}</div>
               </div>
             </div>
           </div>

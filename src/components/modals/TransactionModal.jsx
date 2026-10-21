@@ -2,6 +2,7 @@ import CustomSelect from '../common/CustomSelect';
 import { SPENT_CATEGORIES } from '../../utils/constants';
 import { formatAmount, getCurrencySymbol } from '../../utils/formatters';
 import { todayLocal, toLocalDateString } from '../../utils/dates';
+import { parseAmount, add, sub, round } from '../../domain/money';
 
 export default function TransactionModal({
   mode, // 'select' | 'form' | null
@@ -18,9 +19,9 @@ export default function TransactionModal({
   if (!mode) return null;
 
   const uniqueAssetNames = Array.from(new Set(assets.map(a => a.name)));
-  const availableAccountsForTx = newTx.currency
-    ? Array.from(new Set(assets.filter(a => a.name === newTx.currency).map(a => a.location)))
-    : Array.from(new Set(assets.map(a => a.location)));
+  const availableAssetsForTx = newTx.currency
+    ? assets.filter(a => (a.name || '').toUpperCase() === newTx.currency.toUpperCase())
+    : assets;
 
   if (mode === 'select') {
     return (
@@ -48,7 +49,7 @@ export default function TransactionModal({
                 fontWeight: 700
               }}
               onClick={() => {
-                setNewTx({ id: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
+                setNewTx({ id: '', assetId: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
                 setMode('form');
               }}
             >
@@ -67,7 +68,7 @@ export default function TransactionModal({
                 fontWeight: 700
               }}
               onClick={() => {
-                setNewTx({ id: '', type: 'spent', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
+                setNewTx({ id: '', assetId: '', type: 'spent', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
                 setMode('form');
               }}
             >
@@ -126,11 +127,13 @@ export default function TransactionModal({
               value={newTx.currency}
               onChange={e => {
                 const newCurrency = e.target.value;
-                const validAccounts = Array.from(new Set(assets.filter(a => a.name === newCurrency).map(a => a.location)));
+                const currentAsset = assets.find(a => a.id === newTx.assetId);
+                const isStillValid = currentAsset && (currentAsset.name || '').toUpperCase() === newCurrency.toUpperCase();
                 setNewTx({
                   ...newTx,
                   currency: newCurrency,
-                  origin: validAccounts.includes(newTx.origin) ? newTx.origin : ''
+                  assetId: isStillValid ? newTx.assetId : '',
+                  origin: isStillValid ? newTx.origin : ''
                 });
               }}
               options={uniqueAssetNames.map(name => ({ value: name, label: name }))}
@@ -140,10 +143,10 @@ export default function TransactionModal({
           <div className="input-group">
             <label>Monto</label>
             <input
-              type="number"
-              step="any"
+              type="text"
+              inputMode="decimal"
               className="input-field"
-              placeholder="0.00"
+              placeholder="0,00"
               value={newTx.amount}
               onChange={e => setNewTx({ ...newTx, amount: e.target.value })}
               required
@@ -155,33 +158,58 @@ export default function TransactionModal({
             <CustomSelect
               placeholder={newTx.type === 'income' ? 'Seleccionar Destino' : 'Seleccionar Origen'}
               title={newTx.type === 'income' ? 'Seleccionar Cuenta Destino' : 'Seleccionar Cuenta Origen'}
-              value={newTx.origin}
-              onChange={e => setNewTx({ ...newTx, origin: e.target.value })}
-              options={availableAccountsForTx.map(loc => ({ value: loc, label: loc }))}
+              value={newTx.assetId || ''}
+              onChange={e => {
+                const selectedAsset = assets.find(a => a.id === e.target.value);
+                if (selectedAsset) {
+                  setNewTx({
+                    ...newTx,
+                    assetId: selectedAsset.id,
+                    currency: selectedAsset.name,
+                    origin: selectedAsset.location
+                  });
+                } else {
+                  setNewTx({
+                    ...newTx,
+                    assetId: '',
+                    origin: ''
+                  });
+                }
+              }}
+              options={availableAssetsForTx.map(a => ({
+                value: a.id,
+                label: `${a.location} (${a.name}) - Saldo: ${formatAmount(a.amount, a.name)}`
+              }))}
             />
 
-            {newTx.currency && newTx.origin && (
+            {(newTx.assetId || (newTx.currency && newTx.origin)) && (
               <div style={{ marginTop: '0.75rem', padding: '0.75rem', backgroundColor: '#232c3d', border: '1px solid #2a3447', borderRadius: '8px', fontSize: '0.875rem' }}>
                 {(() => {
-                  const asset = assets.find(a => a.name === newTx.currency && a.location === newTx.origin);
+                  const asset = assets.find(a => a.id === newTx.assetId) ||
+                                assets.find(a => (a.name || '').toUpperCase() === (newTx.currency || '').toUpperCase() && a.location === newTx.origin);
                   const currentBalance = asset ? Number(asset.amount) : 0;
-                  const amountEntered = Number(newTx.amount) || 0;
-                  const isSameAccount = oldTx && oldTx.currency.toUpperCase() === newTx.currency.toUpperCase() && oldTx.origin === newTx.origin;
+                  const parsedEntered = parseAmount(newTx.amount);
+                  const amountEntered = parsedEntered !== null ? parsedEntered : 0;
+                  const isSameAccount = oldTx && (
+                    (oldTx.assetId && newTx.assetId ? oldTx.assetId === newTx.assetId : false) ||
+                    ((oldTx.currency || '').toUpperCase() === (newTx.currency || '').toUpperCase() && oldTx.origin === newTx.origin)
+                  );
                   let newBalance = 0;
                   if (isSameAccount) {
                     const oldAmount = Number(oldTx.amount) || 0;
                     if (oldTx.type === 'spent' && newTx.type === 'spent') {
-                      newBalance = currentBalance + oldAmount - amountEntered;
+                      newBalance = sub(add(currentBalance, oldAmount), amountEntered);
                     } else if (oldTx.type === 'income' && newTx.type === 'income') {
-                      newBalance = currentBalance - oldAmount + amountEntered;
+                      newBalance = add(sub(currentBalance, oldAmount), amountEntered);
                     } else if (oldTx.type === 'spent' && newTx.type === 'income') {
-                      newBalance = currentBalance + oldAmount + amountEntered;
+                      newBalance = add(add(currentBalance, oldAmount), amountEntered);
                     } else {
-                      newBalance = currentBalance - oldAmount - amountEntered;
+                      newBalance = sub(sub(currentBalance, oldAmount), amountEntered);
                     }
                   } else {
-                    newBalance = newTx.type === 'income' ? currentBalance + amountEntered : currentBalance - amountEntered;
+                    newBalance = newTx.type === 'income' ? add(currentBalance, amountEntered) : sub(currentBalance, amountEntered);
                   }
+                  newBalance = round(newBalance, newTx.currency);
                   return (
                     <>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>

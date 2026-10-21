@@ -40,7 +40,7 @@ export function useTransactions(currentRates = {}, user = null) {
     const nowIso = new Date().toISOString();
     const newTxItem = {
       ...transaction,
-      id: transaction.id || Date.now().toString(),
+      id: transaction.id || crypto.randomUUID(),
       date: transaction.date || nowIso,
       rateSnapshot,
       usdEquivalent,

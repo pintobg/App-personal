@@ -1,5 +1,6 @@
 import CustomSelect from '../common/CustomSelect';
 import { formatAmount } from '../../utils/formatters';
+import { parseAmount } from '../../domain/money';
 
 export default function TransferModal({
   isOpen,
@@ -81,10 +82,9 @@ export default function TransferModal({
           <div className="input-group">
             <label>{isSameCurrency ? 'Monto a transferir' : 'Monto Deducido'}</label>
             <input
-              type="number"
+              type="text"
+              inputMode="decimal"
               className="input-field"
-              step="any"
-              min="0.01"
               value={newTransfer.amountDeducted}
               onChange={e => {
                 let autoFill = newTransfer.amountReceived;
@@ -93,7 +93,7 @@ export default function TransferModal({
                 }
                 setNewTransfer({ ...newTransfer, amountDeducted: e.target.value, amountReceived: autoFill });
               }}
-              placeholder="0.00"
+              placeholder="0,00"
               required
             />
           </div>
@@ -102,13 +102,12 @@ export default function TransferModal({
             <div className="input-group">
               <label>Monto Recibido</label>
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 className="input-field"
-                step="any"
-                min="0.01"
                 value={newTransfer.amountReceived}
                 onChange={e => setNewTransfer({ ...newTransfer, amountReceived: e.target.value })}
-                placeholder="0.00"
+                placeholder="0,00"
                 required
               />
             </div>
@@ -142,41 +141,45 @@ export default function TransferModal({
             <div className="input-group">
               <label>Monto de la comisión</label>
               <input
-                type="number"
+                type="text"
+                inputMode="decimal"
                 className="input-field"
-                step="any"
-                min="0.01"
                 value={newTransfer.commissionAmount}
                 onChange={e => setNewTransfer({ ...newTransfer, commissionAmount: e.target.value })}
-                placeholder="0.00"
+                placeholder="0,00"
                 required
               />
             </div>
           )}
 
-          {!isSameCurrency && newTransfer.amountDeducted && newTransfer.amountReceived && src && dest && (
-            <div
-              style={{
-                marginTop: '0.5rem',
-                marginBottom: '1rem',
-                padding: '0.75rem',
-                backgroundColor: '#232c3d',
-                border: '1px solid #2a3447',
-                borderRadius: '8px',
-                fontSize: '0.875rem'
-              }}
-            >
-              <div style={{ color: '#94a3b8', marginBottom: '0.25rem' }}>Tasa de cambio aplicada:</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontWeight: 600, color: '#10b981' }}>
-                <div>
-                  1 {src.name} = {(Number(newTransfer.amountReceived) / Number(newTransfer.amountDeducted)).toLocaleString(undefined, { maximumFractionDigits: 4 })} {dest.name}
-                </div>
-                <div style={{ color: '#94a3b8', fontWeight: 400, fontSize: '0.75rem' }}>
-                  1 {dest.name} = {(Number(newTransfer.amountDeducted) / Number(newTransfer.amountReceived)).toLocaleString(undefined, { maximumFractionDigits: 6 })} {src.name}
+          {!isSameCurrency && newTransfer.amountDeducted && newTransfer.amountReceived && src && dest && (() => {
+            const parsedRec = parseAmount(newTransfer.amountReceived);
+            const parsedDed = parseAmount(newTransfer.amountDeducted);
+            if (!parsedRec || !parsedDed || parsedDed <= 0) return null;
+            return (
+              <div
+                style={{
+                  marginTop: '0.5rem',
+                  marginBottom: '1rem',
+                  padding: '0.75rem',
+                  backgroundColor: '#232c3d',
+                  border: '1px solid #2a3447',
+                  borderRadius: '8px',
+                  fontSize: '0.875rem'
+                }}
+              >
+                <div style={{ color: '#94a3b8', marginBottom: '0.25rem' }}>Tasa de cambio aplicada:</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontWeight: 600, color: '#10b981' }}>
+                  <div>
+                    1 {src.name} = {formatAmount(parsedRec / parsedDed, dest.name)} {dest.name}
+                  </div>
+                  <div style={{ color: '#94a3b8', fontWeight: 400, fontSize: '0.75rem' }}>
+                    1 {dest.name} = {formatAmount(parsedDed / parsedRec, src.name)} {src.name}
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {validationError && (
             <div style={{ color: 'var(--danger-color)', fontSize: '0.875rem', marginBottom: '1rem', textAlign: 'center' }}>

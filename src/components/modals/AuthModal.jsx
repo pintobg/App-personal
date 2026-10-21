@@ -9,7 +9,9 @@ export default function AuthModal({
   localState,
   onRequestConfirm,
   onExportBackup,
-  onClearLocalData
+  onClearLocalData,
+  onOpenSecurityModal,
+  hasPin
 }) {
   const [tab, setTab] = useState('signin'); // 'signin' | 'signup'
   const [email, setEmail] = useState('');
@@ -309,6 +311,38 @@ export default function AuthModal({
               </div>
             )}
 
+            {onOpenSecurityModal && (
+              <div
+                onClick={() => {
+                  onClose();
+                  onOpenSecurityModal();
+                }}
+                style={{
+                  background: '#17202f',
+                  border: '1px solid #233148',
+                  borderRadius: '14px',
+                  padding: '0.85rem 1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{ fontSize: '1.2rem' }}>🔒</span>
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>Seguridad y Bloqueo</div>
+                    <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                      {hasPin ? 'PIN y biometría activados' : 'Configurar PIN de 4 a 6 dígitos'}
+                    </div>
+                  </div>
+                </div>
+                <span style={{ color: '#60a5fa', fontSize: '0.82rem', fontWeight: 600 }}>
+                  {hasPin ? 'Ajustar →' : 'Activar →'}
+                </span>
+              </div>
+            )}
+
             <div className="modal-actions">
               <button
                 type="button"
@@ -450,7 +484,39 @@ export default function AuthModal({
                 Subir y respaldar mis datos locales actuales a esta cuenta
               </label>
 
-              <div className="modal-actions">
+              {onOpenSecurityModal && (
+              <div
+                onClick={() => {
+                  onClose();
+                  onOpenSecurityModal();
+                }}
+                style={{
+                  background: '#17202f',
+                  border: '1px solid #233148',
+                  borderRadius: '14px',
+                  padding: '0.85rem 1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <span style={{ fontSize: '1.2rem' }}>🔒</span>
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>Seguridad y Bloqueo</div>
+                    <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                      {hasPin ? 'PIN y biometría activados' : 'Configurar PIN de 4 a 6 dígitos'}
+                    </div>
+                  </div>
+                </div>
+                <span style={{ color: '#60a5fa', fontSize: '0.82rem', fontWeight: 600 }}>
+                  {hasPin ? 'Ajustar →' : 'Activar →'}
+                </span>
+              </div>
+            )}
+
+            <div className="modal-actions">
                 <button
                   type="button"
                   className="btn btn-secondary"

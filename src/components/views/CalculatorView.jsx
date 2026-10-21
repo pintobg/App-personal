@@ -10,6 +10,7 @@ import {
 } from 'recharts';
 import { exportBackup, validateBackupData } from '../../utils/backup';
 import { todayLocal, toLocalDateString, parseLocalDate } from '../../utils/dates';
+import { getRateStatus } from '../../services/ratesService';
 
 const HISTORY_CACHE_KEY = 'veRates_history_v1';
 
@@ -69,6 +70,7 @@ export default function CalculatorView({
   calcBaseAmount,
   setCalcBaseAmount,
   veRates,
+  ratesDetails,
   setVeRates,
   fetchVeRates,
   isFetchingRates,
@@ -424,8 +426,18 @@ export default function CalculatorView({
             {isFetchingRates
               ? 'Actualizando tasas...'
               : (veRates?.lastUpdated
-                  ? `Actualizado: ${new Date(veRates.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                  : 'Tasas listas')}
+                  ? (() => {
+                      const msDiff = Date.now() - new Date(veRates.lastUpdated).getTime();
+                      if (msDiff > 24 * 60 * 60 * 1000) {
+                        return (
+                          <span style={{ color: '#f59e0b', fontWeight: 600 }}>
+                            Tasa del {new Date(veRates.lastUpdated).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                          </span>
+                        );
+                      }
+                      return `Actualizado: ${new Date(veRates.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                    })()
+                  : (!activeRates.bcvUsd ? <span style={{ color: '#f59e0b', fontWeight: 600 }}>Sin conexión a tasas</span> : 'Tasas listas'))}
           </div>
         </div>
 
@@ -773,9 +785,22 @@ export default function CalculatorView({
                     placeholder="0.00"
                   />
                 </div>
-                <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-                  Tasa: Bs. {activeRates.bcvUsd ? formatCalcNumber(activeRates.bcvUsd, 2) : '---'}
-                </div>
+                {(() => {
+                  const bcvInfo = ratesDetails?.bcvUsd || veRates?.details?.bcvUsd;
+                  const status = getRateStatus(bcvInfo || { valor: activeRates.bcvUsd, fechaValor: veRates?.lastUpdated });
+                  if (!activeRates.bcvUsd) {
+                    return (
+                      <div style={{ fontSize: '0.74rem', color: '#f59e0b', fontWeight: 600 }}>
+                        Tasa: Sin tasa (conéctate o ingresa personalizada)
+                      </div>
+                    );
+                  }
+                  return (
+                    <div style={{ fontSize: '0.74rem', color: status.isStale ? '#f59e0b' : '#94a3b8', fontWeight: status.isStale ? 600 : 400 }}>
+                      Tasa: Bs. {formatCalcNumber(activeRates.bcvUsd, 2)} {status.label ? `• ${status.label}` : ''}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })()}
@@ -834,9 +859,22 @@ export default function CalculatorView({
                     placeholder="0.00"
                   />
                 </div>
-                <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-                  Tasa: Bs. {activeRates.paralelo ? formatCalcNumber(activeRates.paralelo, 2) : '---'}
-                </div>
+                {(() => {
+                  const parInfo = ratesDetails?.paralelo || veRates?.details?.paralelo;
+                  const status = getRateStatus(parInfo || { valor: activeRates.paralelo, fechaValor: veRates?.lastUpdated });
+                  if (!activeRates.paralelo) {
+                    return (
+                      <div style={{ fontSize: '0.74rem', color: '#f59e0b', fontWeight: 600 }}>
+                        Tasa: Sin tasa
+                      </div>
+                    );
+                  }
+                  return (
+                    <div style={{ fontSize: '0.74rem', color: status.isStale ? '#f59e0b' : '#94a3b8', fontWeight: status.isStale ? 600 : 400 }}>
+                      Tasa: Bs. {formatCalcNumber(activeRates.paralelo, 2)} {status.label ? `• ${status.label}` : ''}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })()}
@@ -895,9 +933,22 @@ export default function CalculatorView({
                     placeholder="0.00"
                   />
                 </div>
-                <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-                  Tasa: Bs. {activeRates.bcvEur ? formatCalcNumber(activeRates.bcvEur, 2) : '---'}
-                </div>
+                {(() => {
+                  const eurInfo = ratesDetails?.bcvEur || veRates?.details?.bcvEur;
+                  const status = getRateStatus(eurInfo || { valor: activeRates.bcvEur, fechaValor: veRates?.lastUpdated });
+                  if (!activeRates.bcvEur) {
+                    return (
+                      <div style={{ fontSize: '0.74rem', color: '#f59e0b', fontWeight: 600 }}>
+                        Tasa: Sin tasa
+                      </div>
+                    );
+                  }
+                  return (
+                    <div style={{ fontSize: '0.74rem', color: status.isStale ? '#f59e0b' : '#94a3b8', fontWeight: status.isStale ? 600 : 400 }}>
+                      Tasa: Bs. {formatCalcNumber(activeRates.bcvEur, 2)} {status.label ? `• ${status.label}` : ''}
+                    </div>
+                  );
+                })()}
               </div>
             );
           })()}

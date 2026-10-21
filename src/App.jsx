@@ -1,7 +1,7 @@
 import { useState, useEffect, lazy, Suspense } from 'react';
 import { useAssets } from './hooks/useAssets';
 import { useTransactions } from './hooks/useTransactions';
-import { useRates } from './hooks/useRates';
+import { useExchangeRates } from './hooks/useExchangeRates';
 import { useObligations } from './hooks/useObligations';
 import { useBudgets } from './hooks/useBudgets';
 import { useAuth } from './hooks/useAuth';
@@ -22,14 +22,18 @@ import PayObligationModal from './components/modals/PayObligationModal';
 import BudgetModal from './components/modals/BudgetModal';
 import AuthModal from './components/modals/AuthModal';
 import ConfirmModal from './components/modals/ConfirmModal';
+import PinLockModal from './components/modals/PinLockModal';
+import SecuritySettingsModal from './components/modals/SecuritySettingsModal';
+import { useAppLock } from './hooks/useAppLock';
 
 import Toast from './components/common/Toast';
 import PwaInstallPrompt from './components/common/PwaInstallPrompt';
 import AutoUpdater from './components/common/AutoUpdater';
 import { exportBackup } from './utils/backup';
-import { todayLocal, toLocalDateString, parseLocalDate, addMonthsClamped } from './utils/dates';
+import { todayLocal, toLocalDateString, parseLocalDate, getNextDueDate } from './utils/dates';
 import { mergeById, mergeBudgets } from './services/merge';
-import { calculateTransactionEditDelta, calculateTransferDeltas, calculateTransferReversalDeltas } from './domain/balances';
+import { calculateTransactionEditDelta, calculateTransferDeltas, calculateTransferReversalDeltas, migrateTransactionsAssetIds } from './domain/balances';
+import { add, sub, convert, round, parseAmount } from './domain/money';
 import { formatAmount, getTxUsdEquivalent, translateCategory } from './utils/formatters';
 import { generateTestData, TEST_DATA_SEED_KEY } from './utils/testData';
 import './App.css';
@@ -39,7 +43,17 @@ function App() {
   const { user } = auth;
 
   const { assets, setAssets, addAsset, deleteAsset, updateAssetBalance } = useAssets(user);
-  const { rates, setRates, binanceSymbols, knownFiatCurrencies } = useRates(assets);
+  const {
+    rates,
+    setRates,
+    ratesDetails,
+    veRates,
+    binanceSymbols,
+    knownFiatCurrencies,
+    refreshRates,
+    isFetchingRates,
+    setCustomRate
+  } = useExchangeRates(assets);
   const { transactions, setTransactions, addTransaction, deleteTransaction, updateTransaction } = useTransactions(rates, user);
   const { obligations, setObligations, addObligation, deleteObligation, updateObligation } = useObligations(user);
   const { budgets, setBudgets, updateAllBudgets } = useBudgets(user);
@@ -53,15 +67,6 @@ function App() {
   const [txFilter, setTxFilter] = useState('all'); // 'all', 'income', 'spent', 'transfer'
 
   // Calculator State
-  const [veRates, setVeRates] = useState(() => {
-    try {
-      const saved = localStorage.getItem('veRates');
-      if (saved) return JSON.parse(saved);
-    } catch (e) {
-      console.error(e);
-    }
-    return { bcvUsd: 0, bcvEur: 0, paralelo: 0, custom: 0, lastUpdated: null };
-  });
   const [calcBaseAmount, setCalcBaseAmount] = useState('');
   const [calcBaseCurrency, setCalcBaseCurrency] = useState('BS');
 
@@ -71,95 +76,18 @@ function App() {
     if (isNaN(num)) return '';
     switch (calcBaseCurrency) {
       case 'BS': return num;
-      case 'BCV_USD': return num * veRates.bcvUsd;
-      case 'PARALELO': return num * veRates.paralelo;
-      case 'EUR': return num * veRates.bcvEur;
+      case 'BCV_USD': return veRates.bcvUsd ? num * veRates.bcvUsd : '';
+      case 'PARALELO': return veRates.paralelo ? num * veRates.paralelo : '';
+      case 'EUR': return veRates.bcvEur ? num * veRates.bcvEur : '';
       case 'CUSTOM': return num * (veRates.custom || 0);
       default: return '';
     }
   };
   const amountBs = getAmountInBs();
-  const [isFetchingRates, setIsFetchingRates] = useState(false);
-
-  useEffect(() => {
-    localStorage.setItem('veRates', JSON.stringify(veRates));
-  }, [veRates]);
 
   useEffect(() => {
     setIsFabExpanded(false);
   }, [currentPage]);
-
-  const fetchVeRates = async (silent = false) => {
-    setIsFetchingRates(true);
-    try {
-      let bcvUsd = 0;
-      let paralelo = 0;
-      let bcvEur = 0;
-
-      const [resDolarVzla, resDolarApiUsd, resDolarApiEur] = await Promise.allSettled([
-        fetch('https://rates.dolarvzla.com/bcv/current.json'),
-        fetch('https://ve.dolarapi.com/v1/dolares'),
-        fetch('https://ve.dolarapi.com/v1/euros/oficial')
-      ]);
-
-      if (resDolarVzla.status === 'fulfilled' && resDolarVzla.value.ok) {
-        const dataVzla = await resDolarVzla.value.json();
-        if (dataVzla?.current?.usd) {
-          bcvUsd = Number(dataVzla.current.usd);
-        }
-      }
-
-      if (resDolarApiUsd.status === 'fulfilled' && resDolarApiUsd.value.ok) {
-        const dataUsd = await resDolarApiUsd.value.json();
-        if (!bcvUsd) {
-          bcvUsd = dataUsd.find(d => d.fuente === 'oficial')?.promedio || veRates.bcvUsd;
-        }
-        paralelo = dataUsd.find(d => d.fuente === 'paralelo')?.promedio || veRates.paralelo;
-      }
-
-      if (resDolarApiEur.status === 'fulfilled' && resDolarApiEur.value.ok) {
-        const dataEur = await resDolarApiEur.value.json();
-        bcvEur = dataEur.promedio || veRates.bcvEur;
-      }
-
-      if (!bcvUsd) bcvUsd = veRates.bcvUsd;
-      if (!paralelo) paralelo = veRates.paralelo;
-      if (!bcvEur) bcvEur = veRates.bcvEur;
-
-      setVeRates(prev => ({
-        ...prev,
-        bcvUsd,
-        paralelo,
-        bcvEur,
-        lastUpdated: new Date().toISOString()
-      }));
-
-      // Mantener sincronizada la tasa maestra en toda la app
-      if (bcvUsd > 0 && setRates) {
-        setRates(prev => ({ ...prev, VES: 1 / bcvUsd }));
-      }
-    } catch (err) {
-      console.error("Error fetching VE rates:", err);
-      if (!silent) {
-        showToast("Error al actualizar las tasas. Verifica tu conexión.", "error");
-      }
-    } finally {
-      setIsFetchingRates(false);
-    }
-  };
-
-  // Sincronizar automáticamente la tasa BCV de useRates hacia la calculadora
-  useEffect(() => {
-    if (rates?.VES && rates.VES > 0) {
-      const currentBcv = Number((1 / rates.VES).toFixed(4));
-      setVeRates(prev => {
-        if (!prev.bcvUsd || Math.abs(prev.bcvUsd - currentBcv) > 0.01) {
-          return { ...prev, bcvUsd: currentBcv, lastUpdated: new Date().toISOString() };
-        }
-        return prev;
-      });
-    }
-  }, [rates?.VES]);
 
   // Balances State
   const [isAssetModalOpen, setIsAssetModalOpen] = useState(false);
@@ -172,7 +100,7 @@ function App() {
   const [txModalMode, setTxModalMode] = useState(null); // 'select', 'form', or null
   const [txValidationError, setTxValidationError] = useState('');
   const [newTx, setNewTx] = useState({
-    id: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal()
+    id: '', assetId: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal()
   });
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedTxs, setSelectedTxs] = useState([]);
@@ -189,6 +117,9 @@ function App() {
     setToast(typeof msg === 'string' && type !== 'success' ? { message: msg, type } : msg);
     setTimeout(() => setToast(null), 3000);
   };
+
+  const appLock = useAppLock({ showToast });
+  const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
 
   useEffect(() => {
     try {
@@ -242,6 +173,21 @@ function App() {
       }
     }
   }, [user?.id]);
+
+  // Migración local: asignar assetId (y destAssetId) a movimientos antiguos
+  useEffect(() => {
+    if (assets.length > 0 && transactions.length > 0) {
+      const hasUnmigrated = transactions.some(
+        t => (!t.assetId && t.origin) || (t.type === 'transfer' && !t.destAssetId && t.destOrigin)
+      );
+      if (hasUnmigrated) {
+        const { migratedTransactions, hasChanges } = migrateTransactionsAssetIds(transactions, assets);
+        if (hasChanges) {
+          setTransactions(migratedTransactions);
+        }
+      }
+    }
+  }, [assets, transactions, setTransactions]);
 
   const handleSyncNow = async () => {
     if (!user?.id) {
@@ -302,6 +248,8 @@ function App() {
     payingOb ||
     isBudgetModalOpen ||
     isAuthModalOpen ||
+    isSecurityModalOpen ||
+    appLock.isLocked ||
     confirmConfig?.isOpen
   );
 
@@ -320,8 +268,48 @@ function App() {
     addAsset(assetData);
   };
 
-  const handleAdjustBalance = (name, location, delta) => {
-    updateAssetBalance(name, location, delta);
+  const handleAdjustBalance = (asset, delta, newAmount) => {
+    if (!asset || delta === 0) return;
+    const currentAsset = assets.find(a => a.id === asset.id);
+    if (!currentAsset) {
+      showToast('La cuenta a ajustar no existe', 'error');
+      return;
+    }
+
+    const parsedDelta = parseAmount(delta);
+    if (isNaN(parsedDelta) || parsedDelta === 0) return;
+    const roundedDelta = round(parsedDelta, asset.name);
+
+    const updated = updateAssetBalance(asset.id, roundedDelta);
+    if (!updated) {
+      showToast('Error al actualizar el saldo de la cuenta', 'error');
+      return;
+    }
+
+    const curr = (asset.name || '').toUpperCase();
+    const rateSnapshot = rates[curr] ?? (curr === 'USD' || curr === 'USDT' || curr === 'USDC' ? 1 : 0);
+    const diffAbs = Math.abs(roundedDelta);
+    const usdEquivalent = convert(diffAbs, curr, 'USD', rates);
+    const parsedNew = parseAmount(newAmount);
+    const targetAmountDisplay = !isNaN(parsedNew) ? round(parsedNew, asset.name) : round(add(asset.amount, roundedDelta), asset.name);
+
+    addTransaction({
+      id: crypto.randomUUID(),
+      assetId: asset.id,
+      type: 'adjustment',
+      currency: asset.name,
+      amount: diffAbs,
+      delta: roundedDelta,
+      origin: asset.location,
+      category: 'Ajuste de saldo',
+      subcategory: roundedDelta > 0 ? 'Ajuste positivo' : 'Ajuste negativo',
+      notes: `Ajuste manual de ${asset.amount} a ${targetAmountDisplay} ${asset.name}`,
+      date: new Date().toISOString(),
+      rateSnapshot,
+      usdEquivalent
+    });
+
+    showToast('Balance ajustado');
   };
 
   const handleDeleteAsset = (id, name, location) => {
@@ -340,17 +328,19 @@ function App() {
   // Obligation Actions
   const handleAddObligation = (e) => {
     e.preventDefault();
-    if (!newOb.title || !newOb.amount || !newOb.currency || !newOb.category) {
-      showToast('Completa todos los campos requeridos', 'error');
+    const parsedAmount = parseAmount(newOb.amount);
+    if (!newOb.title || parsedAmount === null || parsedAmount <= 0 || !newOb.currency || !newOb.category) {
+      showToast('Completa todos los campos con un monto válido', 'error');
       return;
     }
 
     const finalInstallments = newOb.frequency === 'one-time' ? '1' : newOb.totalInstallments;
+    const finalAmount = round(parsedAmount, newOb.currency);
 
     if (newOb.id) {
-      updateObligation(newOb.id, { ...newOb, amount: Number(newOb.amount), totalInstallments: finalInstallments });
+      updateObligation(newOb.id, { ...newOb, amount: finalAmount, totalInstallments: finalInstallments });
     } else {
-      addObligation({ ...newOb, amount: Number(newOb.amount), totalInstallments: finalInstallments });
+      addObligation({ ...newOb, amount: finalAmount, totalInstallments: finalInstallments });
     }
     setIsObModalOpen(false);
     setNewOb({ id: '', type: 'pay', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: todayLocal(), totalInstallments: '', paidInstallments: 0, dateCreated: '' });
@@ -377,55 +367,72 @@ function App() {
     const asset = assets.find(a => a.id === payData.assetId);
     if (!asset) return;
 
-    const actualAmountNum = Number(payData.actualAmount);
-    if (payingOb.type === 'pay' && actualAmountNum > Number(asset.amount)) {
+    const actualAmountNum = parseAmount(payData.actualAmount);
+    if (isNaN(actualAmountNum) || actualAmountNum <= 0) {
+      showToast('Ingresa un monto válido mayor a 0', 'error');
+      return;
+    }
+    const roundedAmount = round(actualAmountNum, asset.name);
+    if (payingOb.type === 'pay' && roundedAmount > Number(asset.amount)) {
       showToast('Saldo insuficiente en la cuenta seleccionada', 'error');
       return;
     }
 
     const payCurr = asset.name.toUpperCase();
     const payRateSnapshot = rates[payCurr] ?? (payCurr === 'USD' || payCurr === 'USDT' || payCurr === 'USDC' ? 1 : 0);
-    const payUsdEquivalent = actualAmountNum * payRateSnapshot;
+    const payUsdEquivalent = convert(roundedAmount, payCurr, 'USD', rates);
+
+    const delta = payingOb.type === 'pay' ? sub(0, roundedAmount) : roundedAmount;
+    const res = updateAssetBalance(asset.id, delta);
+    if (!res) {
+      showToast('Error al actualizar el saldo de la cuenta', 'error');
+      return;
+    }
+
+    // Calcular la tasa usada entre la moneda de la obligación y la cuenta
+    let usedRate = 1;
+    const isVesInvolved = (asset.name || '').toUpperCase() === 'VES' || (payingOb?.currency || '').toUpperCase() === 'VES';
+    if (isVesInvolved) {
+      if (payData.rateType === 'BCV_USD') usedRate = veRates.bcvUsd || rates.VES || 1;
+      else if (payData.rateType === 'PARALELO') usedRate = veRates.paralelo || rates.VES || 1;
+      else if (payData.rateType === 'EUR') usedRate = veRates.bcvEur || rates.VES || 1;
+      else if (payData.rateType === 'CUSTOM') usedRate = parseAmount(payData.customRate) || 1;
+      else usedRate = payingOb.currency === 'EUR' ? (veRates.bcvEur || 1) : (veRates.bcvUsd || rates.VES || 1);
+    } else if ((asset.name || '').toUpperCase() !== (payingOb?.currency || '').toUpperCase()) {
+      const debtRate = rates[payingOb.currency] ?? (['USD', 'USDT', 'USDC'].includes(payingOb.currency) ? 1 : 0);
+      const accRate = rates[asset.name] ?? (['USD', 'USDT', 'USDC'].includes(asset.name) ? 1 : 0);
+      usedRate = accRate > 0 ? debtRate / accRate : 1;
+    }
 
     const tx = {
       type: payingOb.type === 'pay' ? 'spent' : 'income',
+      assetId: asset.id,
       currency: asset.name,
-      amount: actualAmountNum,
+      amount: roundedAmount,
       origin: asset.location,
       category: payingOb.category,
       subcategory: payingOb.title,
       rateSnapshot: payRateSnapshot,
-      usdEquivalent: payUsdEquivalent
+      usdEquivalent: payUsdEquivalent,
+      rateUsed: usedRate,
+      rateType: payData.rateType || null
     };
     addTransaction(tx);
 
-    const delta = payingOb.type === 'pay' ? -actualAmountNum : actualAmountNum;
-    updateAssetBalance(asset.name, asset.location, delta);
-
     const nextPaidCount = (Number(payingOb.paidInstallments) || 0) + 1;
     const totalInst = Number(payingOb.totalInstallments) || 0;
-    const isStillPending = !totalInst || nextPaidCount < totalInst;
+    const isCompleted = totalInst > 0 && nextPaidCount >= totalInst;
+    const isStillPending = !isCompleted;
 
     let nextDueDate = payingOb.dueDate;
     if (isStillPending && payingOb.dueDate && payingOb.frequency !== 'one-time') {
-      const baseDate = parseLocalDate(payingOb.dueDate);
-      if (!isNaN(baseDate.getTime())) {
-        if (payingOb.frequency === 'weekly') {
-          baseDate.setDate(baseDate.getDate() + 7);
-          nextDueDate = toLocalDateString(baseDate);
-        } else if (payingOb.frequency === 'bi-weekly') {
-          baseDate.setDate(baseDate.getDate() + 15);
-          nextDueDate = toLocalDateString(baseDate);
-        } else if (payingOb.frequency === 'monthly') {
-          const clamped = addMonthsClamped(baseDate, 1);
-          nextDueDate = toLocalDateString(clamped);
-        }
-      }
+      nextDueDate = getNextDueDate(payingOb.dueDate, payingOb.frequency);
     }
 
     updateObligation(payingOb.id, {
       paidInstallments: nextPaidCount,
-      dueDate: nextDueDate
+      dueDate: nextDueDate,
+      status: isCompleted ? 'paid' : (payingOb.status || 'pending')
     });
 
     showToast('Pago registrado exitosamente');
@@ -435,8 +442,11 @@ function App() {
 
   // Transaction Actions
   const handleEditTransaction = (tx) => {
+    const targetAsset = (tx.assetId && assets.find(a => a.id === tx.assetId)) ||
+                        assets.find(a => (a.name || '').toUpperCase() === (tx.currency || '').toUpperCase() && a.location === tx.origin);
     setNewTx({
       id: tx.id,
+      assetId: targetAsset ? targetAsset.id : (tx.assetId || ''),
       type: tx.type,
       currency: tx.currency,
       amount: tx.amount.toString(),
@@ -454,9 +464,9 @@ function App() {
     setTxValidationError('');
     if (!newTx.currency || !newTx.amount || !newTx.origin) return;
 
-    const amountNum = Number(newTx.amount);
+    const amountNum = parseAmount(newTx.amount);
     if (isNaN(amountNum) || amountNum <= 0) {
-      setTxValidationError('El monto debe ser mayor a 0');
+      setTxValidationError('Ingresa un monto válido mayor a 0 (ej. 1.234,56 o 1234,56)');
       return;
     }
 
@@ -469,42 +479,71 @@ function App() {
       const oldTx = transactions.find(t => t.id === newTx.id);
       if (!oldTx) return;
 
+      const oldAsset = assets.find(a => a.id === oldTx.assetId) ||
+                       assets.find(a => (a.name || '').toUpperCase() === (oldTx.currency || '').toUpperCase() && a.location === oldTx.origin);
+      const targetAsset = assets.find(a => a.id === newTx.assetId) ||
+                          assets.find(a => (a.name || '').toUpperCase() === (newTx.currency || '').toUpperCase() && a.location === newTx.origin);
+
+      if (!targetAsset) {
+        showToast('La cuenta seleccionada no existe', 'error');
+        setTxValidationError('La cuenta seleccionada no existe');
+        return;
+      }
+      if (!oldAsset) {
+        showToast('La cuenta original de la transacción ya no existe', 'error');
+        setTxValidationError('La cuenta original de la transacción ya no existe');
+        return;
+      }
+
+      const isSameAccount = oldAsset.id === targetAsset.id;
       const oldAmount = Number(oldTx.amount) || 0;
-      const isSameAccount = oldTx.currency.toUpperCase() === newTx.currency.toUpperCase() && oldTx.origin === newTx.origin;
+      const roundedAmount = round(amountNum, targetAsset.name);
 
       if (newTx.type === 'spent') {
-        const targetAsset = assets.find(a => a.name === newTx.currency.toUpperCase() && a.location === newTx.origin);
-        const currentBalance = targetAsset ? Number(targetAsset.amount) : 0;
+        const currentBalance = Number(targetAsset.amount) || 0;
         const maxAvailable = isSameAccount
-          ? (oldTx.type === 'spent' ? currentBalance + oldAmount : currentBalance - oldAmount)
+          ? (oldTx.type === 'spent' ? add(currentBalance, oldAmount) : sub(currentBalance, oldAmount))
           : currentBalance;
-        if (amountNum > maxAvailable) {
-          setTxValidationError(`Saldo insuficiente. Tienes ${currentBalance} ${newTx.currency.toUpperCase()} en ${newTx.origin}.`);
+        if (roundedAmount > maxAvailable) {
+          setTxValidationError(`Saldo insuficiente. Tienes ${currentBalance} ${targetAsset.name} en ${targetAsset.location}.`);
           return;
         }
       }
 
       // Delta calculation and account balance updates
-      const editDeltaResult = calculateTransactionEditDelta(oldTx, newTx);
+      const editDeltaResult = calculateTransactionEditDelta(
+        { ...oldTx, assetId: oldAsset.id },
+        { ...newTx, assetId: targetAsset.id, amount: roundedAmount }
+      );
+
       if (editDeltaResult.isSameAccount) {
-        updateAssetBalance(editDeltaResult.targetAccount.currency, editDeltaResult.targetAccount.origin, editDeltaResult.delta);
+        const res = updateAssetBalance(targetAsset.id, editDeltaResult.delta);
+        if (!res) {
+          showToast('Error al actualizar el saldo de la cuenta', 'error');
+          return;
+        }
       } else {
-        updateAssetBalance(editDeltaResult.revertAccount.currency, editDeltaResult.revertAccount.origin, editDeltaResult.revertAccount.delta);
-        updateAssetBalance(editDeltaResult.newAccount.currency, editDeltaResult.newAccount.origin, editDeltaResult.newAccount.delta);
+        const resRevert = updateAssetBalance(oldAsset.id, editDeltaResult.revertAccount.delta);
+        const resNew = updateAssetBalance(targetAsset.id, editDeltaResult.newAccount.delta);
+        if (!resRevert || !resNew) {
+          showToast('Error al actualizar saldo en las cuentas', 'error');
+          return;
+        }
       }
 
       // Rates snapshot and USD equivalent
-      const txCurr = newTx.currency.toUpperCase();
+      const txCurr = targetAsset.name.toUpperCase();
       const rateSnapshot = (oldTx.currency.toUpperCase() === txCurr && oldTx.rateSnapshot != null && Number(oldTx.rateSnapshot) > 0)
         ? Number(oldTx.rateSnapshot)
         : (rates[txCurr] ?? (txCurr === 'USD' || txCurr === 'USDT' || txCurr === 'USDC' ? 1 : 0));
-      const usdEquivalent = amountNum * rateSnapshot;
+      const usdEquivalent = convert(roundedAmount, txCurr, 'USD', rates);
 
       updateTransaction(newTx.id, {
         type: newTx.type,
-        currency: newTx.currency,
-        amount: amountNum,
-        origin: newTx.origin,
+        assetId: targetAsset.id,
+        currency: targetAsset.name,
+        amount: roundedAmount,
+        origin: targetAsset.location,
         category: newTx.category,
         subcategory: newTx.subcategory,
         date: txDate,
@@ -514,40 +553,55 @@ function App() {
 
       setTxModalMode(null);
       setTxValidationError('');
-      setNewTx({ id: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
+      setNewTx({ id: '', assetId: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
       showToast('Transacción actualizada');
       return;
     }
 
     // NEW TRANSACTION
+    const targetAsset = assets.find(a => a.id === newTx.assetId) ||
+                        assets.find(a => (a.name || '').toUpperCase() === (newTx.currency || '').toUpperCase() && a.location === newTx.origin);
+    if (!targetAsset) {
+      showToast('La cuenta seleccionada no existe', 'error');
+      setTxValidationError('La cuenta seleccionada no existe');
+      return;
+    }
+
+    const roundedAmount = round(amountNum, targetAsset.name);
+
     if (newTx.type === 'spent') {
-      const asset = assets.find(a => a.name === newTx.currency.toUpperCase() && a.location === newTx.origin);
-      const currentBalance = asset ? Number(asset.amount) : 0;
-      if (amountNum > currentBalance) {
-        setTxValidationError(`Saldo insuficiente. Tienes ${currentBalance} ${newTx.currency.toUpperCase()} en ${newTx.origin}.`);
+      const currentBalance = Number(targetAsset.amount) || 0;
+      if (roundedAmount > currentBalance) {
+        setTxValidationError(`Saldo insuficiente. Tienes ${currentBalance} ${targetAsset.name} en ${targetAsset.location}.`);
         return;
       }
     }
 
-    const txCurr = newTx.currency.toUpperCase();
+    const delta = newTx.type === 'income' ? roundedAmount : sub(0, roundedAmount);
+    const res = updateAssetBalance(targetAsset.id, delta);
+    if (!res) {
+      showToast('Error al actualizar el saldo de la cuenta', 'error');
+      return;
+    }
+
+    const txCurr = targetAsset.name.toUpperCase();
     const txRateSnapshot = rates[txCurr] ?? (txCurr === 'USD' || txCurr === 'USDT' || txCurr === 'USDC' ? 1 : 0);
-    const txUsdEquivalent = amountNum * txRateSnapshot;
+    const txUsdEquivalent = convert(roundedAmount, txCurr, 'USD', rates);
 
     addTransaction({
       ...newTx,
-      amount: amountNum,
+      assetId: targetAsset.id,
+      currency: targetAsset.name,
+      origin: targetAsset.location,
+      amount: roundedAmount,
       date: txDate,
       rateSnapshot: txRateSnapshot,
       usdEquivalent: txUsdEquivalent
     });
 
-    // Update linked balance
-    const delta = newTx.type === 'income' ? amountNum : -amountNum;
-    updateAssetBalance(newTx.currency.toUpperCase(), newTx.origin, delta);
-
     setTxModalMode(null);
     setTxValidationError('');
-    setNewTx({ id: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
+    setNewTx({ id: '', assetId: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
     showToast('Movimiento registrado');
   };
 
@@ -558,67 +612,91 @@ function App() {
 
     const sourceAsset = assets.find(a => a.id === newTransfer.sourceAssetId);
     const destAsset = assets.find(a => a.id === newTransfer.destAssetId);
-    if (!sourceAsset || !destAsset) return;
+    if (!sourceAsset || !destAsset) {
+      showToast('Una de las cuentas seleccionadas no existe', 'error');
+      setTxValidationError('Una de las cuentas seleccionadas no existe');
+      return;
+    }
 
     if (sourceAsset.id === destAsset.id) {
       setTxValidationError('Las cuentas de origen y destino deben ser distintas.');
       return;
     }
 
-    const amountDeductedNum = Number(newTransfer.amountDeducted);
-    const amountReceivedNum = Number(newTransfer.amountReceived);
-    const commissionNum = newTransfer.hasCommission ? (Number(newTransfer.commissionAmount) || 0) : 0;
-    const totalDeduction = amountDeductedNum + commissionNum;
+    const amountDeductedNum = parseAmount(newTransfer.amountDeducted);
+    const amountReceivedNum = parseAmount(newTransfer.amountReceived);
+    const commissionNum = newTransfer.hasCommission ? (parseAmount(newTransfer.commissionAmount) || 0) : 0;
+
+    if (isNaN(amountDeductedNum) || amountDeductedNum <= 0) {
+      setTxValidationError('Ingresa un monto a debitar válido mayor a 0');
+      return;
+    }
+    if (isNaN(amountReceivedNum) || amountReceivedNum <= 0) {
+      setTxValidationError('El monto a recibir debe ser mayor a 0');
+      return;
+    }
+
+    const roundedDeducted = round(amountDeductedNum, sourceAsset.name);
+    const roundedReceived = round(amountReceivedNum, destAsset.name);
+    const roundedCommission = round(commissionNum, sourceAsset.name);
+    const totalDeduction = add(roundedDeducted, roundedCommission);
 
     if (totalDeduction > Number(sourceAsset.amount)) {
       setTxValidationError(`Saldo insuficiente. Tienes ${formatAmount(sourceAsset.amount, sourceAsset.name)} ${sourceAsset.name} en ${sourceAsset.location}, pero necesitas ${formatAmount(totalDeduction, sourceAsset.name)} (incluyendo comisión).`);
       return;
     }
 
+    const transferDeltas = calculateTransferDeltas({
+      amountDeducted: roundedDeducted,
+      amountReceived: roundedReceived,
+      commission: roundedCommission
+    });
+
+    const resSource = updateAssetBalance(sourceAsset.id, transferDeltas.sourceDelta);
+    const resDest = updateAssetBalance(destAsset.id, transferDeltas.destDelta);
+    if (!resSource || !resDest) {
+      showToast('Error al actualizar el saldo de las cuentas de la transferencia', 'error');
+      return;
+    }
+
     const srcCurr = sourceAsset.name.toUpperCase();
     const srcRateSnapshot = rates[srcCurr] ?? (srcCurr === 'USD' || srcCurr === 'USDT' || srcCurr === 'USDC' ? 1 : 0);
-    const transferUsdEquivalent = amountDeductedNum * srcRateSnapshot;
+    const transferUsdEquivalent = convert(roundedDeducted, srcCurr, 'USD', rates);
     const transferId = crypto.randomUUID();
 
     addTransaction({
       id: transferId,
+      assetId: sourceAsset.id,
+      destAssetId: destAsset.id,
       type: 'transfer',
       currency: sourceAsset.name,
-      amount: amountDeductedNum,
+      amount: roundedDeducted,
       origin: sourceAsset.location,
       destCurrency: destAsset.name,
-      destAmount: amountReceivedNum,
+      destAmount: roundedReceived,
       destOrigin: destAsset.location,
-      commission: commissionNum,
+      commission: roundedCommission,
       category: 'Transfer',
       subcategory: `Hacia ${destAsset.location}`,
       rateSnapshot: srcRateSnapshot,
       usdEquivalent: transferUsdEquivalent
     });
 
-    if (commissionNum > 0) {
+    if (roundedCommission > 0) {
       addTransaction({
         id: crypto.randomUUID(),
         parentTransferId: transferId,
+        assetId: sourceAsset.id,
         type: 'spent',
         currency: sourceAsset.name,
-        amount: commissionNum,
+        amount: roundedCommission,
         origin: sourceAsset.location,
         category: 'Comisiones',
         subcategory: 'Comisión por transferencia',
         rateSnapshot: srcRateSnapshot,
-        usdEquivalent: commissionNum * srcRateSnapshot
+        usdEquivalent: convert(roundedCommission, srcCurr, 'USD', rates)
       });
     }
-
-    const transferDeltas = calculateTransferDeltas({
-      amountDeducted: amountDeductedNum,
-      amountReceived: amountReceivedNum,
-      commission: commissionNum
-    });
-
-    updateAssetBalance(sourceAsset.name, sourceAsset.location, transferDeltas.sourceDelta);
-    updateAssetBalance(destAsset.name, destAsset.location, transferDeltas.destDelta);
 
     setIsTransferModalOpen(false);
     setTxValidationError('');
@@ -649,14 +727,40 @@ function App() {
             const linkedCommissionTx = transactions.find(t => t.parentTransferId === tx.id);
             const reversal = calculateTransferReversalDeltas(tx, linkedCommissionTx);
 
-            updateAssetBalance(tx.currency.toUpperCase(), tx.origin, reversal.sourceRevertDelta);
-            if (tx.destCurrency && tx.destOrigin && tx.destAmount) {
-              updateAssetBalance(tx.destCurrency.toUpperCase(), tx.destOrigin, reversal.destRevertDelta);
+            const srcAsset = (tx.assetId && assets.find(a => a.id === tx.assetId)) ||
+                             assets.find(a => (a.name || '').toUpperCase() === (tx.currency || '').toUpperCase() && a.location === tx.origin);
+            const dstAsset = (tx.destAssetId && assets.find(a => a.id === tx.destAssetId)) ||
+                             (tx.destCurrency && tx.destOrigin ? assets.find(a => (a.name || '').toUpperCase() === (tx.destCurrency || '').toUpperCase() && a.location === tx.destOrigin) : null);
+
+            if (srcAsset) {
+              updateAssetBalance(srcAsset.id, reversal.sourceRevertDelta);
+            } else {
+              showToast('No se pudo revertir origen: la cuenta ya no existe', 'error');
             }
+
+            if (dstAsset && tx.destAmount) {
+              updateAssetBalance(dstAsset.id, reversal.destRevertDelta);
+            } else if (tx.destAmount) {
+              showToast('No se pudo revertir destino: la cuenta ya no existe', 'error');
+            }
+
             if (linkedCommissionTx && !processedIds.has(linkedCommissionTx.id)) {
               processedIds.add(linkedCommissionTx.id);
-              updateAssetBalance(linkedCommissionTx.currency.toUpperCase(), linkedCommissionTx.origin, reversal.commissionRevertDelta);
+              const commAsset = (linkedCommissionTx.assetId && assets.find(a => a.id === linkedCommissionTx.assetId)) ||
+                                assets.find(a => (a.name || '').toUpperCase() === (linkedCommissionTx.currency || '').toUpperCase() && a.location === linkedCommissionTx.origin);
+              if (commAsset) {
+                updateAssetBalance(commAsset.id, reversal.commissionRevertDelta);
+              }
               deleteTransaction(linkedCommissionTx.id);
+            }
+          } else if (tx.type === 'adjustment') {
+            const adjAsset = (tx.assetId && assets.find(a => a.id === tx.assetId)) ||
+                             assets.find(a => (a.name || '').toUpperCase() === (tx.currency || '').toUpperCase() && a.location === tx.origin);
+            if (adjAsset) {
+              const deltaApplied = tx.delta != null ? Number(tx.delta) : Number(tx.amount);
+              updateAssetBalance(adjAsset.id, -deltaApplied);
+            } else {
+              showToast('No se encontró la cuenta para revertir el ajuste', 'error');
             }
           } else {
             // Si es una comisión vinculada cuya transferencia padre ya fue seleccionada, se procesa con el padre
@@ -665,7 +769,13 @@ function App() {
               return;
             }
             const reverseDelta = tx.type === 'income' ? -Number(tx.amount) : Number(tx.amount);
-            updateAssetBalance(tx.currency.toUpperCase(), tx.origin, reverseDelta);
+            const txAsset = (tx.assetId && assets.find(a => a.id === tx.assetId)) ||
+                            assets.find(a => (a.name || '').toUpperCase() === (tx.currency || '').toUpperCase() && a.location === tx.origin);
+            if (txAsset) {
+              updateAssetBalance(txAsset.id, reverseDelta);
+            } else {
+              showToast('No se encontró la cuenta para revertir el saldo', 'error');
+            }
           }
           deleteTransaction(tx.id);
         });
@@ -688,15 +798,15 @@ function App() {
   // Computations for Summary
   const grandTotalUsd = assets.reduce((total, asset) => {
     const sym = (asset.name || '').trim().toUpperCase();
-    const rateVal = rates[sym] ?? (sym === 'USD' || sym === 'USDT' || sym === 'USDC' ? 1 : 0);
-    return total + (Number(asset.amount) * rateVal);
+    const usdVal = convert(asset.amount, sym, 'USD', rates);
+    return add(total, usdVal);
   }, 0);
 
   const accountTotalsUsd = assets.reduce((acc, asset) => {
     if (!acc[asset.location]) acc[asset.location] = 0;
     const sym = (asset.name || '').trim().toUpperCase();
-    const rateVal = rates[sym] ?? (sym === 'USD' || sym === 'USDT' || sym === 'USDC' ? 1 : 0);
-    acc[asset.location] += Number(asset.amount) * rateVal;
+    const usdVal = convert(asset.amount, sym, 'USD', rates);
+    acc[asset.location] = add(acc[asset.location], usdVal);
     return acc;
   }, {});
 
@@ -738,8 +848,8 @@ function App() {
     ? allIncomes
     : allIncomes.filter(t => parseLocalDate(toLocalDateString(t.date)) >= filterDate);
 
-  const totalSpentUsd = filteredSpents.reduce((acc, t) => acc + getTxUsdEquivalent(t, rates), 0);
-  const totalIncomeUsd = filteredIncomes.reduce((acc, t) => acc + getTxUsdEquivalent(t, rates), 0);
+  const totalSpentUsd = filteredSpents.reduce((acc, t) => add(acc, getTxUsdEquivalent(t, rates)), 0);
+  const totalIncomeUsd = filteredIncomes.reduce((acc, t) => add(acc, getTxUsdEquivalent(t, rates)), 0);
 
   const aggregatedData = {};
   filteredSpents.forEach(t => {
@@ -829,6 +939,7 @@ function App() {
                 setIsBalanceHidden={setIsBalanceHidden}
                 grandTotalUsd={grandTotalUsd}
                 rates={rates}
+                ratesDetails={ratesDetails}
                 totalIncomeUsd={totalIncomeUsd}
                 totalSpentUsd={totalSpentUsd}
                 timeFrame={timeFrame}
@@ -854,7 +965,9 @@ function App() {
               <BalancesView
                 grandTotalUsd={grandTotalUsd}
                 rates={rates}
+                ratesDetails={ratesDetails}
                 assets={assets}
+                transactions={transactions}
                 activeFilter={activeFilter}
                 setActiveFilter={setActiveFilter}
                 selectedFilters={selectedFilters}
@@ -865,6 +978,7 @@ function App() {
                 deleteMode={deleteMode}
                 onAdjustAsset={(asset) => setAdjustingAsset(asset)}
                 onDeleteAsset={handleDeleteAsset}
+                onAdjustBalance={handleAdjustBalance}
                 auth={auth}
                 onOpenAuthModal={() => setIsAuthModalOpen(true)}
                 onExportBackup={handleExportBackup}
@@ -884,7 +998,12 @@ function App() {
                 }}
                 onPay={(ob) => {
                   setPayingOb(ob);
-                  setPayData({ assetId: '', actualAmount: ob.amount.toString(), rateType: 'BCV_USD', customRate: '' });
+                  setPayData({
+                    assetId: '',
+                    actualAmount: ob.amount.toString(),
+                    rateType: (ob.currency || '').toUpperCase() === 'EUR' ? 'EUR' : 'BCV_USD',
+                    customRate: ''
+                  });
                 }}
                 onDelete={handleDeleteObligation}
               />
@@ -899,8 +1018,12 @@ function App() {
                 setCalcBaseAmount={setCalcBaseAmount}
                 amountBs={amountBs}
                 veRates={veRates}
-                setVeRates={setVeRates}
-                fetchVeRates={fetchVeRates}
+                ratesDetails={ratesDetails}
+                setVeRates={(newVal) => {
+                  const custom = newVal?.custom !== undefined ? newVal.custom : newVal;
+                  setCustomRate(custom);
+                }}
+                fetchVeRates={refreshRates}
                 isFetchingRates={isFetchingRates}
                 assets={assets}
                 transactions={transactions}
@@ -917,7 +1040,7 @@ function App() {
                   setAssets(data.assets);
                   setTransactions(data.transactions);
                   setObligations(data.obligations);
-                  if (data.veRates) setVeRates(data.veRates);
+                  if (data.veRates?.custom) setCustomRate(data.veRates.custom);
                   if (data.budgets) setBudgets(data.budgets);
                 }}
               />
@@ -980,7 +1103,7 @@ function App() {
                   <button
                     type="button"
                     className="fab-action-pill"
-                    onClick={() => { setTxModalMode('form'); setNewTx({ id: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() }); setIsFabExpanded(false); }}
+                    onClick={() => { setTxModalMode('form'); setNewTx({ id: '', assetId: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() }); setIsFabExpanded(false); }}
                     style={{
                       backgroundColor: '#1b2230',
                       border: '1px solid #2a3447',
@@ -1036,7 +1159,7 @@ function App() {
                   <button
                     type="button"
                     className="fab-action-pill"
-                    onClick={() => { setTxModalMode('form'); setNewTx({ id: '', type: 'spent', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() }); setIsFabExpanded(false); }}
+                    onClick={() => { setTxModalMode('form'); setNewTx({ id: '', assetId: '', type: 'spent', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() }); setIsFabExpanded(false); }}
                     style={{
                       backgroundColor: '#1b2230',
                       border: '1px solid #2a3447',
@@ -1267,7 +1390,6 @@ function App() {
         asset={adjustingAsset}
         onClose={() => setAdjustingAsset(null)}
         onAdjustBalance={handleAdjustBalance}
-        showToast={showToast}
       />
 
       <TransactionModal
@@ -1275,7 +1397,7 @@ function App() {
         onClose={() => {
           setTxModalMode(null);
           setTxValidationError('');
-          setNewTx({ id: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
+          setNewTx({ id: '', assetId: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
         }}
         newTx={newTx}
         setNewTx={setNewTx}
@@ -1315,6 +1437,7 @@ function App() {
         payData={payData}
         setPayData={setPayData}
         assets={assets}
+        rates={rates}
         veRates={veRates}
         onSubmit={handlePayObligationSubmit}
       />
@@ -1336,6 +1459,8 @@ function App() {
         localState={{ assets, transactions, obligations, budgets }}
         onRequestConfirm={requestConfirm}
         onExportBackup={handleExportBackup}
+        onOpenSecurityModal={() => setIsSecurityModalOpen(true)}
+        hasPin={appLock.hasPin}
         onClearLocalData={() => {
           localStorage.removeItem('personal_assets');
           localStorage.removeItem('personal_transactions');
@@ -1353,6 +1478,30 @@ function App() {
       <ConfirmModal
         config={confirmConfig}
         onCancel={() => setConfirmConfig(null)}
+      />
+
+      {/* BLOQUEO DE LA APP */}
+      <PinLockModal
+        isOpen={appLock.isLocked}
+        bioEnabled={appLock.bioEnabled}
+        bioAvailable={appLock.bioAvailable}
+        biometryTitle={appLock.biometryTitle}
+        onUnlockWithPin={appLock.unlockWithPin}
+        onUnlockWithBiometrics={appLock.unlockWithBiometrics}
+      />
+
+      {/* CONFIGURACIÓN DE SEGURIDAD (PIN Y BIOMETRÍA) */}
+      <SecuritySettingsModal
+        isOpen={isSecurityModalOpen}
+        onClose={() => setIsSecurityModalOpen(false)}
+        hasPin={appLock.hasPin}
+        bioEnabled={appLock.bioEnabled}
+        bioAvailable={appLock.bioAvailable}
+        biometryTitle={appLock.biometryTitle}
+        onConfigurePin={appLock.configurePin}
+        onUpdatePin={appLock.updatePin}
+        onDisablePin={appLock.disablePin}
+        onToggleBiometrics={appLock.toggleBiometrics}
       />
 
       {/* TOAST */}

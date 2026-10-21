@@ -1,0 +1,190 @@
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import {
+  BASE_STABLE_RATES,
+  KNOWN_FIAT_CURRENCIES,
+  DEFAULT_BINANCE_CRYPTOS,
+  fetchAllExchangeRates,
+  loadCachedRatesData,
+  saveCachedRatesData,
+  CUSTOM_RATE_KEY
+} from '../services/ratesService';
+
+export function useExchangeRates(assets = []) {
+  // Carga inicial desde caché si existe
+  const initialCache = useMemo(() => loadCachedRatesData(), []);
+
+  const [rates, setRates] = useState(() => ({
+    ...BASE_STABLE_RATES,
+    ...initialCache.cachedRates
+  }));
+
+  const [ratesDetails, setRatesDetails] = useState(() => ({
+    bcvUsd: initialCache.cachedDetails?.bcvUsd || {
+      valor: initialCache.cachedRates?.VES || null,
+      fuente: 'cache',
+      fechaConsulta: null,
+      fechaValor: null
+    },
+    bcvEur: initialCache.cachedDetails?.bcvEur || {
+      valor: null,
+      fuente: null,
+      fechaConsulta: null,
+      fechaValor: null
+    },
+    paralelo: initialCache.cachedDetails?.paralelo || {
+      valor: null,
+      fuente: null,
+      fechaConsulta: null,
+      fechaValor: null
+    },
+    custom: {
+      valor: initialCache.customRate || null,
+      fuente: 'custom',
+      fechaConsulta: null,
+      fechaValor: null
+    },
+    ...(initialCache.cachedDetails || {})
+  }));
+
+  const [customRate, setCustomRateState] = useState(initialCache.customRate || 0);
+  const [binanceSymbols, setBinanceSymbols] = useState(DEFAULT_BINANCE_CRYPTOS);
+  const [loading, setLoading] = useState(true);
+  const [isFetchingRates, setIsFetchingRates] = useState(false);
+
+  // Lista ordenada de símbolos únicos de activos para no disparar fetches con cambios de balance
+  const assetSymbolsString = useMemo(() => {
+    if (!assets || !Array.isArray(assets)) return '';
+    return Array.from(
+      new Set(assets.map(a => (a?.name || '').trim().toUpperCase()).filter(Boolean))
+    ).sort().join(',');
+  }, [assets]);
+
+  const assetSymbolsList = useMemo(() => {
+    return assetSymbolsString ? assetSymbolsString.split(',') : [];
+  }, [assetSymbolsString]);
+
+  // Ref con la tasa personalizada actual
+  const customRateRef = useRef(customRate);
+  useEffect(() => {
+    customRateRef.current = customRate;
+  }, [customRate]);
+
+  // Función principal de actualización de tasas
+  const fetchRates = useCallback(async (options = { silent: false }) => {
+    if (!options.silent) {
+      setIsFetchingRates(true);
+    }
+    try {
+      const { rates: newRates, details: newDetails, binanceSymbols: newBinanceSymbols } =
+        await fetchAllExchangeRates(assetSymbolsList, customRateRef.current);
+
+      setRates(prev => {
+        const merged = { ...prev, ...newRates };
+        return merged;
+      });
+
+      setRatesDetails(prev => {
+        const merged = { ...prev, ...newDetails };
+        // Mantener la tasa personalizada
+        if (customRateRef.current > 0) {
+          merged.custom = {
+            valor: customRateRef.current,
+            fuente: 'custom',
+            fechaConsulta: new Date().toISOString(),
+            fechaValor: null
+          };
+        }
+        return merged;
+      });
+
+      if (newBinanceSymbols && newBinanceSymbols.length > 0) {
+        setBinanceSymbols(newBinanceSymbols);
+      }
+
+      // Guardar en caché persistente
+      setRates(currentRates => {
+        setRatesDetails(currentDetails => {
+          saveCachedRatesData(currentRates, currentDetails, customRateRef.current);
+          return currentDetails;
+        });
+        return currentRates;
+      });
+    } catch (err) {
+      console.error('[useExchangeRates] Error al actualizar tasas:', err);
+    } finally {
+      setLoading(false);
+      setIsFetchingRates(false);
+    }
+  }, [assetSymbolsList]);
+
+  // Guardar ref de fetchRates para el timer de 5 minutos
+  const fetchRatesRef = useRef(fetchRates);
+  useEffect(() => {
+    fetchRatesRef.current = fetchRates;
+  }, [fetchRates]);
+
+  // Montar timer periódico de 5 minutos sin reiniciarse por cambios de saldo
+  useEffect(() => {
+    fetchRatesRef.current({ silent: false });
+
+    const intervalId = setInterval(() => {
+      fetchRatesRef.current({ silent: true });
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(intervalId);
+  }, []); // Solo se monta una vez
+
+  // Si cambia la lista de monedas de los activos (se agrega una nueva moneda), consultar sus tasas
+  const prevSymbolsRef = useRef(assetSymbolsString);
+  useEffect(() => {
+    if (prevSymbolsRef.current !== assetSymbolsString) {
+      prevSymbolsRef.current = assetSymbolsString;
+      fetchRatesRef.current({ silent: true });
+    }
+  }, [assetSymbolsString]);
+
+  // Permitir al usuario cambiar su tasa personalizada
+  const setCustomRate = useCallback((newVal) => {
+    const num = Number(newVal) || 0;
+    setCustomRateState(num);
+    try {
+      localStorage.setItem(CUSTOM_RATE_KEY, String(num));
+    } catch {
+      // Ignorar error
+    }
+    setRatesDetails(prev => ({
+      ...prev,
+      custom: {
+        valor: num > 0 ? num : null,
+        fuente: 'custom',
+        fechaConsulta: new Date().toISOString(),
+        fechaValor: null
+      }
+    }));
+  }, []);
+
+  // Objeto estructurado veRates para compatibilidad con calculadora y modales
+  const veRates = useMemo(() => {
+    return {
+      bcvUsd: ratesDetails.bcvUsd?.valor || null,
+      bcvEur: ratesDetails.bcvEur?.valor || null,
+      paralelo: ratesDetails.paralelo?.valor || null,
+      custom: customRate > 0 ? customRate : (ratesDetails.custom?.valor || 0),
+      lastUpdated: ratesDetails.bcvUsd?.fechaValor || ratesDetails.bcvUsd?.fechaConsulta || null,
+      details: ratesDetails
+    };
+  }, [ratesDetails, customRate]);
+
+  return {
+    rates,
+    setRates,
+    ratesDetails,
+    veRates,
+    loading,
+    isFetchingRates,
+    binanceSymbols,
+    knownFiatCurrencies: KNOWN_FIAT_CURRENCIES,
+    refreshRates: fetchRates,
+    setCustomRate
+  };
+}

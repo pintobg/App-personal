@@ -9,7 +9,8 @@
   "plugins": {
     "CapacitorUpdater": {
       "autoUpdate": false,
-      "statsUrl": ""
+      "statsUrl": "",
+      "publicKey": "-----BEGIN RSA PUBLIC KEY-----\nMIIBCgKCAQEA0SyX7viU5xmapoZCwzwjgIqiZkItrBNmtRCpHyftGTmnTjIdD2+p\naLWejy00StCHwBRbI+Met9idPktrJVgKrhweVusjq3hQKcrPosic+UdcIBXQWTa0\n3HgCy77mukw+Ykk6Z14bZa1yuglS5DyqXd6LtjxlGYBkdqMY2SBG0mWvzR+Ecjnb\n9Ceqkax5LuV0+qnxhRfJm82RnYGhfnUNljLQmhhHB9IaGyjoZEPHtUal7rHPVh2M\nBCGFJV++T4aM5UKpehPqy6cmsexly/4+Zq5NOYrFDqQizRyShefBPk1PUBQGnxVm\nDuOz7Hs9w7ZIhKjHTIH4jwi1fDxc0xuRiwIDAQAB\n-----END RSA PUBLIC KEY-----\n"
     }
   }
 }

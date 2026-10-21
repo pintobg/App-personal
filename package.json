@@ -14,11 +14,14 @@
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",
+    "@capacitor/app": "^8.1.2",
     "@capacitor/core": "^8.5.3",
     "@capacitor/filesystem": "^8.1.5",
     "@capacitor/share": "^8.0.3",
+    "@capgo/capacitor-native-biometric": "^8.9.1",
     "@capgo/capacitor-updater": "^8.53.0",
     "@supabase/supabase-js": "^2.117.3",
+    "big.js": "^7.0.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "recharts": "^3.10.0"

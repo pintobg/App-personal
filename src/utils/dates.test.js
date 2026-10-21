@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { todayLocal, addMonthsClamped, toLocalDateString, parseLocalDate } from './dates';
+import { todayLocal, addMonthsClamped, toLocalDateString, parseLocalDate, getNextDueDate } from './dates';
 
 describe('Utils: dates.js', () => {
   describe('todayLocal() en hora nocturna en Venezuela (America/Caracas)', () => {
@@ -52,6 +52,49 @@ describe('Utils: dates.js', () => {
       expect(parsed.getMonth()).toBe(5); // Junio es mes 5 (0-indexed)
       expect(parsed.getDate()).toBe(15);
       expect(parsed.getHours()).toBe(12);
+    });
+  });
+
+  describe('getNextDueDate() - Cálculo de próximos vencimientos', () => {
+    describe('Frecuencia Quincenal (15 y último) - semi-monthly', () => {
+      it('una deuda quincenal que vence el 15 pasa al último día del mes (Criterio de aceptación)', () => {
+        // Enero: del 15 pasa al 31 de enero
+        expect(getNextDueDate('2026-01-15', 'semi-monthly')).toBe('2026-01-31');
+      });
+
+      it('si vence el 15 de febrero en año no bisiesto (2026), pasa al 28 de febrero', () => {
+        expect(getNextDueDate('2026-02-15', 'semi-monthly')).toBe('2026-02-28');
+      });
+
+      it('si vence el 15 de febrero en año bisiesto (2024), pasa al 29 de febrero', () => {
+        expect(getNextDueDate('2024-02-15', 'semi-monthly')).toBe('2024-02-29');
+      });
+
+      it('si vence el último día del mes, pasa al 15 del mes siguiente', () => {
+        // 31 de enero -> 15 de febrero
+        expect(getNextDueDate('2026-01-31', 'semi-monthly')).toBe('2026-02-15');
+        // 28 de febrero -> 15 de marzo
+        expect(getNextDueDate('2026-02-28', 'semi-monthly')).toBe('2026-03-15');
+        // 30 de abril -> 15 de mayo
+        expect(getNextDueDate('2026-04-30', 'semi-monthly')).toBe('2026-05-15');
+      });
+
+      it('si vence en diciembre último día (2026-12-31), pasa al 15 de enero del año siguiente', () => {
+        expect(getNextDueDate('2026-12-31', 'semi-monthly')).toBe('2027-01-15');
+      });
+    });
+
+    describe('Frecuencia Cada 15 días - bi-weekly', () => {
+      it('suma exactamente 15 días de calendario', () => {
+        expect(getNextDueDate('2026-01-15', 'bi-weekly')).toBe('2026-01-30');
+        expect(getNextDueDate('2026-01-30', 'bi-weekly')).toBe('2026-02-14');
+      });
+    });
+
+    describe('Frecuencia Mensual - monthly', () => {
+      it('31 de enero pasa al 28 de febrero sin desbordar', () => {
+        expect(getNextDueDate('2025-01-31', 'monthly')).toBe('2025-02-28');
+      });
     });
   });
 });

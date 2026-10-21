@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { syncService } from '../services/syncService';
+import { add, round } from '../domain/money';
 
 export function useAssets(user = null) {
   const [assets, setAssets] = useState(() => {
@@ -25,7 +26,14 @@ export function useAssets(user = null) {
 
   const addAsset = (asset) => {
     const nowIso = new Date().toISOString();
-    const newAsset = { ...asset, id: asset.id || crypto.randomUUID(), updated_at: nowIso };
+    const roundedAmount = round(asset.amount, asset.name);
+    const newAsset = {
+      ...asset,
+      id: asset.id || crypto.randomUUID(),
+      initialAmount: asset.initialAmount != null ? round(asset.initialAmount, asset.name) : roundedAmount,
+      amount: roundedAmount,
+      updated_at: nowIso
+    };
     const nextList = [...assetsRef.current, newAsset];
     assetsRef.current = nextList;
     setAssets(nextList);
@@ -48,15 +56,17 @@ export function useAssets(user = null) {
     }
   };
 
-  const updateAssetBalance = (name, location, amountDelta) => {
+  const updateAssetBalance = (assetId, amountDelta) => {
     const nowIso = new Date().toISOString();
     const currentList = assetsRef.current;
-    const existingAssetIndex = currentList.findIndex(a => a.name === name && a.location === location);
+    const existingAssetIndex = currentList.findIndex(a => a.id === assetId);
 
     if (existingAssetIndex >= 0) {
+      const targetAsset = currentList[existingAssetIndex];
+      const newAmount = round(add(targetAsset.amount, amountDelta), targetAsset.name);
       const updated = {
-        ...currentList[existingAssetIndex],
-        amount: Number(currentList[existingAssetIndex].amount) + Number(amountDelta),
+        ...targetAsset,
+        amount: newAmount,
         updated_at: nowIso
       };
       const nextList = [...currentList];
@@ -69,21 +79,9 @@ export function useAssets(user = null) {
         syncService.queueChange('assets', 'upsert', updated, user.id);
       }
       return updated;
-    } else {
-      if (amountDelta > 0) {
-        const created = { id: crypto.randomUUID(), name, type: 'fiat', amount: Number(amountDelta), location, updated_at: nowIso };
-        const nextList = [...currentList, created];
-
-        assetsRef.current = nextList;
-        setAssets(nextList);
-
-        if (user?.id) {
-          syncService.queueChange('assets', 'upsert', created, user.id);
-        }
-        return created;
-      }
-      return null;
     }
+    // Si la cuenta no existe, retorna null
+    return null;
   };
 
   return { assets, setAssets, addAsset, deleteAsset, updateAssetBalance };

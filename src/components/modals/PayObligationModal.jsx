@@ -1,5 +1,6 @@
 import CustomSelect from '../common/CustomSelect';
 import { formatAmount } from '../../utils/formatters';
+import { parseAmount, convertForPayment } from '../../domain/money';
 
 export default function PayObligationModal({
   payingOb,
@@ -7,10 +8,61 @@ export default function PayObligationModal({
   payData,
   setPayData,
   assets,
-  veRates,
+  rates = {},
+  veRates = {},
   onSubmit
 }) {
   if (!payingOb) return null;
+
+  const selectedAsset = assets.find(a => a.id === payData.assetId);
+  const isVesInvolved = Boolean(
+    selectedAsset && (
+      (selectedAsset.name || '').toUpperCase() === 'VES' ||
+      (payingOb?.currency || '').toUpperCase() === 'VES'
+    )
+  );
+
+  const getActiveVeRate = (rateType, customRateInput) => {
+    if (rateType === 'BCV_USD') return veRates?.bcvUsd || null;
+    if (rateType === 'PARALELO') return veRates?.paralelo || null;
+    if (rateType === 'EUR') return veRates?.bcvEur || null;
+    if (rateType === 'CUSTOM') return parseAmount(customRateInput) || null;
+    if ((payingOb?.currency || '').toUpperCase() === 'EUR') {
+      return veRates?.bcvEur || null;
+    }
+    return veRates?.bcvUsd || null;
+  };
+
+  const calculateProposedAmount = (asset, rateType, customRate) => {
+    if (!asset || !payingOb) return '';
+    const activeVeRate = getActiveVeRate(rateType, customRate);
+    const converted = convertForPayment(
+      payingOb.amount,
+      payingOb.currency,
+      asset.name,
+      { ...rates, ...veRates },
+      activeVeRate
+    );
+    return converted != null ? converted.toString() : '';
+  };
+
+  // Formato para "Equivale a X [moneda] a tasa Y"
+  const getEquivalenceString = () => {
+    if (!selectedAsset || selectedAsset.name === payingOb.currency) return null;
+    let rateText = '';
+    if (isVesInvolved) {
+      const activeVeRate = getActiveVeRate(payData.rateType, payData.customRate);
+      rateText = activeVeRate ? `Bs. ${formatAmount(activeVeRate, 'VES')}` : '---';
+    } else {
+      const debtRateUsd = ['USD', 'USDT', 'USDC'].includes(payingOb.currency) ? 1 : (Number(rates?.[payingOb.currency]) || 1);
+      const accRateUsd = ['USD', 'USDT', 'USDC'].includes(selectedAsset.name) ? 1 : (Number(rates?.[selectedAsset.name]) || 1);
+      const ratio = accRateUsd > 0 ? debtRateUsd / accRateUsd : 1;
+      rateText = `${formatAmount(ratio, selectedAsset.name)} ${selectedAsset.name}/${payingOb.currency}`;
+    }
+    return `Equivale a ${formatAmount(payingOb.amount, payingOb.currency)} ${payingOb.currency} a tasa ${rateText}`;
+  };
+
+  const equivalenceText = getEquivalenceString();
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -35,7 +87,7 @@ export default function PayObligationModal({
                 marginBottom: '0.25rem'
               }}
             >
-              {payingOb.amount} {payingOb.currency}
+              {formatAmount(payingOb.amount, payingOb.currency)} {payingOb.currency}
             </div>
           </div>
 
@@ -46,29 +98,18 @@ export default function PayObligationModal({
               title="Seleccionar Cuenta de Pago"
               value={payData.assetId}
               onChange={e => {
-                const selectedAsset = assets.find(a => a.id === e.target.value);
-                if (!selectedAsset) return;
+                const newAsset = assets.find(a => a.id === e.target.value);
+                if (!newAsset) return;
 
-                let prefillAmount = payingOb.amount;
-                if (selectedAsset.name !== payingOb.currency) {
-                  let rate = 1;
-                  if (payData.rateType === 'BCV_USD') rate = veRates.bcvUsd || 1;
-                  else if (payData.rateType === 'PARALELO') rate = veRates.paralelo || 1;
-                  else if (payData.rateType === 'EUR') rate = veRates.bcvEur || 1;
-                  else if (payData.rateType === 'CUSTOM') rate = Number(payData.customRate) || 1;
+                const defaultRateType = payData.rateType || (payingOb.currency === 'EUR' ? 'EUR' : 'BCV_USD');
+                const prefill = calculateProposedAmount(newAsset, defaultRateType, payData.customRate);
 
-                  const isObForeign = ['USD', 'USDT', 'EUR'].includes(payingOb.currency);
-                  const isAssetForeign = ['USD', 'USDT', 'EUR'].includes(selectedAsset.name);
-
-                  if (isObForeign && !isAssetForeign) {
-                    prefillAmount = (Number(payingOb.amount) * rate).toFixed(2);
-                  } else if (!isObForeign && isAssetForeign) {
-                    prefillAmount = (Number(payingOb.amount) / rate).toFixed(2);
-                  } else {
-                    prefillAmount = payingOb.amount;
-                  }
-                }
-                setPayData({ ...payData, assetId: e.target.value, actualAmount: prefillAmount.toString() });
+                setPayData({
+                  ...payData,
+                  assetId: newAsset.id,
+                  rateType: defaultRateType,
+                  actualAmount: prefill
+                });
               }}
               options={assets.map(a => ({
                 value: a.id,
@@ -77,36 +118,24 @@ export default function PayObligationModal({
             />
           </div>
 
-          {payData.assetId && assets.find(a => a.id === payData.assetId)?.name !== payingOb.currency && (
+          {/* Selector de tasa venezolana SOLO si uno de los lados es VES y son monedas distintas */}
+          {payData.assetId && isVesInvolved && selectedAsset?.name !== payingOb.currency && (
             <>
               <div className="input-group">
                 <label>Tasa de Cambio a Usar</label>
                 <CustomSelect
                   placeholder="Seleccionar Tasa"
                   title="Tasa de Cambio a Usar"
-                  value={payData.rateType || 'BCV_USD'}
+                  value={payData.rateType || (payingOb.currency === 'EUR' ? 'EUR' : 'BCV_USD')}
                   onChange={e => {
                     const newRateType = e.target.value;
-                    const selectedAsset = assets.find(a => a.id === payData.assetId);
-                    let rate = 1;
-                    if (newRateType === 'BCV_USD') rate = veRates.bcvUsd || 1;
-                    else if (newRateType === 'PARALELO') rate = veRates.paralelo || 1;
-                    else if (newRateType === 'EUR') rate = veRates.bcvEur || 1;
-                    else if (newRateType === 'CUSTOM') rate = Number(payData.customRate) || 1;
-
-                    let prefillAmount = payingOb.amount;
-                    const isObForeign = ['USD', 'USDT', 'EUR'].includes(payingOb.currency);
-                    const isAssetForeign = ['USD', 'USDT', 'EUR'].includes(selectedAsset?.name);
-
-                    if (isObForeign && !isAssetForeign) prefillAmount = (Number(payingOb.amount) * rate).toFixed(2);
-                    else if (!isObForeign && isAssetForeign) prefillAmount = (Number(payingOb.amount) / rate).toFixed(2);
-
-                    setPayData({ ...payData, rateType: newRateType, actualAmount: prefillAmount.toString() });
+                    const prefill = calculateProposedAmount(selectedAsset, newRateType, payData.customRate);
+                    setPayData({ ...payData, rateType: newRateType, actualAmount: prefill });
                   }}
                   options={[
-                    { value: 'BCV_USD', label: `Oficial (BCV) - ${veRates.bcvUsd || '---'}` },
-                    { value: 'PARALELO', label: `Paralelo (Binance) - ${veRates.paralelo || '---'}` },
-                    { value: 'EUR', label: `Euro Oficial - ${veRates.bcvEur || '---'}` },
+                    { value: 'BCV_USD', label: `Oficial (BCV) - ${veRates.bcvUsd ? formatAmount(veRates.bcvUsd, 'VES') : 'Sin tasa'}` },
+                    { value: 'PARALELO', label: `Paralelo - ${veRates.paralelo ? formatAmount(veRates.paralelo, 'VES') : 'Sin tasa'}` },
+                    { value: 'EUR', label: `Euro Oficial - ${veRates.bcvEur ? formatAmount(veRates.bcvEur, 'VES') : 'Sin tasa'}` },
                     { value: 'CUSTOM', label: 'Personalizada' }
                   ]}
                 />
@@ -115,24 +144,16 @@ export default function PayObligationModal({
                 <div className="input-group">
                   <label>Tasa Personalizada</label>
                   <input
-                    type="number"
-                    step="any"
+                    type="text"
+                    inputMode="decimal"
                     className="input-field"
                     value={payData.customRate}
                     onChange={e => {
                       const newCustomRate = e.target.value;
-                      const selectedAsset = assets.find(a => a.id === payData.assetId);
-                      const rate = Number(newCustomRate) || 1;
-                      let prefillAmount = payingOb.amount;
-                      const isObForeign = ['USD', 'USDT', 'EUR'].includes(payingOb.currency);
-                      const isAssetForeign = ['USD', 'USDT', 'EUR'].includes(selectedAsset?.name);
-
-                      if (isObForeign && !isAssetForeign) prefillAmount = (Number(payingOb.amount) * rate).toFixed(2);
-                      else if (!isObForeign && isAssetForeign) prefillAmount = (Number(payingOb.amount) / rate).toFixed(2);
-
-                      setPayData({ ...payData, customRate: newCustomRate, actualAmount: prefillAmount.toString() });
+                      const prefill = calculateProposedAmount(selectedAsset, 'CUSTOM', newCustomRate);
+                      setPayData({ ...payData, customRate: newCustomRate, actualAmount: prefill });
                     }}
-                    placeholder="Ej. 45.5"
+                    placeholder="Ej. 45,50"
                   />
                 </div>
               )}
@@ -141,18 +162,24 @@ export default function PayObligationModal({
 
           {payData.assetId && (
             <div className="input-group">
-              <label>Monto Real Deducido ({assets.find(a => a.id === payData.assetId)?.name})</label>
+              <label>Monto Real Deducido ({selectedAsset?.name})</label>
               <input
-                type="number"
-                step="any"
+                type="text"
+                inputMode="decimal"
                 className="input-field"
+                placeholder="0,00"
                 value={payData.actualAmount}
                 onChange={e => setPayData({ ...payData, actualAmount: e.target.value })}
                 required
               />
-              <div style={{ fontSize: '0.75rem', color: '#98989d', marginBottom: '0.25rem' }}>
-                {assets.find(a => a.id === payData.assetId)?.name !== payingOb.currency
-                  ? 'El monto se calculó automáticamente, pero puedes ajustarlo si la tasa varió.'
+              {equivalenceText && (
+                <div style={{ fontSize: '0.8rem', color: '#10b981', marginTop: '0.35rem', fontWeight: 500 }}>
+                  {equivalenceText}
+                </div>
+              )}
+              <div style={{ fontSize: '0.75rem', color: '#98989d', marginTop: '0.25rem', marginBottom: '0.25rem' }}>
+                {selectedAsset?.name !== payingOb.currency
+                  ? 'El monto se calculó automáticamente según las tasas, pero puedes ajustarlo si la tasa real varió.'
                   : 'Ajusta esto si la cantidad real fue distinta.'}
               </div>
             </div>

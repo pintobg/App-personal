@@ -75,6 +75,8 @@ function mapTxToDb(tx, userId) {
   return {
     id: tx.id,
     user_id: userId,
+    asset_id: tx.assetId || tx.asset_id || null,
+    dest_asset_id: tx.destAssetId || tx.dest_asset_id || null,
     type: tx.type,
     currency: tx.currency || null,
     amount: Number(tx.amount) || 0,
@@ -98,6 +100,8 @@ function mapTxToDb(tx, userId) {
 function mapDbToTx(row) {
   return {
     id: row.id,
+    assetId: row.assetId || row.asset_id || undefined,
+    destAssetId: row.destAssetId || row.dest_asset_id || undefined,
     type: row.type,
     currency: row.currency,
     amount: Number(row.amount),
@@ -170,6 +174,7 @@ function mapAssetToDb(asset, userId) {
     name: asset.name,
     type: asset.type,
     amount: Number(asset.amount) || 0,
+    initial_amount: asset.initialAmount != null ? Number(asset.initialAmount) : (Number(asset.amount) || 0),
     location: asset.location,
     deleted_at: asset.deleted_at || asset.deletedAt || null,
     updated_at: asset.updated_at || asset.updatedAt || new Date().toISOString()
@@ -182,6 +187,7 @@ function mapDbToAsset(row) {
     name: row.name,
     type: row.type,
     amount: Number(row.amount),
+    initialAmount: row.initialAmount != null ? Number(row.initialAmount) : (row.initial_amount != null ? Number(row.initial_amount) : Number(row.amount)),
     location: row.location,
     deleted_at: row.deleted_at || null,
     updated_at: row.updated_at || row.created_at || new Date().toISOString()
@@ -266,7 +272,7 @@ export const syncService = {
 
             if (table === 'assets') {
               if (action === 'upsert') {
-                const { error } = await supabase.from('assets').upsert(mapAssetToDb(payload, userId));
+                const { error } = await supabase.from('assets').upsert(mapAssetToDb(payload, userId), { onConflict: 'user_id,id' });
                 if (error) throw error;
               } else if (action === 'delete') {
                 // Borrado lógico con deleted_at
@@ -278,7 +284,7 @@ export const syncService = {
               }
             } else if (table === 'transactions') {
               if (action === 'upsert') {
-                const { error } = await supabase.from('transactions').upsert(mapTxToDb(payload, userId));
+                const { error } = await supabase.from('transactions').upsert(mapTxToDb(payload, userId), { onConflict: 'user_id,id' });
                 if (error) throw error;
               } else if (action === 'delete') {
                 // Borrado lógico con deleted_at
@@ -290,7 +296,7 @@ export const syncService = {
               }
             } else if (table === 'obligations') {
               if (action === 'upsert') {
-                const { error } = await supabase.from('obligations').upsert(mapObToDb(payload, userId));
+                const { error } = await supabase.from('obligations').upsert(mapObToDb(payload, userId), { onConflict: 'user_id,id' });
                 if (error) throw error;
               } else if (action === 'delete') {
                 // Borrado lógico con deleted_at
@@ -309,7 +315,7 @@ export const syncService = {
                   amount: Number(payload.amount) || 0,
                   deleted_at: null,
                   updated_at: payload.updated_at || new Date().toISOString()
-                });
+                }, { onConflict: 'user_id,id' });
                 if (error) throw error;
               } else if (action === 'delete') {
                 // Borrado lógico con deleted_at
@@ -462,19 +468,19 @@ export const syncService = {
         // 1. Assets
         if (assets.length > 0) {
           const dbAssets = assets.map(a => mapAssetToDb(a, userId));
-          const { error } = await supabase.from('assets').upsert(dbAssets);
+          const { error } = await supabase.from('assets').upsert(dbAssets, { onConflict: 'user_id,id' });
           if (error) throw error;
         }
         // 2. Transactions
         if (transactions.length > 0) {
           const dbTxs = transactions.map(t => mapTxToDb(t, userId));
-          const { error } = await supabase.from('transactions').upsert(dbTxs);
+          const { error } = await supabase.from('transactions').upsert(dbTxs, { onConflict: 'user_id,id' });
           if (error) throw error;
         }
         // 3. Obligations
         if (obligations.length > 0) {
           const dbObs = obligations.map(o => mapObToDb(o, userId));
-          const { error } = await supabase.from('obligations').upsert(dbObs);
+          const { error } = await supabase.from('obligations').upsert(dbObs, { onConflict: 'user_id,id' });
           if (error) throw error;
         }
         // 4. Budgets
@@ -487,7 +493,7 @@ export const syncService = {
             amount: Number(amount) || 0,
             updated_at: new Date().toISOString()
           }));
-          const { error } = await supabase.from('budgets').upsert(dbBudgets);
+          const { error } = await supabase.from('budgets').upsert(dbBudgets, { onConflict: 'user_id,id' });
           if (error) throw error;
         }
       } else if (!import.meta.env.PROD) {

@@ -299,6 +299,12 @@ export default function TransactionsView({
         >
           Transferencias
         </button>
+        <button
+          onClick={() => setTxFilter('adjustment')}
+          style={{ background: 'transparent', border: 'none', padding: '0.5rem 0', color: txFilter === 'adjustment' ? '#10b981' : '#94a3b8', borderBottom: txFilter === 'adjustment' ? '2px solid #10b981' : '2px solid transparent', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+        >
+          Ajustes
+        </button>
       </div>
 
       {/* FILTER SUMMARY & RESET ACTION */}
@@ -347,8 +353,23 @@ export default function TransactionsView({
                       <input type="checkbox" checked={selectedTxs.some(t => t.id === tx.id)} readOnly style={{ transform: 'scale(1.2)', flexShrink: 0 }} />
                     )}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: 0, flex: 1 }}>
-                      <div style={{ fontSize: '1rem', fontWeight: 600, color: '#f1f5f9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {tx.type === 'transfer' ? 'Transferencia' : (tx.type === 'income' ? 'Ingreso' : 'Gasto')}
+                      <div style={{ fontSize: '1rem', fontWeight: 600, color: '#f1f5f9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                        {tx.type === 'adjustment' && (
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                            <line x1="4" y1="21" x2="4" y2="14"></line>
+                            <line x1="4" y1="10" x2="4" y2="3"></line>
+                            <line x1="12" y1="21" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12" y2="3"></line>
+                            <line x1="20" y1="21" x2="20" y2="16"></line>
+                            <line x1="20" y1="12" x2="20" y2="3"></line>
+                            <line x1="1" y1="14" x2="7" y2="14"></line>
+                            <line x1="9" y1="8" x2="15" y2="8"></line>
+                            <line x1="17" y1="16" x2="23" y2="16"></line>
+                          </svg>
+                        )}
+                        <span>
+                          {tx.type === 'transfer' ? 'Transferencia' : (tx.type === 'income' ? 'Ingreso' : (tx.type === 'adjustment' ? 'Ajuste de saldo' : 'Gasto'))}
+                        </span>
                       </div>
                       <div style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
                         <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tx.type === 'transfer' ? `${tx.origin} ➔ ${tx.destOrigin}` : tx.origin}</div>
@@ -366,6 +387,12 @@ export default function TransactionsView({
                           +{formatAmount(tx.destAmount, tx.destCurrency)} {tx.destCurrency?.toUpperCase()}
                         </div>
                       </>
+                    ) : tx.type === 'adjustment' ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <div style={{ fontSize: '1rem', fontWeight: 700, color: '#94a3b8' }}>
+                          {(tx.delta != null ? tx.delta >= 0 : true) ? '+' : '-'}{formatAmount(tx.amount, tx.currency)} {tx.currency.toUpperCase()}
+                        </div>
+                      </div>
                     ) : (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <div style={{ fontSize: '1rem', fontWeight: 700, color: tx.type === 'income' ? '#10b981' : '#ef4444' }}>
@@ -421,6 +448,18 @@ export default function TransactionsView({
                       )}
                       <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '0.25rem', fontWeight: 500 }}>
                         Valor estimado: ~${formatAmount(usdVal, 'USD')} USD
+                      </div>
+                    </>
+                  ) : tx.type === 'adjustment' ? (
+                    <>
+                      <div style={{ fontWeight: 600, color: '#f1f5f9', marginBottom: '0.25rem' }}>Detalles de Ajuste</div>
+                      <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Motivo: {tx.notes || tx.category || 'Ajuste manual de saldo'}</div>
+                      {tx.subcategory && <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Tipo: {translateSubcategory(tx.subcategory)}</div>}
+                      <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.35rem', fontWeight: 500 }}>
+                        Tasa de registro: {rateStr}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                        Impacto estimado: ~${formatAmount(usdVal, 'USD')} USD
                       </div>
                     </>
                   ) : (

@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 
 const VERSION_JSON_URL = 'https://pintobg.github.io/App-personal/version.json';
 const INSTALLED_VERSION_KEY = 'finanzas_installed_ota_version';
 const JUST_UPDATED_KEY = 'finanzas_just_updated';
+const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000; // 6 horas
 
 /* global __APP_BUILD_ID__ */
 const CURRENT_BUILD_ID = typeof __APP_BUILD_ID__ !== 'undefined' ? __APP_BUILD_ID__ : 'local-dev';
@@ -97,6 +99,15 @@ export default function AutoUpdater({ showToast }) {
         return;
       }
 
+      // Validación de seguridad estricta: rechazar bundles sin checksum
+      if (!remote.checksum || typeof remote.checksum !== 'string' || !remote.checksum.trim()) {
+        console.warn('Actualización OTA rechazada: falta checksum de seguridad obligatorio en el manifiesto.');
+        if (showToast) {
+          showToast('Actualización rechazada: falta checksum de seguridad obligatorio', 'error');
+        }
+        return;
+      }
+
       const installedVersion = localStorage.getItem(INSTALLED_VERSION_KEY) || CURRENT_BUILD_ID;
 
       // Si la versión remota coincide con la instalada o con el build actual, no hay cambios
@@ -118,10 +129,11 @@ export default function AutoUpdater({ showToast }) {
       if (Capacitor.isNativePlatform()) {
         const downloadOptions = {
           url: remote.bundleUrl,
-          version: shortVer
+          version: shortVer,
+          checksum: remote.checksum.trim()
         };
-        if (remote.checksum) {
-          downloadOptions.checksum = remote.checksum;
+        if (remote.sessionKey) {
+          downloadOptions.sessionKey = remote.sessionKey;
         }
 
         const bundle = await CapacitorUpdater.download(downloadOptions);
@@ -142,24 +154,28 @@ export default function AutoUpdater({ showToast }) {
       }
     } catch (err) {
       console.warn('Update check skipped or failed:', err);
+      const wasAttempting = isUpdatingRef.current;
       isUpdatingRef.current = false;
       setStatusBanner(null);
-      if (manual && showToast) {
-        const errDetail = err?.message || 'Error de conexión';
-        showToast(`No se pudo actualizar: ${errDetail}`, 'error');
+      if (showToast && (manual || wasAttempting)) {
+        const errDetail = err?.message || 'Error al descargar o verificar firma/checksum del paquete';
+        showToast(`Actualización rechazada o firma inválida: ${errDetail}`, 'error');
       }
     }
   }, [showToast]);
 
   useEffect(() => {
+    // 1. Consulta al abrir la app tras breve delay
     const initialTimer = setTimeout(() => {
       checkForUpdates(false);
     }, 2500);
 
+    // 2. Consulta periódica cada 6 horas
     const interval = setInterval(() => {
       checkForUpdates(false);
-    }, 90000);
+    }, CHECK_INTERVAL_MS);
 
+    // 3. Consulta al volver al primer plano (navegador / webview)
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
         checkForUpdates(false);
@@ -173,11 +189,28 @@ export default function AutoUpdater({ showToast }) {
     document.addEventListener('visibilitychange', handleVisibility);
     window.addEventListener('finanzas:check-update', handleManualTrigger);
 
+    // 4. Consulta en app nativa al volver de segundo plano
+    let appStateHandle = null;
+    if (Capacitor.isNativePlatform()) {
+      CapApp.addListener('appStateChange', (state) => {
+        if (state.isActive) {
+          checkForUpdates(false);
+        }
+      }).then((handle) => {
+        appStateHandle = handle;
+      }).catch((e) => {
+        console.warn('Error adding appStateChange listener:', e);
+      });
+    }
+
     return () => {
       clearTimeout(initialTimer);
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('finanzas:check-update', handleManualTrigger);
+      if (appStateHandle?.remove) {
+        appStateHandle.remove();
+      }
     };
   }, [checkForUpdates]);
 

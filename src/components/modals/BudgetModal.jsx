@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { SPENT_CATEGORIES } from '../../utils/constants';
+import { parseAmount, round, add } from '../../domain/money';
 
 const CATEGORY_ICONS = {
   'Vivienda': '🏠',
@@ -54,12 +55,19 @@ export default function BudgetModal({
   const handleSubmit = (e) => {
     e.preventDefault();
     const cleanBudgets = {};
-    Object.entries(formData).forEach(([cat, val]) => {
-      const num = Number(val);
-      if (!isNaN(num) && num > 0) {
-        cleanBudgets[cat] = num;
+    for (const [cat, val] of Object.entries(formData)) {
+      if (val === '' || val === null || val === undefined) continue;
+      const parsed = parseAmount(val);
+      if (parsed === null) {
+        if (showToast) {
+          showToast(`Monto inválido para ${cat}`, 'error');
+        }
+        return;
       }
-    });
+      if (parsed > 0) {
+        cleanBudgets[cat] = round(parsed, 'USD');
+      }
+    }
 
     onSave(cleanBudgets);
     if (showToast) {
@@ -69,8 +77,8 @@ export default function BudgetModal({
   };
 
   const totalBudget = Object.values(formData).reduce((acc, val) => {
-    const num = Number(val);
-    return !isNaN(num) && num > 0 ? acc + num : acc;
+    const parsed = parseAmount(val);
+    return parsed !== null && parsed > 0 ? add(acc, parsed) : acc;
   }, 0);
 
   const activeCount = Object.values(formData).filter(val => !isNaN(Number(val)) && Number(val) > 0).length;
@@ -223,9 +231,8 @@ export default function BudgetModal({
                       $
                     </span>
                     <input
-                      type="number"
-                      step="any"
-                      min="0"
+                      type="text"
+                      inputMode="decimal"
                       className="input-field"
                       placeholder="Sin límite"
                       value={val}

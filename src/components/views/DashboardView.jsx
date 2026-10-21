@@ -24,6 +24,7 @@ import {
 } from '../../utils/formatters';
 import { COLORS } from '../../utils/constants';
 import { toLocalDateString, parseLocalDate } from '../../utils/dates';
+import { getRateStatus } from '../../services/ratesService';
 
 const CATEGORY_ICONS = {
   'Vivienda': '🏠',
@@ -45,6 +46,7 @@ export default function DashboardView({
   setIsBalanceHidden,
   grandTotalUsd,
   rates,
+  ratesDetails,
   totalIncomeUsd,
   totalSpentUsd,
   timeFrame,
@@ -297,8 +299,31 @@ export default function DashboardView({
           <span style={{ fontSize: 'clamp(1.2rem, 5vw, 1.6rem)' }}>$</span>
           {isBalanceHidden ? '***' : formatAmount(grandTotalUsd, 'USD')}
         </div>
-        <div style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
-          Bs {rates['VES'] ? (1 / rates['VES']).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '...'} / $
+        <div style={{ fontSize: '0.85rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+          {rates?.['VES'] ? (
+            <>
+              <span>Bs {formatAmount(rates['VES'] < 1 ? 1 / rates['VES'] : rates['VES'], 'VES')} / $</span>
+              {ratesDetails?.bcvUsd && (() => {
+                const status = getRateStatus(ratesDetails.bcvUsd);
+                if (status.isStale) {
+                  return (
+                    <span style={{ color: '#f59e0b', fontSize: '0.74rem', padding: '1px 6px', background: '#312615', borderRadius: '4px', fontWeight: 600 }}>
+                      {status.label}
+                    </span>
+                  );
+                }
+                return (
+                  <span style={{ color: '#64748b', fontSize: '0.74rem' }}>
+                    ({status.label})
+                  </span>
+                );
+              })()}
+            </>
+          ) : (
+            <span style={{ color: '#f59e0b', fontSize: '0.82rem', fontWeight: 600 }}>
+              ⚠️ Sin tasa (Conéctate o ingresa una tasa en la Calculadora)
+            </span>
+          )}
         </div>
       </div>
 

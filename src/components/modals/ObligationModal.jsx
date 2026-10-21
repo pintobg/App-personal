@@ -62,10 +62,10 @@ export default function ObligationModal({
             <div className="input-group" style={{ flex: 2 }}>
               <label>Monto</label>
               <input
-                type="number"
-                step="any"
+                type="text"
+                inputMode="decimal"
                 className="input-field"
-                placeholder="0.00"
+                placeholder="0,00"
                 value={newOb.amount}
                 onChange={e => setNewOb({ ...newOb, amount: e.target.value })}
                 required
@@ -104,7 +104,8 @@ export default function ObligationModal({
               options={[
                 { value: 'one-time', label: 'Un solo pago' },
                 { value: 'weekly', label: 'Semanal' },
-                { value: 'bi-weekly', label: 'Quincenal (14/15 días)' },
+                { value: 'bi-weekly', label: 'Cada 15 días' },
+                { value: 'semi-monthly', label: 'Quincenal (15 y último)' },
                 { value: 'monthly', label: 'Mensual' }
               ]}
             />

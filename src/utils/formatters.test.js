@@ -3,16 +3,23 @@ import { getTxRateSnapshot, getTxUsdEquivalent } from './formatters';
 
 describe('Utils: formatters.js - Snapshots y Equivalentes USD', () => {
   const currentRates = {
-    VES: 1 / 50, // 50 Bs por 1 USD
+    VES: 50, // 50 Bs por 1 USD (tasa directa publicada)
     USDT: 1.0,
     BTC: 65000
   };
 
   describe('getTxRateSnapshot', () => {
-    it('calcula la tasa para VES', () => {
+    it('calcula la tasa para VES como Bs por USD', () => {
       const tx = { currency: 'VES' };
       const rate = getTxRateSnapshot(tx, currentRates);
-      expect(rate).toBeCloseTo(0.02, 5); // 1 / 50
+      expect(rate).toBe(50);
+    });
+
+    it('soporta tasas VES heredadas invertidas (< 1)', () => {
+      const tx = { currency: 'VES' };
+      const legacyRates = { VES: 1 / 50 };
+      const rate = getTxRateSnapshot(tx, legacyRates);
+      expect(rate).toBeCloseTo(50, 2);
     });
 
     it('calcula la tasa para USDT (1.0)', () => {
@@ -28,9 +35,9 @@ describe('Utils: formatters.js - Snapshots y Equivalentes USD', () => {
     });
 
     it('respeta un rateSnapshot ya existente en la transacción', () => {
-      const tx = { currency: 'VES', rateSnapshot: 0.025 };
+      const tx = { currency: 'VES', rateSnapshot: 40 };
       const rate = getTxRateSnapshot(tx, currentRates);
-      expect(rate).toBe(0.025);
+      expect(rate).toBe(40);
     });
   });
 

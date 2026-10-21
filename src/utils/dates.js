@@ -66,3 +66,50 @@ export function addMonthsClamped(dateInput, n = 1) {
 
   return result;
 }
+
+/**
+ * Calcula la siguiente fecha de vencimiento según la frecuencia.
+ * Soporta:
+ * - 'weekly': +7 días
+ * - 'bi-weekly': +15 días ("Cada 15 días")
+ * - 'semi-monthly': "Quincenal (15 y último)" (si vence el 15 pasa al último del mes; si vence el último, al 15 del mes siguiente)
+ * - 'monthly': +1 mes usando addMonthsClamped (sin desbordar)
+ */
+export function getNextDueDate(currentDueDate, frequency) {
+  if (!currentDueDate || frequency === 'one-time') return currentDueDate;
+  const baseDate = parseLocalDate(currentDueDate);
+  if (isNaN(baseDate.getTime())) return currentDueDate;
+
+  if (frequency === 'weekly') {
+    baseDate.setDate(baseDate.getDate() + 7);
+    return toLocalDateString(baseDate);
+  }
+
+  if (frequency === 'bi-weekly') {
+    baseDate.setDate(baseDate.getDate() + 15);
+    return toLocalDateString(baseDate);
+  }
+
+  if (frequency === 'semi-monthly') {
+    const year = baseDate.getFullYear();
+    const month = baseDate.getMonth();
+    const day = baseDate.getDate();
+    const lastDayOfMonth = new Date(year, month + 1, 0).getDate();
+
+    if (day < 15) {
+      return toLocalDateString(new Date(year, month, 15, 12, 0, 0, 0));
+    } else if (day === 15) {
+      return toLocalDateString(new Date(year, month, lastDayOfMonth, 12, 0, 0, 0));
+    } else {
+      // Si vence el último día del mes (o > 15), pasa al 15 del mes siguiente
+      return toLocalDateString(new Date(year, month + 1, 15, 12, 0, 0, 0));
+    }
+  }
+
+  if (frequency === 'monthly') {
+    const clamped = addMonthsClamped(baseDate, 1);
+    return toLocalDateString(clamped);
+  }
+
+  return currentDueDate;
+}

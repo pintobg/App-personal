@@ -16,6 +16,11 @@ dist-ssr
 *.apk
 *.zip
 
+# Capgo encryption keys
+.capgo_key*
+*.pem
+*.key
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

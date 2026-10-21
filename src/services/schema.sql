@@ -8,21 +8,25 @@
 
 -- 1. TABLA: ASSETS (Cuentas y Activos)
 CREATE TABLE IF NOT EXISTS public.assets (
-    id TEXT PRIMARY KEY,
+    id TEXT NOT NULL,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     name TEXT NOT NULL,
     type TEXT NOT NULL,
     amount NUMERIC NOT NULL DEFAULT 0,
+    initial_amount NUMERIC DEFAULT 0,
     location TEXT NOT NULL,
     deleted_at TIMESTAMPTZ DEFAULT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    PRIMARY KEY (user_id, id)
 );
 
 -- 2. TABLA: TRANSACTIONS (Movimientos e Historial)
 CREATE TABLE IF NOT EXISTS public.transactions (
-    id TEXT PRIMARY KEY,
+    id TEXT NOT NULL,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    asset_id TEXT,
+    dest_asset_id TEXT,
     type TEXT NOT NULL,
     currency TEXT,
     amount NUMERIC NOT NULL DEFAULT 0,
@@ -40,12 +44,13 @@ CREATE TABLE IF NOT EXISTS public.transactions (
     usd_equivalent NUMERIC,
     deleted_at TIMESTAMPTZ DEFAULT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    PRIMARY KEY (user_id, id)
 );
 
 -- 3. TABLA: OBLIGATIONS (Deudas y Cuentas por Cobrar)
 CREATE TABLE IF NOT EXISTS public.obligations (
-    id TEXT PRIMARY KEY,
+    id TEXT NOT NULL,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     type TEXT NOT NULL,
     title TEXT,
@@ -63,18 +68,20 @@ CREATE TABLE IF NOT EXISTS public.obligations (
     payments JSONB DEFAULT '[]'::jsonb,
     deleted_at TIMESTAMPTZ DEFAULT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    PRIMARY KEY (user_id, id)
 );
 
 -- 4. TABLA: BUDGETS (Presupuestos Mensuales)
 CREATE TABLE IF NOT EXISTS public.budgets (
-    id TEXT PRIMARY KEY,
+    id TEXT NOT NULL,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     category TEXT NOT NULL,
     amount NUMERIC NOT NULL DEFAULT 0,
     deleted_at TIMESTAMPTZ DEFAULT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    PRIMARY KEY (user_id, id),
     UNIQUE(user_id, category)
 );
 
