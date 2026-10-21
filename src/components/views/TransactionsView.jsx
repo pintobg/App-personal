@@ -465,7 +465,7 @@ export default function TransactionsView({
                   ) : (
                     <>
                       <div style={{ fontWeight: 600, color: '#f1f5f9', marginBottom: '0.25rem' }}>Detalles de Transacción</div>
-                      <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Categoría: {translateCategory(tx.category) || 'N/A'}</div>
+                      <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Categoría: {translateCategory(tx.category) || 'Sin categoría'}</div>
                       {tx.subcategory && <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Subcategoría: {translateSubcategory(tx.subcategory)}</div>}
                       <div style={{ fontSize: '0.8rem', color: '#10b981', marginTop: '0.35rem', fontWeight: 500 }}>
                         Tasa de registro: {rateStr}

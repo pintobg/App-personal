@@ -9,8 +9,7 @@ export function useTransactions(currentRates = {}, user = null) {
     if (saved) {
       try {
         let parsed = JSON.parse(saved);
-        parsed = parsed.filter(t => !(t.type === 'spent' && !t.category));
-        return parsed;
+        return Array.isArray(parsed) ? parsed : [];
       } catch {
         return [];
       }
