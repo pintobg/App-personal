@@ -8,7 +8,8 @@ export default function AuthModal({
   showToast,
   localState,
   onRequestConfirm,
-  onExportBackup
+  onExportBackup,
+  onClearLocalData
 }) {
   const [tab, setTab] = useState('signin'); // 'signin' | 'signup'
   const [email, setEmail] = useState('');
@@ -23,6 +24,7 @@ export default function AuthModal({
     user,
     isGuest,
     syncStatus,
+    pendingCount = 0,
     isSupabaseConfigured,
     signIn,
     signUp,
@@ -74,23 +76,63 @@ export default function AuthModal({
   };
 
   const handleSignOut = () => {
-    const executeSignOut = async () => {
-      await signOut();
-      showToast('Sesión cerrada');
-      onClose();
+    const askWipeOption = () => {
+      if (onRequestConfirm) {
+        onRequestConfirm({
+          title: '¿Borrar los datos de este teléfono?',
+          message: 'Tus datos ya están guardados en tu cuenta en la nube. Se recomienda borrarlos de este teléfono si el dispositivo es compartido o prestado.',
+          confirmText: 'Sí, borrar del teléfono',
+          cancelText: 'Mantener en este teléfono',
+          variant: 'danger',
+          onConfirm: async () => {
+            await signOut();
+            if (onClearLocalData) {
+              onClearLocalData();
+            } else {
+              localStorage.removeItem('personal_assets');
+              localStorage.removeItem('personal_transactions');
+              localStorage.removeItem('obligations');
+              localStorage.removeItem('personal_budgets');
+              localStorage.removeItem('finanzas_sync_queue');
+              localStorage.removeItem('finanzas_data_owner');
+            }
+            showToast('Sesión cerrada y datos locales eliminados');
+            onClose();
+          },
+          onCancel: async () => {
+            await signOut();
+            showToast('Sesión cerrada (datos locales conservados)');
+            onClose();
+          }
+        });
+      } else {
+        signOut();
+        showToast('Sesión cerrada');
+        onClose();
+      }
     };
 
-    if (onRequestConfirm) {
-      onRequestConfirm({
-        title: 'Cerrar sesión',
-        message: '¿Deseas cerrar tu sesión? Tus datos locales se mantendrán en este dispositivo.',
-        confirmText: 'Cerrar sesión',
-        variant: 'danger',
-        onConfirm: executeSignOut
-      });
-    } else {
-      executeSignOut();
+    // Si hay cambios pendientes en la cola, avisa y ofrece sincronizar primero
+    if (pendingCount > 0) {
+      if (onRequestConfirm) {
+        onRequestConfirm({
+          title: 'Cambios pendientes por sincronizar',
+          message: `Tienes ${pendingCount} cambio(s) guardado(s) solo en este teléfono que no se han subido a la nube. ¿Deseas sincronizarlos antes de cerrar sesión?`,
+          confirmText: 'Sincronizar ahora',
+          cancelText: 'Cerrar sin subir',
+          onConfirm: async () => {
+            if (onSyncNow) await onSyncNow();
+            askWipeOption();
+          },
+          onCancel: () => {
+            askWipeOption();
+          }
+        });
+        return;
+      }
     }
+
+    askWipeOption();
   };
 
   const handleGuestContinue = () => {
@@ -190,12 +232,29 @@ export default function AuthModal({
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.35rem',
-                  color: syncStatus === 'synced' ? '#10b981' : syncStatus === 'syncing' ? '#3b82f6' : syncStatus === 'offline' ? '#f59e0b' : '#ef4444'
+                  color: (syncStatus === 'synced' && pendingCount === 0) ? '#10b981' : syncStatus === 'syncing' ? '#3b82f6' : (syncStatus === 'offline' || pendingCount > 0) ? '#f59e0b' : '#ef4444'
                 }}>
-                  {syncStatus === 'synced' && '● Sincronizado'}
                   {syncStatus === 'syncing' && '🔄 Sincronizando...'}
-                  {syncStatus === 'offline' && '⚠️ Sin conexión (offline)'}
-                  {syncStatus === 'error' && '✕ Error al sincronizar'}
+                  {syncStatus !== 'syncing' && syncStatus === 'offline' && '⚠️ Sin conexión'}
+                  {syncStatus !== 'syncing' && syncStatus !== 'offline' && pendingCount > 0 && `⏳ Pendiente (${pendingCount})`}
+                  {syncStatus !== 'syncing' && syncStatus !== 'offline' && pendingCount === 0 && syncStatus === 'synced' && '● Sincronizado'}
+                  {syncStatus !== 'syncing' && syncStatus !== 'offline' && pendingCount === 0 && syncStatus === 'error' && (
+                    <button
+                      type="button"
+                      onClick={onSyncNow}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#ef4444',
+                        cursor: 'pointer',
+                        padding: 0,
+                        fontWeight: 600,
+                        textDecoration: 'underline'
+                      }}
+                    >
+                      ✕ Error, reintentar
+                    </button>
+                  )}
                   {syncStatus === 'guest' && '👤 Local'}
                 </span>
               </div>

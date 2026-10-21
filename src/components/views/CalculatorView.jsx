@@ -9,6 +9,7 @@ import {
   CartesianGrid
 } from 'recharts';
 import { exportBackup, validateBackupData } from '../../utils/backup';
+import { todayLocal, toLocalDateString, parseLocalDate } from '../../utils/dates';
 
 const HISTORY_CACHE_KEY = 'veRates_history_v1';
 
@@ -31,9 +32,9 @@ function formatFullDate(dateStr) {
 }
 
 function getIsoDateOffset(daysOffset, baseDateStr) {
-  const d = baseDateStr ? new Date(`${baseDateStr}T12:00:00`) : new Date();
+  const d = baseDateStr ? parseLocalDate(baseDateStr) : new Date();
   d.setDate(d.getDate() + daysOffset);
-  return d.toISOString().split('T')[0];
+  return toLocalDateString(d);
 }
 
 function formatCalcNumber(num, decimals = 2) {
@@ -305,7 +306,7 @@ export default function CalculatorView({
   const minHistoryDate = rateHistory.length > 0 ? rateHistory[0].date : '2024-01-01';
   const maxHistoryDate = rateHistory.length > 0
     ? rateHistory[rateHistory.length - 1].date
-    : new Date().toISOString().split('T')[0];
+    : todayLocal();
 
   const handleSelectDateFromHistory = (dateStr) => {
     setSelectedDate(dateStr);
@@ -1254,12 +1255,29 @@ export default function CalculatorView({
               <span style={{ color: '#94a3b8' }}>Estado de sincronización:</span>
               <span style={{
                 fontWeight: 600,
-                color: auth.syncStatus === 'synced' ? '#10b981' : auth.syncStatus === 'syncing' ? '#3b82f6' : auth.syncStatus === 'offline' ? '#f59e0b' : '#ef4444'
+                color: (auth.syncStatus === 'synced' && (auth.pendingCount || 0) === 0) ? '#10b981' : auth.syncStatus === 'syncing' ? '#3b82f6' : (auth.syncStatus === 'offline' || (auth.pendingCount || 0) > 0) ? '#f59e0b' : '#ef4444'
               }}>
-                {auth.syncStatus === 'synced' && '● Al día'}
                 {auth.syncStatus === 'syncing' && '🔄 Sincronizando...'}
-                {auth.syncStatus === 'offline' && '⚠️ Sin conexión'}
-                {auth.syncStatus === 'error' && '✕ Error'}
+                {auth.syncStatus !== 'syncing' && auth.syncStatus === 'offline' && '⚠️ Sin conexión'}
+                {auth.syncStatus !== 'syncing' && auth.syncStatus !== 'offline' && (auth.pendingCount || 0) > 0 && `⏳ Pendiente (${auth.pendingCount})`}
+                {auth.syncStatus !== 'syncing' && auth.syncStatus !== 'offline' && (auth.pendingCount || 0) === 0 && auth.syncStatus === 'synced' && '● Sincronizado'}
+                {auth.syncStatus !== 'syncing' && auth.syncStatus !== 'offline' && (auth.pendingCount || 0) === 0 && auth.syncStatus === 'error' && (
+                  <button
+                    type="button"
+                    onClick={onSyncNow}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: '#ef4444',
+                      cursor: 'pointer',
+                      padding: 0,
+                      fontWeight: 600,
+                      textDecoration: 'underline'
+                    }}
+                  >
+                    ✕ Error, reintentar
+                  </button>
+                )}
                 {auth.syncStatus === 'guest' && '👤 Local'}
               </span>
             </div>

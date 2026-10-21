@@ -27,6 +27,9 @@ import Toast from './components/common/Toast';
 import PwaInstallPrompt from './components/common/PwaInstallPrompt';
 import AutoUpdater from './components/common/AutoUpdater';
 import { exportBackup } from './utils/backup';
+import { todayLocal, toLocalDateString, parseLocalDate, addMonthsClamped } from './utils/dates';
+import { mergeById, mergeBudgets } from './services/merge';
+import { calculateTransactionEditDelta, calculateTransferDeltas, calculateTransferReversalDeltas } from './domain/balances';
 import { formatAmount, getTxUsdEquivalent, translateCategory } from './utils/formatters';
 import { generateTestData, TEST_DATA_SEED_KEY } from './utils/testData';
 import './App.css';
@@ -169,7 +172,7 @@ function App() {
   const [txModalMode, setTxModalMode] = useState(null); // 'select', 'form', or null
   const [txValidationError, setTxValidationError] = useState('');
   const [newTx, setNewTx] = useState({
-    id: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: new Date().toISOString().split('T')[0]
+    id: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal()
   });
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedTxs, setSelectedTxs] = useState([]);
@@ -202,16 +205,43 @@ function App() {
 
   useEffect(() => {
     if (user?.id) {
-      syncService.fetchRemoteAll(user.id).then(remote => {
-        if (remote) {
-          if (remote.assets && remote.assets.length > 0) setAssets(remote.assets);
-          if (remote.transactions && remote.transactions.length > 0) setTransactions(remote.transactions);
-          if (remote.obligations && remote.obligations.length > 0) setObligations(remote.obligations);
-          if (remote.budgets && Object.keys(remote.budgets).length > 0) setBudgets(remote.budgets);
-        }
-      });
+      const owner = localStorage.getItem('finanzas_data_owner');
+      const hasLocalData = (assets.length > 0 || transactions.length > 0 || obligations.length > 0);
+
+      // Si hay un dueño guardado previo y es distinto al usuario logueado
+      if (owner && owner !== user.id && hasLocalData) {
+        requestConfirm({
+          title: 'Cuenta diferente detectada',
+          message: 'Hay datos en este teléfono de otra sesión. ¿Deseas conservarlos y combinarlos con tu cuenta, o empezar con los datos de tu cuenta en la nube?',
+          confirmText: 'Combinar y subir',
+          cancelText: 'Usar solo mi nube',
+          onConfirm: async () => {
+            localStorage.setItem('finanzas_data_owner', user.id);
+            await handleSyncNow();
+          },
+          onCancel: async () => {
+            localStorage.setItem('finanzas_data_owner', user.id);
+            localStorage.removeItem('finanzas_sync_queue');
+            const remote = await syncService.fetchRemoteAll(user.id);
+            if (remote) {
+              setAssets(mergeById([], remote.assets || []));
+              setTransactions(mergeById([], remote.transactions || []));
+              setObligations(mergeById([], remote.obligations || []));
+              setBudgets(mergeBudgets({}, remote.budgets || {}));
+            } else {
+              setAssets([]);
+              setTransactions([]);
+              setObligations([]);
+              setBudgets({});
+            }
+          }
+        });
+      } else {
+        localStorage.setItem('finanzas_data_owner', user.id);
+        handleSyncNow();
+      }
     }
-  }, [user?.id, setAssets, setTransactions, setObligations, setBudgets]);
+  }, [user?.id]);
 
   const handleSyncNow = async () => {
     if (!user?.id) {
@@ -219,13 +249,29 @@ function App() {
       return;
     }
     showToast('Sincronizando con la nube...');
+    // 1. Flush local pending queue first
     await syncService.flushQueue();
+
+    // 2. Fetch remote
     const remote = await syncService.fetchRemoteAll(user.id);
     if (remote) {
-      if (remote.assets && remote.assets.length > 0) setAssets(remote.assets);
-      if (remote.transactions && remote.transactions.length > 0) setTransactions(remote.transactions);
-      if (remote.obligations && remote.obligations.length > 0) setObligations(remote.obligations);
-      if (remote.budgets && Object.keys(remote.budgets).length > 0) setBudgets(remote.budgets);
+      // 3. Merge by ID with local state
+      setAssets(prev => {
+        const merged = mergeById(prev, remote.assets || []);
+        return merged;
+      });
+      setTransactions(prev => {
+        const merged = mergeById(prev, remote.transactions || []);
+        return merged;
+      });
+      setObligations(prev => {
+        const merged = mergeById(prev, remote.obligations || []);
+        return merged;
+      });
+      setBudgets(prev => {
+        const merged = mergeBudgets(prev, remote.budgets || {});
+        return merged;
+      });
       showToast('Datos sincronizados con éxito');
     } else {
       showToast('Sincronización completada');
@@ -240,7 +286,7 @@ function App() {
   // Obligations State
   const [isObModalOpen, setIsObModalOpen] = useState(false);
   const [newOb, setNewOb] = useState({
-    id: '', type: 'pay', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: new Date().toISOString().split('T')[0], totalInstallments: '', paidInstallments: 0
+    id: '', type: 'pay', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: todayLocal(), totalInstallments: '', paidInstallments: 0
   });
   const [payingOb, setPayingOb] = useState(null);
   const [payData, setPayData] = useState({ assetId: '', actualAmount: '', rateType: 'BCV_USD', customRate: '' });
@@ -307,7 +353,7 @@ function App() {
       addObligation({ ...newOb, amount: Number(newOb.amount), totalInstallments: finalInstallments });
     }
     setIsObModalOpen(false);
-    setNewOb({ id: '', type: 'pay', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: new Date().toISOString().split('T')[0], totalInstallments: '', paidInstallments: 0, dateCreated: '' });
+    setNewOb({ id: '', type: 'pay', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: todayLocal(), totalInstallments: '', paidInstallments: 0, dateCreated: '' });
     showToast('Deuda guardada');
   };
 
@@ -362,12 +408,18 @@ function App() {
 
     let nextDueDate = payingOb.dueDate;
     if (isStillPending && payingOb.dueDate && payingOb.frequency !== 'one-time') {
-      const baseDate = new Date(payingOb.dueDate + 'T12:00:00');
+      const baseDate = parseLocalDate(payingOb.dueDate);
       if (!isNaN(baseDate.getTime())) {
-        if (payingOb.frequency === 'weekly') baseDate.setDate(baseDate.getDate() + 7);
-        else if (payingOb.frequency === 'bi-weekly') baseDate.setDate(baseDate.getDate() + 15);
-        else if (payingOb.frequency === 'monthly') baseDate.setMonth(baseDate.getMonth() + 1);
-        nextDueDate = baseDate.toISOString().split('T')[0];
+        if (payingOb.frequency === 'weekly') {
+          baseDate.setDate(baseDate.getDate() + 7);
+          nextDueDate = toLocalDateString(baseDate);
+        } else if (payingOb.frequency === 'bi-weekly') {
+          baseDate.setDate(baseDate.getDate() + 15);
+          nextDueDate = toLocalDateString(baseDate);
+        } else if (payingOb.frequency === 'monthly') {
+          const clamped = addMonthsClamped(baseDate, 1);
+          nextDueDate = toLocalDateString(clamped);
+        }
       }
     }
 
@@ -391,7 +443,7 @@ function App() {
       origin: tx.origin,
       category: tx.category || '',
       subcategory: tx.subcategory || '',
-      date: tx.date ? (tx.date.includes('T') ? tx.date.split('T')[0] : tx.date) : new Date().toISOString().split('T')[0]
+      date: tx.date ? toLocalDateString(tx.date) : todayLocal()
     });
     setTxValidationError('');
     setTxModalMode('form');
@@ -433,26 +485,12 @@ function App() {
       }
 
       // Delta calculation and account balance updates
-      if (isSameAccount) {
-        let delta = 0;
-        if (oldTx.type === 'income' && newTx.type === 'income') {
-          delta = amountNum - oldAmount;
-        } else if (oldTx.type === 'spent' && newTx.type === 'spent') {
-          delta = oldAmount - amountNum;
-        } else if (oldTx.type === 'income' && newTx.type === 'spent') {
-          delta = -oldAmount - amountNum;
-        } else {
-          delta = oldAmount + amountNum;
-        }
-        updateAssetBalance(newTx.currency.toUpperCase(), newTx.origin, delta);
+      const editDeltaResult = calculateTransactionEditDelta(oldTx, newTx);
+      if (editDeltaResult.isSameAccount) {
+        updateAssetBalance(editDeltaResult.targetAccount.currency, editDeltaResult.targetAccount.origin, editDeltaResult.delta);
       } else {
-        // Revert old account balance
-        const revertDelta = oldTx.type === 'income' ? -oldAmount : oldAmount;
-        updateAssetBalance(oldTx.currency.toUpperCase(), oldTx.origin, revertDelta);
-
-        // Apply to new account balance
-        const newDelta = newTx.type === 'income' ? amountNum : -amountNum;
-        updateAssetBalance(newTx.currency.toUpperCase(), newTx.origin, newDelta);
+        updateAssetBalance(editDeltaResult.revertAccount.currency, editDeltaResult.revertAccount.origin, editDeltaResult.revertAccount.delta);
+        updateAssetBalance(editDeltaResult.newAccount.currency, editDeltaResult.newAccount.origin, editDeltaResult.newAccount.delta);
       }
 
       // Rates snapshot and USD equivalent
@@ -476,7 +514,7 @@ function App() {
 
       setTxModalMode(null);
       setTxValidationError('');
-      setNewTx({ id: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: new Date().toISOString().split('T')[0] });
+      setNewTx({ id: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
       showToast('Transacción actualizada');
       return;
     }
@@ -509,7 +547,7 @@ function App() {
 
     setTxModalMode(null);
     setTxValidationError('');
-    setNewTx({ id: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: new Date().toISOString().split('T')[0] });
+    setNewTx({ id: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
     showToast('Movimiento registrado');
   };
 
@@ -573,8 +611,14 @@ function App() {
       });
     }
 
-    updateAssetBalance(sourceAsset.name, sourceAsset.location, -totalDeduction);
-    updateAssetBalance(destAsset.name, destAsset.location, amountReceivedNum);
+    const transferDeltas = calculateTransferDeltas({
+      amountDeducted: amountDeductedNum,
+      amountReceived: amountReceivedNum,
+      commission: commissionNum
+    });
+
+    updateAssetBalance(sourceAsset.name, sourceAsset.location, transferDeltas.sourceDelta);
+    updateAssetBalance(destAsset.name, destAsset.location, transferDeltas.destDelta);
 
     setIsTransferModalOpen(false);
     setTxValidationError('');
@@ -602,15 +646,16 @@ function App() {
           processedIds.add(tx.id);
 
           if (tx.type === 'transfer') {
-            updateAssetBalance(tx.currency.toUpperCase(), tx.origin, Number(tx.amount));
-            if (tx.destCurrency && tx.destOrigin && tx.destAmount) {
-              updateAssetBalance(tx.destCurrency.toUpperCase(), tx.destOrigin, -Number(tx.destAmount));
-            }
-            // Si la transferencia tenía una comisión vinculada, revertirla y eliminarla automáticamente
             const linkedCommissionTx = transactions.find(t => t.parentTransferId === tx.id);
+            const reversal = calculateTransferReversalDeltas(tx, linkedCommissionTx);
+
+            updateAssetBalance(tx.currency.toUpperCase(), tx.origin, reversal.sourceRevertDelta);
+            if (tx.destCurrency && tx.destOrigin && tx.destAmount) {
+              updateAssetBalance(tx.destCurrency.toUpperCase(), tx.destOrigin, reversal.destRevertDelta);
+            }
             if (linkedCommissionTx && !processedIds.has(linkedCommissionTx.id)) {
               processedIds.add(linkedCommissionTx.id);
-              updateAssetBalance(linkedCommissionTx.currency.toUpperCase(), linkedCommissionTx.origin, Number(linkedCommissionTx.amount));
+              updateAssetBalance(linkedCommissionTx.currency.toUpperCase(), linkedCommissionTx.origin, reversal.commissionRevertDelta);
               deleteTransaction(linkedCommissionTx.id);
             }
           } else {
@@ -686,12 +731,12 @@ function App() {
   const allSpents = transactions.filter(t => t.type === 'spent');
   const filteredSpents = timeFrame === 'all'
     ? allSpents
-    : allSpents.filter(t => new Date(t.date) >= filterDate);
+    : allSpents.filter(t => parseLocalDate(toLocalDateString(t.date)) >= filterDate);
 
   const allIncomes = transactions.filter(t => t.type === 'income');
   const filteredIncomes = timeFrame === 'all'
     ? allIncomes
-    : allIncomes.filter(t => new Date(t.date) >= filterDate);
+    : allIncomes.filter(t => parseLocalDate(toLocalDateString(t.date)) >= filterDate);
 
   const totalSpentUsd = filteredSpents.reduce((acc, t) => acc + getTxUsdEquivalent(t, rates), 0);
   const totalIncomeUsd = filteredIncomes.reduce((acc, t) => acc + getTxUsdEquivalent(t, rates), 0);
@@ -935,7 +980,7 @@ function App() {
                   <button
                     type="button"
                     className="fab-action-pill"
-                    onClick={() => { setTxModalMode('form'); setNewTx({ id: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: new Date().toISOString().split('T')[0] }); setIsFabExpanded(false); }}
+                    onClick={() => { setTxModalMode('form'); setNewTx({ id: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() }); setIsFabExpanded(false); }}
                     style={{
                       backgroundColor: '#1b2230',
                       border: '1px solid #2a3447',
@@ -991,7 +1036,7 @@ function App() {
                   <button
                     type="button"
                     className="fab-action-pill"
-                    onClick={() => { setTxModalMode('form'); setNewTx({ id: '', type: 'spent', currency: '', amount: '', origin: '', category: '', subcategory: '', date: new Date().toISOString().split('T')[0] }); setIsFabExpanded(false); }}
+                    onClick={() => { setTxModalMode('form'); setNewTx({ id: '', type: 'spent', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() }); setIsFabExpanded(false); }}
                     style={{
                       backgroundColor: '#1b2230',
                       border: '1px solid #2a3447',
@@ -1023,7 +1068,7 @@ function App() {
                     type="button"
                     className="fab-action-pill"
                     onClick={() => {
-                      setNewOb({ id: '', type: 'pay', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: new Date().toISOString().split('T')[0], totalInstallments: '', paidInstallments: 0 });
+                      setNewOb({ id: '', type: 'pay', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: todayLocal(), totalInstallments: '', paidInstallments: 0 });
                       setIsObModalOpen(true);
                       setIsFabExpanded(false);
                     }}
@@ -1054,7 +1099,7 @@ function App() {
                     type="button"
                     className="fab-action-pill"
                     onClick={() => {
-                      setNewOb({ id: '', type: 'receive', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: new Date().toISOString().split('T')[0], totalInstallments: '', paidInstallments: 0 });
+                      setNewOb({ id: '', type: 'receive', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: todayLocal(), totalInstallments: '', paidInstallments: 0 });
                       setIsObModalOpen(true);
                       setIsFabExpanded(false);
                     }}
@@ -1230,7 +1275,7 @@ function App() {
         onClose={() => {
           setTxModalMode(null);
           setTxValidationError('');
-          setNewTx({ id: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: new Date().toISOString().split('T')[0] });
+          setNewTx({ id: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
         }}
         newTx={newTx}
         setNewTx={setNewTx}
@@ -1291,6 +1336,18 @@ function App() {
         localState={{ assets, transactions, obligations, budgets }}
         onRequestConfirm={requestConfirm}
         onExportBackup={handleExportBackup}
+        onClearLocalData={() => {
+          localStorage.removeItem('personal_assets');
+          localStorage.removeItem('personal_transactions');
+          localStorage.removeItem('obligations');
+          localStorage.removeItem('personal_budgets');
+          localStorage.removeItem('finanzas_sync_queue');
+          localStorage.removeItem('finanzas_data_owner');
+          setAssets([]);
+          setTransactions([]);
+          setObligations([]);
+          setBudgets({});
+        }}
       />
 
       <ConfirmModal

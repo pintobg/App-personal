@@ -7,6 +7,7 @@ import {
   getBudgetColor,
   translateCategory
 } from '../../utils/formatters';
+import { toLocalDateString } from '../../utils/dates';
 
 const CATEGORY_ICONS = {
   'Vivienda': '🏠',
@@ -32,7 +33,8 @@ const TIMEFRAME_LABELS = {
 
 function formatReadableDate(dateStr) {
   if (!dateStr) return 'Sin fecha';
-  const parts = String(dateStr).split('T')[0].split('-');
+  const clean = toLocalDateString(dateStr);
+  const parts = clean.split('-');
   if (parts.length !== 3) return dateStr;
   const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
   const m = parseInt(parts[1], 10) - 1;

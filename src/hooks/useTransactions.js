@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getTxRateSnapshot } from '../utils/formatters';
 import { syncService } from '../services/syncService';
 
@@ -17,6 +17,11 @@ export function useTransactions(currentRates = {}, user = null) {
     return [];
   });
 
+  const transactionsRef = useRef(transactions);
+  useEffect(() => {
+    transactionsRef.current = transactions;
+  }, [transactions]);
+
   useEffect(() => {
     localStorage.setItem('personal_transactions', JSON.stringify(transactions));
   }, [transactions]);
@@ -32,15 +37,19 @@ export function useTransactions(currentRates = {}, user = null) {
       ? Number(transaction.usdEquivalent)
       : amountNum * rateSnapshot;
 
+    const nowIso = new Date().toISOString();
     const newTxItem = {
       ...transaction,
       id: transaction.id || Date.now().toString(),
-      date: transaction.date || new Date().toISOString(),
+      date: transaction.date || nowIso,
       rateSnapshot,
-      usdEquivalent
+      usdEquivalent,
+      updated_at: nowIso
     };
 
-    setTransactions(prev => [newTxItem, ...prev]);
+    const nextList = [newTxItem, ...transactionsRef.current];
+    transactionsRef.current = nextList;
+    setTransactions(nextList);
 
     if (user?.id) {
       syncService.queueChange('transactions', 'upsert', newTxItem, user.id);
@@ -50,25 +59,34 @@ export function useTransactions(currentRates = {}, user = null) {
   };
 
   const deleteTransaction = (id) => {
-    setTransactions(prev => prev.filter(t => t.id !== id));
+    const existing = transactionsRef.current.find(t => t.id === id);
+    const nowIso = new Date().toISOString();
+    const nextList = transactionsRef.current.filter(t => t.id !== id);
+    transactionsRef.current = nextList;
+    setTransactions(nextList);
+
     if (user?.id) {
-      syncService.queueChange('transactions', 'delete', { id }, user.id);
+      syncService.queueChange('transactions', 'delete', { id, deleted_at: nowIso, updated_at: nowIso, ...existing }, user.id);
     }
   };
 
   const updateTransaction = (id, updatedFields) => {
-    let updatedTx = null;
-    setTransactions(prev => prev.map(t => {
-      if (t.id === id) {
-        updatedTx = { ...t, ...updatedFields };
-        return updatedTx;
-      }
-      return t;
-    }));
+    const currentList = transactionsRef.current;
+    const targetIdx = currentList.findIndex(t => t.id === id);
+    if (targetIdx < 0) return null;
 
-    if (updatedTx && user?.id) {
+    const nowIso = new Date().toISOString();
+    const updatedTx = { ...currentList[targetIdx], ...updatedFields, updated_at: nowIso };
+    const nextList = [...currentList];
+    nextList[targetIdx] = updatedTx;
+
+    transactionsRef.current = nextList;
+    setTransactions(nextList);
+
+    if (user?.id) {
       syncService.queueChange('transactions', 'upsert', updatedTx, user.id);
     }
+    return updatedTx;
   };
 
   return { transactions, setTransactions, addTransaction, deleteTransaction, updateTransaction };

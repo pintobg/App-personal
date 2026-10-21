@@ -1,6 +1,7 @@
 import CustomSelect from '../common/CustomSelect';
 import { SPENT_CATEGORIES } from '../../utils/constants';
 import { formatAmount, getCurrencySymbol } from '../../utils/formatters';
+import { todayLocal, toLocalDateString } from '../../utils/dates';
 
 export default function TransactionModal({
   mode, // 'select' | 'form' | null
@@ -47,7 +48,7 @@ export default function TransactionModal({
                 fontWeight: 700
               }}
               onClick={() => {
-                setNewTx({ id: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: new Date().toISOString().split('T')[0] });
+                setNewTx({ id: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
                 setMode('form');
               }}
             >
@@ -66,7 +67,7 @@ export default function TransactionModal({
                 fontWeight: 700
               }}
               onClick={() => {
-                setNewTx({ id: '', type: 'spent', currency: '', amount: '', origin: '', category: '', subcategory: '', date: new Date().toISOString().split('T')[0] });
+                setNewTx({ id: '', type: 'spent', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
                 setMode('form');
               }}
             >
@@ -203,7 +204,7 @@ export default function TransactionModal({
             <input
               type="date"
               className="input-field"
-              value={newTx.date ? (newTx.date.includes('T') ? newTx.date.split('T')[0] : newTx.date) : ''}
+              value={newTx.date ? toLocalDateString(newTx.date) : ''}
               onChange={e => setNewTx({ ...newTx, date: e.target.value })}
               required
             />

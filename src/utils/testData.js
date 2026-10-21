@@ -1,3 +1,5 @@
+import { toLocalDateString } from './dates';
+
 export const TEST_DATA_SEED_KEY = 'finanzas_test_seed_v2';
 
 export function generateTestData(rates = {}) {
@@ -15,7 +17,7 @@ export function generateTestData(rates = {}) {
   const daysFromNowDateOnly = (days) => {
     const d = new Date(now);
     d.setDate(d.getDate() + days);
-    return d.toISOString().split('T')[0];
+    return toLocalDateString(d);
   };
 
   // 1. Balances / Cuentas de prueba (Fiat y Cripto)

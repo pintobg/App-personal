@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS public.assets (
     type TEXT NOT NULL,
     amount NUMERIC NOT NULL DEFAULT 0,
     location TEXT NOT NULL,
+    deleted_at TIMESTAMPTZ DEFAULT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
@@ -27,13 +28,17 @@ CREATE TABLE IF NOT EXISTS public.transactions (
     amount NUMERIC NOT NULL DEFAULT 0,
     origin TEXT,
     destination TEXT,
+    dest_currency TEXT,
+    dest_amount NUMERIC,
     category TEXT,
     subcategory TEXT,
     date TEXT NOT NULL,
     notes TEXT,
     commission NUMERIC DEFAULT 0,
+    parent_transfer_id TEXT,
     rate_snapshot NUMERIC,
     usd_equivalent NUMERIC,
+    deleted_at TIMESTAMPTZ DEFAULT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
@@ -43,15 +48,20 @@ CREATE TABLE IF NOT EXISTS public.obligations (
     id TEXT PRIMARY KEY,
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     type TEXT NOT NULL,
+    title TEXT,
     person TEXT NOT NULL,
+    category TEXT,
     description TEXT,
     amount NUMERIC NOT NULL DEFAULT 0,
     currency TEXT NOT NULL,
     due_date TEXT,
     frequency TEXT,
+    total_installments INTEGER,
+    paid_installments INTEGER DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'pending',
     date_created TEXT,
     payments JSONB DEFAULT '[]'::jsonb,
+    deleted_at TIMESTAMPTZ DEFAULT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
 );
@@ -62,6 +72,7 @@ CREATE TABLE IF NOT EXISTS public.budgets (
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
     category TEXT NOT NULL,
     amount NUMERIC NOT NULL DEFAULT 0,
+    deleted_at TIMESTAMPTZ DEFAULT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
     UNIQUE(user_id, category)

@@ -9,6 +9,7 @@ import {
   getTxUsdEquivalent,
   formatTxRate
 } from '../../utils/formatters';
+import { toLocalDateString, parseLocalDate } from '../../utils/dates';
 
 export default function TransactionsView({
   transactions,
@@ -73,7 +74,8 @@ export default function TransactionsView({
 
       // 3. Date range filter
       if (dateRangeFilter !== 'all') {
-        const txDate = new Date(tx.date);
+        const txDateLocalStr = toLocalDateString(tx.date);
+        const txDate = parseLocalDate(txDateLocalStr);
         const now = new Date();
 
         if (dateRangeFilter === 'this_month') {
@@ -85,14 +87,8 @@ export default function TransactionsView({
           const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
           if (txDate < start || txDate > end) return false;
         } else if (dateRangeFilter === 'custom') {
-          if (customStartDate) {
-            const start = new Date(customStartDate + 'T00:00:00');
-            if (txDate < start) return false;
-          }
-          if (customEndDate) {
-            const end = new Date(customEndDate + 'T23:59:59.999');
-            if (txDate > end) return false;
-          }
+          if (customStartDate && txDateLocalStr < customStartDate) return false;
+          if (customEndDate && txDateLocalStr > customEndDate) return false;
         }
       }
 
@@ -356,7 +352,7 @@ export default function TransactionsView({
                       </div>
                       <div style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
                         <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tx.type === 'transfer' ? `${tx.origin} ➔ ${tx.destOrigin}` : tx.origin}</div>
-                        <div style={{ opacity: 0.7 }}>{new Date(tx.date).toLocaleDateString()}</div>
+                        <div style={{ opacity: 0.7 }}>{toLocalDateString(tx.date)}</div>
                       </div>
                     </div>
                   </div>

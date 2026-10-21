@@ -5,6 +5,12 @@ const DEMO_CLOUD_PREFIX = 'demo_cloud_db_';
 
 let listeners = [];
 let currentSyncStatus = navigator.onLine ? 'synced' : 'offline';
+let retryTimer = null;
+const BACKOFF_STEPS = [5000, 30000, 120000, 600000]; // 5 s, 30 s, 2 min, 10 min
+
+export function getPendingCount() {
+  return getQueue().length;
+}
 
 export function getSyncStatus() {
   return currentSyncStatus;
@@ -12,7 +18,7 @@ export function getSyncStatus() {
 
 export function subscribeSyncStatus(listener) {
   listeners.push(listener);
-  listener(currentSyncStatus);
+  listener(currentSyncStatus, getPendingCount());
   return () => {
     listeners = listeners.filter(l => l !== listener);
   };
@@ -20,7 +26,30 @@ export function subscribeSyncStatus(listener) {
 
 function setSyncStatus(status) {
   currentSyncStatus = status;
-  listeners.forEach(l => l(status));
+  const count = getPendingCount();
+  listeners.forEach(l => l(status, count));
+}
+
+function notifyStatusUpdate() {
+  const count = getPendingCount();
+  listeners.forEach(l => l(currentSyncStatus, count));
+}
+
+function clearRetryTimer() {
+  if (retryTimer) {
+    clearTimeout(retryTimer);
+    retryTimer = null;
+  }
+}
+
+function scheduleRetry(delayMs) {
+  clearRetryTimer();
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    if (navigator.onLine && getQueue().length > 0) {
+      syncService.flushQueue();
+    }
+  }, delayMs);
 }
 
 // Queue Persistence
@@ -61,7 +90,8 @@ function mapTxToDb(tx, userId) {
     parent_transfer_id: tx.parentTransferId || null,
     rate_snapshot: tx.rateSnapshot != null ? Number(tx.rateSnapshot) : null,
     usd_equivalent: tx.usdEquivalent != null ? Number(tx.usdEquivalent) : null,
-    updated_at: new Date().toISOString()
+    deleted_at: tx.deleted_at || tx.deletedAt || null,
+    updated_at: tx.updated_at || tx.updatedAt || new Date().toISOString()
   };
 }
 
@@ -83,7 +113,9 @@ function mapDbToTx(row) {
     commission: Number(row.commission) || 0,
     parentTransferId: row.parentTransferId || row.parent_transfer_id || undefined,
     rateSnapshot: row.rate_snapshot != null ? Number(row.rate_snapshot) : undefined,
-    usdEquivalent: row.usd_equivalent != null ? Number(row.usd_equivalent) : undefined
+    usdEquivalent: row.usd_equivalent != null ? Number(row.usd_equivalent) : undefined,
+    deleted_at: row.deleted_at || null,
+    updated_at: row.updated_at || row.created_at || new Date().toISOString()
   };
 }
 
@@ -105,7 +137,8 @@ function mapObToDb(ob, userId) {
     status: ob.status || 'pending',
     date_created: ob.dateCreated || new Date().toISOString(),
     payments: ob.payments || [],
-    updated_at: new Date().toISOString()
+    deleted_at: ob.deleted_at || ob.deletedAt || null,
+    updated_at: ob.updated_at || ob.updatedAt || new Date().toISOString()
   };
 }
 
@@ -124,7 +157,9 @@ function mapDbToOb(row) {
     paidInstallments: Number(row.paid_installments ?? row.paidInstallments) || 0,
     status: row.status,
     dateCreated: row.date_created || row.dateCreated,
-    payments: row.payments || []
+    payments: row.payments || [],
+    deleted_at: row.deleted_at || null,
+    updated_at: row.updated_at || row.created_at || new Date().toISOString()
   };
 }
 
@@ -136,7 +171,8 @@ function mapAssetToDb(asset, userId) {
     type: asset.type,
     amount: Number(asset.amount) || 0,
     location: asset.location,
-    updated_at: new Date().toISOString()
+    deleted_at: asset.deleted_at || asset.deletedAt || null,
+    updated_at: asset.updated_at || asset.updatedAt || new Date().toISOString()
   };
 }
 
@@ -146,7 +182,9 @@ function mapDbToAsset(row) {
     name: row.name,
     type: row.type,
     amount: Number(row.amount),
-    location: row.location
+    location: row.location,
+    deleted_at: row.deleted_at || null,
+    updated_at: row.updated_at || row.created_at || new Date().toISOString()
   };
 }
 
@@ -185,10 +223,13 @@ export const syncService = {
       action, // 'upsert' | 'delete'
       payload,
       userId,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      attempts: 0,
+      lastError: null
     });
 
     saveQueue(filteredQueue);
+    notifyStatusUpdate();
 
     if (navigator.onLine) {
       await this.flushQueue();
@@ -199,6 +240,8 @@ export const syncService = {
 
   // Process all queued changes
   async flushQueue() {
+    clearRetryTimer();
+
     if (!navigator.onLine) {
       setSyncStatus('offline');
       return;
@@ -223,43 +266,83 @@ export const syncService = {
 
             if (table === 'assets') {
               if (action === 'upsert') {
-                await supabase.from('assets').upsert(mapAssetToDb(payload, userId));
+                const { error } = await supabase.from('assets').upsert(mapAssetToDb(payload, userId));
+                if (error) throw error;
               } else if (action === 'delete') {
-                await supabase.from('assets').delete().eq('id', payload.id).eq('user_id', userId);
+                // Borrado lógico con deleted_at
+                const { error } = await supabase.from('assets').update({
+                  deleted_at: payload.deleted_at || new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                }).eq('id', payload.id).eq('user_id', userId);
+                if (error) throw error;
               }
             } else if (table === 'transactions') {
               if (action === 'upsert') {
-                await supabase.from('transactions').upsert(mapTxToDb(payload, userId));
+                const { error } = await supabase.from('transactions').upsert(mapTxToDb(payload, userId));
+                if (error) throw error;
               } else if (action === 'delete') {
-                await supabase.from('transactions').delete().eq('id', payload.id).eq('user_id', userId);
+                // Borrado lógico con deleted_at
+                const { error } = await supabase.from('transactions').update({
+                  deleted_at: payload.deleted_at || new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                }).eq('id', payload.id).eq('user_id', userId);
+                if (error) throw error;
               }
             } else if (table === 'obligations') {
               if (action === 'upsert') {
-                await supabase.from('obligations').upsert(mapObToDb(payload, userId));
+                const { error } = await supabase.from('obligations').upsert(mapObToDb(payload, userId));
+                if (error) throw error;
               } else if (action === 'delete') {
-                await supabase.from('obligations').delete().eq('id', payload.id).eq('user_id', userId);
+                // Borrado lógico con deleted_at
+                const { error } = await supabase.from('obligations').update({
+                  deleted_at: payload.deleted_at || new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                }).eq('id', payload.id).eq('user_id', userId);
+                if (error) throw error;
               }
             } else if (table === 'budgets') {
               if (action === 'upsert') {
-                await supabase.from('budgets').upsert({
+                const { error } = await supabase.from('budgets').upsert({
                   id: `${userId}_${payload.category}`,
                   user_id: userId,
                   category: payload.category,
                   amount: Number(payload.amount) || 0,
-                  updated_at: new Date().toISOString()
+                  deleted_at: null,
+                  updated_at: payload.updated_at || new Date().toISOString()
                 });
+                if (error) throw error;
               } else if (action === 'delete') {
-                await supabase.from('budgets').delete().eq('category', payload.category).eq('user_id', userId);
+                // Borrado lógico con deleted_at
+                const { error } = await supabase.from('budgets').update({
+                  deleted_at: payload.deleted_at || new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                }).eq('category', payload.category).eq('user_id', userId);
+                if (error) throw error;
               }
             }
           } catch (itemErr) {
             console.error('Error sync queue item:', itemErr);
-            remainingQueue.push(item);
+            const currentAttempts = (item.attempts || 0) + 1;
+            remainingQueue.push({
+              ...item,
+              attempts: currentAttempts,
+              lastError: itemErr?.message || String(itemErr)
+            });
           }
         }
 
         saveQueue(remainingQueue);
-        setSyncStatus(remainingQueue.length === 0 ? 'synced' : 'error');
+
+        if (remainingQueue.length === 0) {
+          setSyncStatus('synced');
+        } else {
+          setSyncStatus('error');
+          // Programar reintento con backoff exponencial basado en el máximo número de intentos
+          const maxAttempts = Math.max(...remainingQueue.map(i => i.attempts || 1));
+          const backoffIndex = Math.min(maxAttempts - 1, BACKOFF_STEPS.length - 1);
+          const nextDelay = BACKOFF_STEPS[Math.max(0, backoffIndex)];
+          scheduleRetry(nextDelay);
+        }
       } else if (!import.meta.env.PROD) {
         // Demo Cloud Simulation (solo en desarrollo)
         for (const item of queue) {
@@ -328,12 +411,22 @@ export const syncService = {
           supabase.from('budgets').select('*').eq('user_id', userId)
         ]);
 
+        if (assetsRes.error) throw assetsRes.error;
+        if (txRes.error) throw txRes.error;
+        if (obRes.error) throw obRes.error;
+        if (bgRes.error) throw bgRes.error;
+
         const remoteAssets = (assetsRes.data || []).map(mapDbToAsset);
         const remoteTxs = (txRes.data || []).map(mapDbToTx);
         const remoteObs = (obRes.data || []).map(mapDbToOb);
         const remoteBudgets = {};
         (bgRes.data || []).forEach(b => {
-          remoteBudgets[b.category] = Number(b.amount);
+          remoteBudgets[b.category] = {
+            category: b.category,
+            amount: Number(b.amount),
+            deleted_at: b.deleted_at,
+            updated_at: b.updated_at
+          };
         });
 
         setSyncStatus('synced');
@@ -369,17 +462,20 @@ export const syncService = {
         // 1. Assets
         if (assets.length > 0) {
           const dbAssets = assets.map(a => mapAssetToDb(a, userId));
-          await supabase.from('assets').upsert(dbAssets);
+          const { error } = await supabase.from('assets').upsert(dbAssets);
+          if (error) throw error;
         }
         // 2. Transactions
         if (transactions.length > 0) {
           const dbTxs = transactions.map(t => mapTxToDb(t, userId));
-          await supabase.from('transactions').upsert(dbTxs);
+          const { error } = await supabase.from('transactions').upsert(dbTxs);
+          if (error) throw error;
         }
         // 3. Obligations
         if (obligations.length > 0) {
           const dbObs = obligations.map(o => mapObToDb(o, userId));
-          await supabase.from('obligations').upsert(dbObs);
+          const { error } = await supabase.from('obligations').upsert(dbObs);
+          if (error) throw error;
         }
         // 4. Budgets
         const budgetEntries = Object.entries(budgets);
@@ -391,7 +487,8 @@ export const syncService = {
             amount: Number(amount) || 0,
             updated_at: new Date().toISOString()
           }));
-          await supabase.from('budgets').upsert(dbBudgets);
+          const { error } = await supabase.from('budgets').upsert(dbBudgets);
+          if (error) throw error;
         }
       } else if (!import.meta.env.PROD) {
         // Demo Cloud (solo en desarrollo)
@@ -418,5 +515,15 @@ window.addEventListener('online', () => {
 });
 
 window.addEventListener('offline', () => {
+  clearRetryTimer();
   setSyncStatus('offline');
+});
+
+// Reintento al volver a primer plano (document visibilitychange)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && navigator.onLine) {
+    if (getQueue().length > 0) {
+      syncService.flushQueue();
+    }
+  }
 });

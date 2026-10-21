@@ -23,6 +23,7 @@ import {
   translateFrequency
 } from '../../utils/formatters';
 import { COLORS } from '../../utils/constants';
+import { toLocalDateString, parseLocalDate } from '../../utils/dates';
 
 const CATEGORY_ICONS = {
   'Vivienda': '🏠',
@@ -71,7 +72,7 @@ export default function DashboardView({
 
     const monthSpents = (transactions || []).filter(t => {
       if (t.type !== 'spent') return false;
-      const d = new Date(t.date);
+      const d = parseLocalDate(toLocalDateString(t.date));
       return d >= startOfMonth && d <= endOfMonth;
     });
 
@@ -276,7 +277,19 @@ export default function DashboardView({
               }}
             >
               <span>{auth?.user ? '☁️' : '👤'}</span>
-              <span>{auth?.user ? (auth.syncStatus === 'syncing' ? 'Sincronizando...' : 'Nube activa') : 'Modo local'}</span>
+              <span>
+                {auth?.user
+                  ? (auth.syncStatus === 'syncing'
+                      ? 'Sincronizando...'
+                      : auth.syncStatus === 'offline'
+                      ? 'Sin conexión'
+                      : auth.pendingCount > 0
+                      ? `Pendiente (${auth.pendingCount})`
+                      : auth.syncStatus === 'error'
+                      ? 'Error, reintentar'
+                      : 'Sincronizado')
+                  : 'Modo local'}
+              </span>
             </button>
           )}
         </div>

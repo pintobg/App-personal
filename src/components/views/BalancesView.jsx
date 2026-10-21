@@ -138,7 +138,19 @@ export default function BalancesView({
               }}
             >
               <span>{auth?.user ? '☁️' : '👤'}</span>
-              <span>{auth?.user ? (auth.syncStatus === 'syncing' ? 'Sincronizando...' : 'Nube activa') : 'Modo local'}</span>
+              <span>
+                {auth?.user
+                  ? (auth.syncStatus === 'syncing'
+                      ? 'Sincronizando...'
+                      : auth.syncStatus === 'offline'
+                      ? 'Sin conexión'
+                      : auth.pendingCount > 0
+                      ? `Pendiente (${auth.pendingCount})`
+                      : auth.syncStatus === 'error'
+                      ? 'Error, reintentar'
+                      : 'Sincronizado')
+                  : 'Modo local'}
+              </span>
             </button>
           )}
         </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
-import { syncService, subscribeSyncStatus } from '../services/syncService';
+import { syncService, subscribeSyncStatus, getPendingCount } from '../services/syncService';
 
 const DEMO_SESSION_KEY = 'finanzas_auth_session';
 
@@ -10,10 +10,12 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
   const [isGuest, setIsGuest] = useState(true);
   const [syncStatus, setSyncStatus] = useState('guest');
+  const [pendingCount, setPendingCount] = useState(() => getPendingCount());
 
-  // Live sync status subscription
+  // Live sync status and queue count subscription
   useEffect(() => {
-    const unsubscribe = subscribeSyncStatus((status) => {
+    const unsubscribe = subscribeSyncStatus((status, count) => {
+      setPendingCount(count);
       if (isGuest && !user) {
         setSyncStatus('guest');
       } else {
@@ -215,6 +217,7 @@ export function useAuth() {
     loading,
     isGuest,
     syncStatus,
+    pendingCount,
     isSupabaseConfigured,
     signIn,
     signUp,
