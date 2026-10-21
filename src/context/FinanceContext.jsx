@@ -5,6 +5,7 @@ import { useExchangeRates } from '../hooks/useExchangeRates';
 import { useTransactions } from '../hooks/useTransactions';
 import { useObligations } from '../hooks/useObligations';
 import { useBudgets } from '../hooks/useBudgets';
+import { useGoals } from '../hooks/useGoals';
 import { syncService } from '../services/syncService';
 import { clearAllDB } from '../services/db';
 import { exportBackup } from '../utils/backup';
@@ -64,6 +65,14 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     setBudgets,
     updateAllBudgets
   } = useBudgets(user);
+
+  const {
+    goals,
+    setGoals,
+    addGoal,
+    updateGoal,
+    deleteGoal
+  } = useGoals(user);
 
   // Helper para aplicar resultados de operaciones de dominio y encolar cambios de sincronización
   const applyDomainResult = useCallback((result) => {
@@ -193,13 +202,14 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
         setTransactions((prev) => mergeById(prev, remote.transactions || []));
         setObligations((prev) => mergeById(prev, remote.obligations || []));
         setBudgets((prev) => mergeBudgets(prev, remote.budgets || {}));
+        setGoals((prev) => mergeById(prev, remote.goals || []));
       }
       if (showToast) showToast('Datos sincronizados con éxito');
     } catch (e) {
       console.warn('Sync failed:', e);
       if (showToast) showToast('Error en la sincronización', 'error');
     }
-  }, [user?.id, setAssets, setTransactions, setObligations, setBudgets, showToast]);
+  }, [user?.id, setAssets, setTransactions, setObligations, setBudgets, setGoals, showToast]);
 
   useEffect(() => {
     if (user?.id) {
@@ -226,11 +236,13 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
                 setTransactions(mergeById([], remote.transactions || []));
                 setObligations(mergeById([], remote.obligations || []));
                 setBudgets(mergeBudgets({}, remote.budgets || {}));
+                setGoals(mergeById([], remote.goals || []));
               } else {
                 setAssets([]);
                 setTransactions([]);
                 setObligations([]);
                 setBudgets({});
+                setGoals([]);
               }
             }
           });
@@ -248,20 +260,22 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
         assets,
         transactions,
         obligations,
-        budgets
+        budgets,
+        goals
       });
       if (showToast) showToast('Respaldo exportado exitosamente');
     } catch (err) {
       console.error('Error al exportar respaldo:', err);
       if (showToast) showToast('No se pudo generar el respaldo', 'error');
     }
-  }, [assets, transactions, obligations, budgets, showToast]);
+  }, [assets, transactions, obligations, budgets, goals, showToast]);
 
   const clearLocalData = useCallback(() => {
     localStorage.removeItem('personal_assets');
     localStorage.removeItem('personal_transactions');
     localStorage.removeItem('obligations');
     localStorage.removeItem('personal_budgets');
+    localStorage.removeItem('personal_goals');
     localStorage.removeItem('finanzas_sync_queue');
     localStorage.removeItem('finanzas_data_owner');
     clearAllDB();
@@ -269,7 +283,8 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     setTransactions([]);
     setObligations([]);
     setBudgets({});
-  }, [setAssets, setTransactions, setObligations, setBudgets]);
+    setGoals([]);
+  }, [setAssets, setTransactions, setObligations, setBudgets, setGoals]);
 
   useEffect(() => {
     if (assets.length > 0 && transactions.length > 0) {
@@ -294,6 +309,7 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     transactions,
     obligations,
     budgets,
+    goals,
     rates,
     rawRates,
     ratesDetails,
@@ -310,6 +326,7 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     setTransactions,
     setObligations,
     setBudgets,
+    setGoals,
     setRates,
     setCustomRate,
     refreshRates,
@@ -324,6 +341,9 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     deleteObligation,
     updateObligation,
     updateAllBudgets,
+    addGoal,
+    updateGoal,
+    deleteGoal,
     // Operaciones compuestas
     saveTransaction,
     transferFunds,
@@ -340,6 +360,7 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     transactions,
     obligations,
     budgets,
+    goals,
     rates,
     rawRates,
     ratesDetails,
@@ -355,6 +376,7 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     setTransactions,
     setObligations,
     setBudgets,
+    setGoals,
     setRates,
     setCustomRate,
     refreshRates,
@@ -368,6 +390,9 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     deleteObligation,
     updateObligation,
     updateAllBudgets,
+    addGoal,
+    updateGoal,
+    deleteGoal,
     saveTransaction,
     transferFunds,
     payObligation,

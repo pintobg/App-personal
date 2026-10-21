@@ -85,6 +85,21 @@ CREATE TABLE IF NOT EXISTS public.budgets (
     UNIQUE(user_id, category)
 );
 
+-- 5. TABLA: GOALS (Metas de Ahorro)
+CREATE TABLE IF NOT EXISTS public.goals (
+    id TEXT NOT NULL,
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    target_amount NUMERIC NOT NULL DEFAULT 0,
+    currency TEXT NOT NULL DEFAULT 'USD',
+    deadline TEXT,
+    account_ids JSONB DEFAULT '[]'::jsonb,
+    deleted_at TIMESTAMPTZ DEFAULT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
+    PRIMARY KEY (user_id, id)
+);
+
 -- ==============================================================================
 -- HABILITACIÓN DE ROW LEVEL SECURITY (RLS)
 -- ==============================================================================
@@ -92,6 +107,7 @@ ALTER TABLE public.assets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.obligations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.budgets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.goals ENABLE ROW LEVEL SECURITY;
 
 -- POLÍTICAS: ASSETS
 DROP POLICY IF EXISTS "Users can manage their own assets" ON public.assets;
@@ -121,6 +137,14 @@ WITH CHECK (auth.uid() = user_id);
 DROP POLICY IF EXISTS "Users can manage their own budgets" ON public.budgets;
 CREATE POLICY "Users can manage their own budgets"
 ON public.budgets FOR ALL
+TO authenticated
+USING (auth.uid() = user_id)
+WITH CHECK (auth.uid() = user_id);
+
+-- POLÍTICAS: GOALS
+DROP POLICY IF EXISTS "Users can manage their own goals" ON public.goals;
+CREATE POLICY "Users can manage their own goals"
+ON public.goals FOR ALL
 TO authenticated
 USING (auth.uid() = user_id)
 WITH CHECK (auth.uid() = user_id);

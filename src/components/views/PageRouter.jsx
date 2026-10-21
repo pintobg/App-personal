@@ -40,6 +40,9 @@ export default function PageRouter({
   assetsByLocation,
   accountTotalsUsd,
   uniqueAssetNames,
+  goals,
+  onOpenGoalModal,
+  onDeleteGoal,
   deleteMode,
   setDeleteMode,
   setAdjustingAsset,
@@ -132,6 +135,9 @@ export default function PageRouter({
               assetsByLocation={assetsByLocation}
               accountTotalsUsd={accountTotalsUsd}
               uniqueAssetNames={uniqueAssetNames}
+              goals={goals}
+              onOpenGoalModal={onOpenGoalModal}
+              onDeleteGoal={onDeleteGoal}
               deleteMode={deleteMode}
               onAdjustAsset={(asset) => setAdjustingAsset(asset)}
               onDeleteAsset={handleDeleteAsset}

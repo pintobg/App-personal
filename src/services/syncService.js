@@ -194,13 +194,40 @@ function mapDbToAsset(row) {
   };
 }
 
+function mapGoalToDb(goal, userId) {
+  return {
+    id: goal.id,
+    user_id: userId,
+    name: goal.name || '',
+    target_amount: Number(goal.targetAmount) || 0,
+    currency: goal.currency || 'USD',
+    deadline: goal.deadline || null,
+    account_ids: goal.accountIds || [],
+    deleted_at: goal.deleted_at || goal.deletedAt || null,
+    updated_at: goal.updated_at || goal.updatedAt || new Date().toISOString()
+  };
+}
+
+function mapDbToGoal(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    targetAmount: Number(row.target_amount ?? row.targetAmount) || 0,
+    currency: row.currency || 'USD',
+    deadline: row.deadline || null,
+    accountIds: row.account_ids || row.accountIds || [],
+    deleted_at: row.deleted_at || null,
+    updated_at: row.updated_at || row.created_at || new Date().toISOString()
+  };
+}
+
 // Demo / Mock Cloud Helpers
 function getDemoCloudData(userId) {
   try {
     const raw = localStorage.getItem(`${DEMO_CLOUD_PREFIX}${userId}`);
-    return raw ? JSON.parse(raw) : { assets: [], transactions: [], obligations: [], budgets: {} };
+    return raw ? JSON.parse(raw) : { assets: [], transactions: [], obligations: [], budgets: {}, goals: [] };
   } catch {
-    return { assets: [], transactions: [], obligations: [], budgets: {} };
+    return { assets: [], transactions: [], obligations: [], budgets: {}, goals: [] };
   }
 }
 
@@ -325,6 +352,18 @@ export const syncService = {
                 }).eq('category', payload.category).eq('user_id', userId);
                 if (error) throw error;
               }
+            } else if (table === 'goals') {
+              if (action === 'upsert') {
+                const dbGoal = mapGoalToDb(payload, userId);
+                const { error } = await supabase.from('goals').upsert(dbGoal, { onConflict: 'user_id,id' });
+                if (error) throw error;
+              } else if (action === 'delete') {
+                const { error } = await supabase.from('goals').update({
+                  deleted_at: payload.deleted_at || new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                }).eq('id', payload.id).eq('user_id', userId);
+                if (error) throw error;
+              }
             }
           } catch (itemErr) {
             console.error('Error sync queue item:', itemErr);
@@ -385,6 +424,15 @@ export const syncService = {
             } else if (action === 'delete') {
               delete cloud.budgets[payload.category];
             }
+          } else if (table === 'goals') {
+            if (!cloud.goals) cloud.goals = [];
+            if (action === 'upsert') {
+              const idx = cloud.goals.findIndex(g => g.id === payload.id);
+              if (idx >= 0) cloud.goals[idx] = payload;
+              else cloud.goals.push(payload);
+            } else if (action === 'delete') {
+              cloud.goals = cloud.goals.filter(g => g.id !== payload.id);
+            }
           }
 
           saveDemoCloudData(userId, cloud);
@@ -410,21 +458,24 @@ export const syncService = {
     setSyncStatus('syncing');
     try {
       if (isSupabaseConfigured && supabase) {
-        const [assetsRes, txRes, obRes, bgRes] = await Promise.all([
+        const [assetsRes, txRes, obRes, bgRes, goalsRes] = await Promise.all([
           supabase.from('assets').select('*').eq('user_id', userId),
           supabase.from('transactions').select('*').eq('user_id', userId).order('date', { ascending: false }),
           supabase.from('obligations').select('*').eq('user_id', userId),
-          supabase.from('budgets').select('*').eq('user_id', userId)
+          supabase.from('budgets').select('*').eq('user_id', userId),
+          supabase.from('goals').select('*').eq('user_id', userId)
         ]);
 
         if (assetsRes.error) throw assetsRes.error;
         if (txRes.error) throw txRes.error;
         if (obRes.error) throw obRes.error;
         if (bgRes.error) throw bgRes.error;
+        if (goalsRes.error) throw goalsRes.error;
 
         const remoteAssets = (assetsRes.data || []).map(mapDbToAsset);
         const remoteTxs = (txRes.data || []).map(mapDbToTx);
         const remoteObs = (obRes.data || []).map(mapDbToOb);
+        const remoteGoals = (goalsRes.data || []).map(mapDbToGoal);
         const remoteBudgets = {};
         (bgRes.data || []).forEach(b => {
           remoteBudgets[b.category] = {
@@ -440,7 +491,8 @@ export const syncService = {
           assets: remoteAssets,
           transactions: remoteTxs,
           obligations: remoteObs,
-          budgets: remoteBudgets
+          budgets: remoteBudgets,
+          goals: remoteGoals
         };
       } else if (!import.meta.env.PROD) {
         // Demo Cloud (solo en desarrollo)
@@ -459,7 +511,7 @@ export const syncService = {
   },
 
   // Upload complete local state to remote
-  async uploadLocalData(userId, { assets = [], transactions = [], obligations = [], budgets = {} }) {
+  async uploadLocalData(userId, { assets = [], transactions = [], obligations = [], budgets = {}, goals = [] }) {
     if (!userId) return false;
 
     setSyncStatus('syncing');
@@ -496,9 +548,15 @@ export const syncService = {
           const { error } = await supabase.from('budgets').upsert(dbBudgets, { onConflict: 'user_id,id' });
           if (error) throw error;
         }
+        // 5. Goals
+        if (goals.length > 0) {
+          const dbGoals = goals.map(g => mapGoalToDb(g, userId));
+          const { error } = await supabase.from('goals').upsert(dbGoals, { onConflict: 'user_id,id' });
+          if (error) throw error;
+        }
       } else if (!import.meta.env.PROD) {
         // Demo Cloud (solo en desarrollo)
-        saveDemoCloudData(userId, { assets, transactions, obligations, budgets });
+        saveDemoCloudData(userId, { assets, transactions, obligations, budgets, goals });
       } else {
         setSyncStatus('guest');
         return false;

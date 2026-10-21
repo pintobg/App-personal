@@ -16,7 +16,10 @@ export function useAppModalsState(requestConfirm, showToast) {
     payObligation: runPayObligation,
     saveTransaction,
     transferFunds,
-    bulkDeleteTransactions
+    bulkDeleteTransactions,
+    addGoal,
+    updateGoal,
+    deleteGoal
   } = finance;
 
   // Asset Modal
@@ -72,10 +75,12 @@ export function useAppModalsState(requestConfirm, showToast) {
   const [payData, setPayData] = useState({ assetId: '', actualAmount: '', rateType: 'BCV_USD', customRate: '' });
   const [flippedObId, setFlippedObId] = useState(null);
 
-  // Budget, Auth, Security & FAB
+  // Budget, Auth, Security, Goal & FAB
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isSecurityModalOpen, setIsSecurityModalOpen] = useState(false);
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
+  const [editingGoal, setEditingGoal] = useState(null);
   const [isFabExpanded, setIsFabExpanded] = useState(false);
 
   // Handlers
@@ -131,6 +136,29 @@ export function useAppModalsState(requestConfirm, showToast) {
       onConfirm: () => {
         deleteObligation(id);
         showToast('Obligación eliminada');
+      }
+    });
+  };
+
+  const handleSaveGoal = (goalData) => {
+    if (goalData.id) {
+      updateGoal(goalData.id, goalData);
+      showToast('Meta actualizada con éxito');
+    } else {
+      addGoal(goalData);
+      showToast('Meta creada con éxito');
+    }
+  };
+
+  const handleDeleteGoal = (goalId) => {
+    requestConfirm({
+      title: 'Eliminar meta',
+      message: '¿Estás seguro de que deseas eliminar esta meta de ahorro?',
+      confirmText: 'Eliminar',
+      variant: 'danger',
+      onConfirm: () => {
+        deleteGoal(goalId);
+        showToast('Meta eliminada');
       }
     });
   };
@@ -281,6 +309,10 @@ export function useAppModalsState(requestConfirm, showToast) {
     setIsAuthModalOpen,
     isSecurityModalOpen,
     setIsSecurityModalOpen,
+    isGoalModalOpen,
+    setIsGoalModalOpen,
+    editingGoal,
+    setEditingGoal,
     isFabExpanded,
     setIsFabExpanded,
     // handlers
@@ -294,6 +326,8 @@ export function useAppModalsState(requestConfirm, showToast) {
     handleAddTransaction,
     handleTransferSubmit,
     handleBulkDelete,
-    toggleSelectTx
+    toggleSelectTx,
+    handleSaveGoal,
+    handleDeleteGoal
   };
 }

@@ -2,7 +2,7 @@ import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 
-export async function exportBackup({ assets, transactions, obligations, veRates, budgets }) {
+export async function exportBackup({ assets, transactions, obligations, veRates, budgets, goals }) {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -16,7 +16,8 @@ export async function exportBackup({ assets, transactions, obligations, veRates,
     transactions: transactions || [],
     obligations: obligations || [],
     veRates: veRates || { bcvUsd: 0, bcvEur: 0, paralelo: 0, custom: 0, lastUpdated: null },
-    budgets: budgets || {}
+    budgets: budgets || {},
+    goals: goals || []
   };
 
   const jsonStr = JSON.stringify(backupData, null, 2);

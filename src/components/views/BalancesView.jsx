@@ -6,6 +6,7 @@ import ReferenceRateSelector from '../common/ReferenceRateSelector';
 import { formatAmount, getRateString } from '../../utils/formatters';
 import { convert, add } from '../../domain/money';
 import { getRateStatus } from '../../services/ratesService';
+import { calculatePurchasingPower, calculateGoalProgress } from '../../domain/goals';
 
 export default function BalancesView({
   grandTotalUsd,
@@ -16,6 +17,9 @@ export default function BalancesView({
   ratesDetails,
   assets,
   transactions = [],
+  goals = [],
+  onOpenGoalModal,
+  onDeleteGoal,
   activeFilter,
   setActiveFilter,
   setSelectedFilters,
@@ -33,6 +37,33 @@ export default function BalancesView({
   const [expandedCurrencies, setExpandedCurrencies] = useState({});
   const [expandedAccounts, setExpandedAccounts] = useState({});
   const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
+
+  // Configuración de umbral de inflación para bolívares (5% por defecto)
+  const [inflationThreshold, setInflationThreshold] = useState(() => {
+    const saved = localStorage.getItem('inflation_loss_threshold');
+    const parsed = saved ? parseFloat(saved) : 5;
+    return isNaN(parsed) || parsed <= 0 ? 5 : parsed;
+  });
+  const [isEditingThreshold, setIsEditingThreshold] = useState(false);
+  const [thresholdInput, setThresholdInput] = useState(String(inflationThreshold));
+
+  const handleSaveThreshold = (e) => {
+    e?.preventDefault?.();
+    const val = parseFloat(thresholdInput.replace(',', '.'));
+    if (!isNaN(val) && val > 0) {
+      setInflationThreshold(val);
+      localStorage.setItem('inflation_loss_threshold', String(val));
+    }
+    setIsEditingThreshold(false);
+  };
+
+  const purchasingPower = useMemo(() => {
+    return calculatePurchasingPower(transactions, rates, new Date());
+  }, [transactions, rates]);
+
+  const hasVesAssets = useMemo(() => {
+    return (assets || []).some(a => (a.name || '').toUpperCase() === 'VES');
+  }, [assets]);
 
   const toggleCurrencyExpand = (sym) => {
     setExpandedCurrencies(prev => ({ ...prev, [sym]: !prev[sym] }));
@@ -257,6 +288,406 @@ export default function BalancesView({
             </div>
           </div>
         )}
+
+        {/* TARJETA PODER ADQUISITIVO (para saldos o ingresos en Bs.) */}
+        {(hasVesAssets || purchasingPower.hasData) && (
+          <div
+            className="glass-card"
+            style={{
+              marginTop: '1rem',
+              padding: '1rem 1.15rem',
+              borderRadius: '16px',
+              border: purchasingPower.lossPercent >= inflationThreshold
+                ? '1px solid rgba(239, 68, 68, 0.4)'
+                : '1px solid #2a3447',
+              background: purchasingPower.lossPercent >= inflationThreshold
+                ? 'linear-gradient(180deg, rgba(239, 68, 68, 0.08) 0%, rgba(15, 23, 42, 0.6) 100%)'
+                : undefined
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ fontSize: '1.1rem' }}>📉</span>
+                <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#f1f5f9' }}>
+                  Poder Adquisitivo (Bs.)
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {!isEditingThreshold ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setThresholdInput(String(inflationThreshold));
+                      setIsEditingThreshold(true);
+                    }}
+                    style={{
+                      background: '#1e293b',
+                      border: '1px solid #334155',
+                      color: '#94a3b8',
+                      fontSize: '0.72rem',
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      cursor: 'pointer'
+                    }}
+                    title="Configurar umbral de pérdida para alerta"
+                  >
+                    Alerta: {inflationThreshold}% ⚙️
+                  </button>
+                ) : (
+                  <form onSubmit={handleSaveThreshold} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <input
+                      type="number"
+                      step="0.5"
+                      min="1"
+                      max="100"
+                      value={thresholdInput}
+                      onChange={e => setThresholdInput(e.target.value)}
+                      style={{
+                        width: '50px',
+                        padding: '2px 4px',
+                        fontSize: '0.72rem',
+                        background: '#0f172a',
+                        border: '1px solid #0284c7',
+                        color: '#f8fafc',
+                        borderRadius: '4px'
+                      }}
+                      autoFocus
+                    />
+                    <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>%</span>
+                    <button
+                      type="submit"
+                      style={{
+                        background: '#0284c7',
+                        border: 'none',
+                        color: '#fff',
+                        fontSize: '0.7rem',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      ✓
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingThreshold(false)}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#64748b',
+                        fontSize: '0.7rem',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
+
+            {purchasingPower.hasData ? (
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                  <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '0.5rem 0.65rem', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Ingresos en Bs. (mes)</div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f1f5f9', marginTop: '2px' }}>
+                      Bs. {formatAmount(purchasingPower.totalBs, 'VES')}
+                    </div>
+                  </div>
+                  <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '0.5rem 0.65rem', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Al recibirse valían</div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f1f5f9', marginTop: '2px' }}>
+                      ${formatAmount(purchasingPower.totalUsdWhenReceived, 'USD')}
+                    </div>
+                  </div>
+                  <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '0.5rem 0.65rem', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Hoy valen</div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f1f5f9', marginTop: '2px' }}>
+                      ${formatAmount(purchasingPower.usdToday, 'USD')}
+                    </div>
+                  </div>
+                  <div style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '0.5rem 0.65rem', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Variación</div>
+                    <div style={{
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                      color: purchasingPower.diffUsd < 0 ? '#ef4444' : purchasingPower.diffUsd > 0 ? '#10b981' : '#94a3b8',
+                      marginTop: '2px'
+                    }}>
+                      {purchasingPower.diffUsd > 0 ? '+' : ''}${formatAmount(purchasingPower.diffUsd, 'USD')} ({purchasingPower.percentChange > 0 ? '+' : ''}{purchasingPower.percentChange}%)
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sugerencia cuando la pérdida supera el umbral configurable */}
+                {purchasingPower.lossPercent >= inflationThreshold && (
+                  <div
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.12)',
+                      border: '1px solid rgba(239, 68, 68, 0.35)',
+                      borderRadius: '10px',
+                      padding: '0.7rem 0.85rem',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '0.6rem'
+                    }}
+                  >
+                    <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>⚠️</span>
+                    <div style={{ fontSize: '0.78rem', color: '#fca5a5', lineHeight: 1.4 }}>
+                      <strong>Tus Bs. perdieron {purchasingPower.lossPercent.toFixed(1)}% de valor este mes</strong> (superó tu límite de alerta de {inflationThreshold}%). Sugerencia: considera cambiar tus bolívares a divisas (USD/USDT) para proteger tu poder de compra de la inflación.
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ fontSize: '0.78rem', color: '#94a3b8', fontStyle: 'italic', padding: '0.2rem 0' }}>
+                No hay ingresos en bolívares registrados en el mes actual. Al recibir ingresos en Bs., compararemos su tasa histórica con la actual.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* SECCIÓN METAS DE AHORRO */}
+        <div style={{ marginTop: '1.5rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '1.15rem' }}>🎯</span>
+              <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f1f5f9' }}>
+                Metas de Ahorro
+              </span>
+              {goals.length > 0 && (
+                <span style={{ fontSize: '0.72rem', background: '#1e293b', color: '#94a3b8', padding: '1px 6px', borderRadius: '10px' }}>
+                  {goals.length}
+                </span>
+              )}
+            </div>
+            {onOpenGoalModal && (
+              <button
+                type="button"
+                onClick={() => onOpenGoalModal(null)}
+                style={{
+                  background: '#0284c7',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '5px 10px',
+                  fontSize: '0.76rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px'
+                }}
+              >
+                <span>+</span> Nueva Meta
+              </button>
+            )}
+          </div>
+
+          {goals.length === 0 ? (
+            <div
+              className="glass-card"
+              style={{
+                padding: '1.25rem 1rem',
+                borderRadius: '16px',
+                textAlign: 'center',
+                border: '1px dashed #334155'
+              }}
+            >
+              <div style={{ fontSize: '1.8rem', marginBottom: '0.4rem' }}>🎯</div>
+              <div style={{ fontSize: '0.88rem', fontWeight: 600, color: '#f1f5f9', marginBottom: '0.25rem' }}>
+                Sin metas de ahorro aún
+              </div>
+              <div style={{ fontSize: '0.78rem', color: '#94a3b8', maxWidth: '320px', margin: '0 auto 0.85rem' }}>
+                Crea una meta en $ o cualquier moneda, selecciona las cuentas que sumarán a tu meta y monitorea tu avance mes a mes.
+              </div>
+              {onOpenGoalModal && (
+                <button
+                  type="button"
+                  onClick={() => onOpenGoalModal(null)}
+                  style={{
+                    background: '#1e293b',
+                    border: '1px solid #0284c7',
+                    color: '#38bdf8',
+                    borderRadius: '8px',
+                    padding: '6px 14px',
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  Crear mi primera meta
+                </button>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              {goals.map(goal => {
+                const progress = calculateGoalProgress(goal, assets, rates, new Date());
+                const targetCurrency = (goal.currency || 'USD').toUpperCase();
+                const isAchieved = progress.progressPercent >= 100;
+                const isExpired = progress.monthsRemaining === 0 && !isAchieved;
+
+                // Nombres de las cuentas vinculadas
+                const linkedAccounts = (assets || []).filter(a =>
+                  Array.isArray(goal.accountIds) && goal.accountIds.includes(a.id)
+                );
+
+                return (
+                  <div
+                    key={goal.id}
+                    className="glass-card"
+                    style={{
+                      padding: '1rem 1.15rem',
+                      borderRadius: '16px',
+                      border: isAchieved ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid #2a3447',
+                      background: isAchieved
+                        ? 'linear-gradient(180deg, rgba(16, 185, 129, 0.08) 0%, rgba(15, 23, 42, 0.6) 100%)'
+                        : undefined
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem', gap: '0.5rem' }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f1f5f9' }}>
+                            {goal.name}
+                          </span>
+                          <span style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 600,
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            background: isAchieved ? '#064e3b' : '#1e293b',
+                            color: isAchieved ? '#34d399' : '#94a3b8',
+                            border: `1px solid ${isAchieved ? '#059669' : '#334155'}`
+                          }}>
+                            {targetCurrency}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+                        {onOpenGoalModal && (
+                          <button
+                            type="button"
+                            onClick={() => onOpenGoalModal(goal)}
+                            style={{ background: 'transparent', border: 'none', color: '#38bdf8', cursor: 'pointer', padding: '0.2rem' }}
+                            title="Editar meta"
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                          </button>
+                        )}
+                        {onDeleteGoal && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteGoal(goal.id)}
+                            style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '0.2rem' }}
+                            title="Eliminar meta"
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6"></polyline>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Barra de progreso */}
+                    <div style={{ margin: '0.65rem 0 0.45rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem', fontSize: '0.78rem' }}>
+                        <span style={{ color: '#cbd5e1', fontWeight: 600 }}>
+                          {formatAmount(progress.currentSaved, targetCurrency)} / {formatAmount(goal.targetAmount, targetCurrency)} {targetCurrency}
+                        </span>
+                        <span style={{
+                          fontWeight: 700,
+                          color: isAchieved ? '#10b981' : '#38bdf8'
+                        }}>
+                          {progress.progressPercent}%
+                        </span>
+                      </div>
+                      <div style={{
+                        width: '100%',
+                        height: '8px',
+                        background: '#1e293b',
+                        borderRadius: '9999px',
+                        overflow: 'hidden'
+                      }}>
+                        <div style={{
+                          width: `${progress.progressPercent}%`,
+                          height: '100%',
+                          background: isAchieved
+                            ? '#10b981'
+                            : 'linear-gradient(90deg, #0284c7 0%, #10b981 100%)',
+                          borderRadius: '9999px',
+                          transition: 'width 0.4s ease'
+                        }} />
+                      </div>
+                    </div>
+
+                    {/* Métricas de tiempo y cuota mensual */}
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      fontSize: '0.74rem',
+                      marginTop: '0.5rem',
+                      flexWrap: 'wrap',
+                      gap: '0.4rem'
+                    }}>
+                      <div>
+                        {isAchieved ? (
+                          <span style={{ color: '#10b981', fontWeight: 600 }}>🎉 ¡Meta alcanzada!</span>
+                        ) : isExpired ? (
+                          <span style={{ color: '#ef4444', fontWeight: 600 }}>⚠️ Fecha vencida ({goal.deadline})</span>
+                        ) : (
+                          <span style={{ color: '#94a3b8' }}>
+                            {progress.monthsRemaining != null ? (
+                              <>
+                                Faltan {progress.monthsRemaining} {progress.monthsRemaining === 1 ? 'mes' : 'meses'} • Ahorrar <strong style={{ color: '#f1f5f9' }}>{formatAmount(progress.monthlySavingsNeeded, targetCurrency)} {targetCurrency}/mes</strong>
+                              </>
+                            ) : (
+                              <>Fecha límite: {goal.deadline}</>
+                            )}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Chips de cuentas vinculadas */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                        {linkedAccounts.length > 0 ? (
+                          linkedAccounts.map(acc => (
+                            <span
+                              key={acc.id}
+                              style={{
+                                fontSize: '0.66rem',
+                                background: '#1e293b',
+                                color: '#94a3b8',
+                                padding: '1px 5px',
+                                borderRadius: '4px',
+                                border: '1px solid #334155'
+                              }}
+                            >
+                              {acc.location} ({acc.name})
+                            </span>
+                          ))
+                        ) : (
+                          <span style={{ fontSize: '0.68rem', color: '#f59e0b', fontStyle: 'italic' }}>
+                            Sin cuentas vinculadas
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* PESTAÑAS DE NAVEGACIÓN DE CUENTAS */}

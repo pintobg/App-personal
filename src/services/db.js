@@ -9,6 +9,10 @@ db.version(1).stores({
   budgets: '&category, updated_at, deleted_at'
 });
 
+db.version(2).stores({
+  goals: '&id, currency, deadline, updated_at, deleted_at'
+});
+
 export const MIGRATION_DONE_KEY = 'finanzas_dexie_migrated_v1';
 
 /**
@@ -66,6 +70,18 @@ export async function migrateLocalStorageToDexie() {
         }
       } catch (err) {
         console.warn('[Dexie] Error parsing raw budgets:', err);
+      }
+    }
+
+    const rawGoals = localStorage.getItem('personal_goals');
+    if (rawGoals) {
+      try {
+        const goals = JSON.parse(rawGoals);
+        if (Array.isArray(goals) && goals.length > 0) {
+          await db.goals.bulkPut(goals);
+        }
+      } catch (err) {
+        console.warn('[Dexie] Error parsing raw goals:', err);
       }
     }
 
@@ -130,7 +146,8 @@ export async function clearAllDB() {
       db.transactions.clear(),
       db.assets.clear(),
       db.obligations.clear(),
-      db.budgets.clear()
+      db.budgets.clear(),
+      db.goals ? db.goals.clear() : Promise.resolve()
     ]);
   } catch (err) {
     console.warn('[Dexie] Error al limpiar tablas:', err);

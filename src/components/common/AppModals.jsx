@@ -9,6 +9,7 @@ import AuthModal from '../modals/AuthModal';
 import ConfirmModal from '../modals/ConfirmModal';
 import PinLockModal from '../modals/PinLockModal';
 import SecuritySettingsModal from '../modals/SecuritySettingsModal';
+import GoalModal from '../modals/GoalModal';
 import { todayLocal } from '../../utils/dates';
 
 export default function AppModals({
@@ -77,7 +78,14 @@ export default function AppModals({
   confirmConfig,
   setConfirmConfig,
   // SecuritySettingsModal
-  isSecurityModalOpen
+  isSecurityModalOpen,
+  // GoalModal
+  isGoalModalOpen,
+  setIsGoalModalOpen,
+  editingGoal,
+  setEditingGoal,
+  handleSaveGoal,
+  handleDeleteGoal
 }) {
   return (
     <>
@@ -189,6 +197,18 @@ export default function AppModals({
         referenceRate={referenceRate}
         setReferenceRate={setReferenceRate}
         onClearLocalData={clearLocalData}
+      />
+
+      <GoalModal
+        isOpen={isGoalModalOpen}
+        onClose={() => {
+          setIsGoalModalOpen(false);
+          if (setEditingGoal) setEditingGoal(null);
+        }}
+        goal={editingGoal}
+        assets={assets}
+        onSave={handleSaveGoal}
+        onDelete={handleDeleteGoal}
       />
 
       <ConfirmModal

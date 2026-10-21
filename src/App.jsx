@@ -22,6 +22,7 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
     transactions,
     obligations,
     budgets,
+    goals,
     rates,
     ratesDetails,
     veRates,
@@ -183,6 +184,12 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
         assetsByLocation={metrics.assetsByLocation}
         accountTotalsUsd={metrics.accountTotalsUsd}
         uniqueAssetNames={metrics.uniqueAssetNames}
+        goals={goals}
+        onOpenGoalModal={(g) => {
+          modalState.setEditingGoal(g || null);
+          modalState.setIsGoalModalOpen(true);
+        }}
+        onDeleteGoal={modalState.handleDeleteGoal}
         deleteMode={modalState.deleteMode}
         setDeleteMode={modalState.setDeleteMode}
         setAdjustingAsset={modalState.setAdjustingAsset}
@@ -303,6 +310,12 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
         confirmConfig={confirmConfig}
         setConfirmConfig={setConfirmConfig}
         isSecurityModalOpen={modalState.isSecurityModalOpen}
+        isGoalModalOpen={modalState.isGoalModalOpen}
+        setIsGoalModalOpen={modalState.setIsGoalModalOpen}
+        editingGoal={modalState.editingGoal}
+        setEditingGoal={modalState.setEditingGoal}
+        handleSaveGoal={modalState.handleSaveGoal}
+        handleDeleteGoal={modalState.handleDeleteGoal}
       />
     </div>
   );
