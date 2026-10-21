@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { FinanceProvider, useFinance } from './context/FinanceContext';
 
 const DashboardView = lazy(() => import('./components/views/DashboardView'));
@@ -300,74 +300,97 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
     }
   };
 
-  // Resumen y cálculos
-  const grandTotalUsd = assets.reduce((total, asset) => {
-    const sym = (asset.name || 'USD').toUpperCase();
-    return add(total, convert(asset.amount, sym, 'USD', rates));
-  }, 0);
+  // Resumen y cálculos memoizados
+  const grandTotalUsd = useMemo(() => {
+    return assets.reduce((total, asset) => {
+      const sym = (asset.name || 'USD').toUpperCase();
+      return add(total, convert(asset.amount, sym, 'USD', rates));
+    }, 0);
+  }, [assets, rates]);
 
-  const accountTotalsUsd = assets.reduce((acc, asset) => {
-    if (!acc[asset.location]) acc[asset.location] = 0;
-    const sym = (asset.name || 'USD').toUpperCase();
-    const usdVal = convert(asset.amount, sym, 'USD', rates);
-    acc[asset.location] = add(acc[asset.location], usdVal);
-    return acc;
-  }, {});
-
-  const assetsByLocation = assets.reduce((acc, asset) => {
-    if (activeFilter === 'asset' && selectedFilters.length > 0 && !selectedFilters.includes(asset.name)) {
+  const accountTotalsUsd = useMemo(() => {
+    return assets.reduce((acc, asset) => {
+      if (!acc[asset.location]) acc[asset.location] = 0;
+      const sym = (asset.name || 'USD').toUpperCase();
+      const usdVal = convert(asset.amount, sym, 'USD', rates);
+      acc[asset.location] = add(acc[asset.location], usdVal);
       return acc;
-    }
-    if (activeFilter === 'account' && selectedFilters.length > 0 && !selectedFilters.includes(asset.location)) {
+    }, {});
+  }, [assets, rates]);
+
+  const assetsByLocation = useMemo(() => {
+    return assets.reduce((acc, asset) => {
+      if (activeFilter === 'asset' && selectedFilters.length > 0 && !selectedFilters.includes(asset.name)) {
+        return acc;
+      }
+      if (activeFilter === 'account' && selectedFilters.length > 0 && !selectedFilters.includes(asset.location)) {
+        return acc;
+      }
+      if (!acc[asset.location]) acc[asset.location] = [];
+      acc[asset.location].push(asset);
       return acc;
+    }, {});
+  }, [assets, activeFilter, selectedFilters]);
+
+  const uniqueAssetNames = useMemo(() => {
+    return Array.from(new Set(assets.map(a => a.name)));
+  }, [assets]);
+
+  const nextPayments = useMemo(() => {
+    return obligations.filter(ob => ob.type === 'pay' && (!ob.totalInstallments || Number(ob.paidInstallments) < Number(ob.totalInstallments))).slice(0, 3);
+  }, [obligations]);
+
+  const nextCollections = useMemo(() => {
+    return obligations.filter(ob => ob.type === 'receive' && (!ob.totalInstallments || Number(ob.paidInstallments) < Number(ob.totalInstallments))).slice(0, 3);
+  }, [obligations]);
+
+  // Filtros de fecha y métricas para Analytics memoizados
+  const { filteredSpents, filteredIncomes, totalSpentUsd, totalIncomeUsd, pieData } = useMemo(() => {
+    const now = new Date();
+    const filterDate = new Date();
+    if (timeFrame === 'daily') {
+      filterDate.setHours(0, 0, 0, 0);
+    } else if (timeFrame === 'weekly') {
+      filterDate.setDate(now.getDate() - 7);
+    } else if (timeFrame === 'monthly') {
+      filterDate.setMonth(now.getMonth() - 1);
     }
-    if (!acc[asset.location]) acc[asset.location] = [];
-    acc[asset.location].push(asset);
-    return acc;
-  }, {});
 
-  const uniqueAssetNames = Array.from(new Set(assets.map(a => a.name)));
+    const allSpents = transactions.filter(t => t.type === 'spent');
+    const spents = timeFrame === 'all'
+      ? allSpents
+      : allSpents.filter(t => parseLocalDate(toLocalDateString(t.date)) >= filterDate);
 
-  const nextPayments = obligations.filter(ob => ob.type === 'pay' && (!ob.totalInstallments || Number(ob.paidInstallments) < Number(ob.totalInstallments))).slice(0, 3);
-  const nextCollections = obligations.filter(ob => ob.type === 'receive' && (!ob.totalInstallments || Number(ob.paidInstallments) < Number(ob.totalInstallments))).slice(0, 3);
+    const allIncomes = transactions.filter(t => t.type === 'income');
+    const incomes = timeFrame === 'all'
+      ? allIncomes
+      : allIncomes.filter(t => parseLocalDate(toLocalDateString(t.date)) >= filterDate);
 
-  // Filtros de fecha para Analytics
-  const now = new Date();
-  const filterDate = new Date();
-  if (timeFrame === 'daily') {
-    filterDate.setHours(0, 0, 0, 0);
-  } else if (timeFrame === 'weekly') {
-    filterDate.setDate(now.getDate() - 7);
-  } else if (timeFrame === 'monthly') {
-    filterDate.setMonth(now.getMonth() - 1);
-  }
+    const spentUsd = spents.reduce((acc, t) => add(acc, getTxUsdEquivalent(t, rates)), 0);
+    const incomeUsd = incomes.reduce((acc, t) => add(acc, getTxUsdEquivalent(t, rates)), 0);
 
-  const allSpents = transactions.filter(t => t.type === 'spent');
-  const filteredSpents = timeFrame === 'all'
-    ? allSpents
-    : allSpents.filter(t => parseLocalDate(toLocalDateString(t.date)) >= filterDate);
+    const aggregatedData = {};
+    spents.forEach(t => {
+      const usdAmount = getTxUsdEquivalent(t, rates);
+      const cat = translateCategory(t.category) || 'Sin categoría';
+      if (!aggregatedData[cat]) {
+        aggregatedData[cat] = 0;
+      }
+      aggregatedData[cat] += usdAmount;
+    });
 
-  const allIncomes = transactions.filter(t => t.type === 'income');
-  const filteredIncomes = timeFrame === 'all'
-    ? allIncomes
-    : allIncomes.filter(t => parseLocalDate(toLocalDateString(t.date)) >= filterDate);
+    const pie = Object.entries(aggregatedData)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
 
-  const totalSpentUsd = filteredSpents.reduce((acc, t) => add(acc, getTxUsdEquivalent(t, rates)), 0);
-  const totalIncomeUsd = filteredIncomes.reduce((acc, t) => add(acc, getTxUsdEquivalent(t, rates)), 0);
-
-  const aggregatedData = {};
-  filteredSpents.forEach(t => {
-    const usdAmount = getTxUsdEquivalent(t, rates);
-    const cat = translateCategory(t.category) || 'Sin categoría';
-    if (!aggregatedData[cat]) {
-      aggregatedData[cat] = 0;
-    }
-    aggregatedData[cat] += usdAmount;
-  });
-
-  const pieData = Object.entries(aggregatedData)
-    .map(([name, value]) => ({ name, value }))
-    .sort((a, b) => b.value - a.value);
+    return {
+      filteredSpents: spents,
+      filteredIncomes: incomes,
+      totalSpentUsd: spentUsd,
+      totalIncomeUsd: incomeUsd,
+      pieData: pie
+    };
+  }, [transactions, timeFrame, rates]);
 
   const injectAdvancedTestData = () => {
     requestConfirm({
