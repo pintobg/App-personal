@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, lazy, Suspense } from 'react';
+import { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { FinanceProvider, useFinance } from './context/FinanceContext';
 
 const DashboardView = lazy(() => import('./components/views/DashboardView'));
@@ -924,9 +924,6 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
         onDisablePin={appLock.disablePin}
         onToggleBiometrics={appLock.toggleBiometrics}
       />
-
-      {/* TOAST */}
-      <Toast message={showToast ? undefined : null} />
     </div>
   );
 }
@@ -934,10 +931,18 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
 export default function App() {
   const [toast, setToast] = useState(null);
   const [confirmConfig, setConfirmConfig] = useState(null);
+  const toastTimerRef = useRef(null);
 
   const showToast = (msg, type = 'success') => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
     setToast(typeof msg === 'string' && type !== 'success' ? { message: msg, type } : msg);
-    setTimeout(() => setToast(null), 3000);
+    toastTimerRef.current = setTimeout(() => {
+      setToast(null);
+      toastTimerRef.current = null;
+    }, 3000);
   };
 
   const requestConfirm = (options) => {
