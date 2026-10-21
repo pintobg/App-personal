@@ -173,4 +173,72 @@ describe('Domain: operations.js (Funciones puras de negocio)', () => {
     expect(result.nextAssets.find((a) => a.id === 'ast-1').amount).toBe(500);
     expect(result.nextTransactions).toHaveLength(0);
   });
+
+  it('executeAddOrEditTransaction: un pago de $20 con IGTF (3%) genera el IGTF de $0,60 vinculado y debita $20,60', () => {
+    const assets = [
+      { id: 'ast-usd', name: 'USD', location: 'Zelle', amount: 100, appliesIgtf: true, igtfPercent: 3 }
+    ];
+    const state = { assets, transactions: [], rates: { USD: 1 } };
+    const payload = {
+      type: 'spent',
+      assetId: 'ast-usd',
+      currency: 'USD',
+      origin: 'Zelle',
+      amount: '20',
+      category: 'Compras',
+      subcategory: 'Supermercado',
+      includeIgtf: true,
+      igtfAmount: '0.60'
+    };
+
+    const result = executeAddOrEditTransaction(state, payload);
+    expect(result.success).toBe(true);
+    // Saldo: 100 - (20 + 0.60) = 79.40
+    expect(result.nextAssets.find((a) => a.id === 'ast-usd').amount).toBe(79.4);
+    expect(result.nextTransactions).toHaveLength(2);
+
+    const mainTx = result.nextTransactions.find((t) => !t.parentTransactionId);
+    const igtfTx = result.nextTransactions.find((t) => t.parentTransactionId === mainTx.id);
+
+    expect(mainTx.amount).toBe(20);
+    expect(igtfTx).toBeDefined();
+    expect(igtfTx.amount).toBe(0.6);
+    expect(igtfTx.category).toBe('Impuestos');
+    expect(igtfTx.subcategory).toContain('IGTF');
+    expect(igtfTx.parentTransactionId).toBe(mainTx.id);
+
+    // Si luego se borra el gasto principal con executeBulkDelete, también se borra el IGTF y se repone 20.60
+    const deleteResult = executeBulkDelete({ assets: result.nextAssets, transactions: result.nextTransactions }, [mainTx]);
+    expect(deleteResult.success).toBe(true);
+    expect(deleteResult.nextAssets.find((a) => a.id === 'ast-usd').amount).toBe(100);
+    expect(deleteResult.nextTransactions).toHaveLength(0);
+  });
+
+  it('executeAddOrEditTransaction: guarda campos opcionales de Pago Móvil en VES', () => {
+    const assets = [
+      { id: 'ast-ves', name: 'VES', location: 'Banesco', amount: 5000 }
+    ];
+    const state = { assets, transactions: [], rates: { VES: 50 } };
+    const payload = {
+      type: 'spent',
+      assetId: 'ast-ves',
+      currency: 'VES',
+      origin: 'Banesco',
+      amount: '500',
+      category: 'Servicios',
+      subcategory: 'Luz',
+      paymentMethod: 'Pago Móvil',
+      referenceNumber: '849201',
+      bank: 'Banesco',
+      recipientId: 'V-19876543'
+    };
+
+    const result = executeAddOrEditTransaction(state, payload);
+    expect(result.success).toBe(true);
+    const tx = result.nextTransactions[0];
+    expect(tx.paymentMethod).toBe('Pago Móvil');
+    expect(tx.referenceNumber).toBe('849201');
+    expect(tx.bank).toBe('Banesco');
+    expect(tx.recipientId).toBe('V-19876543');
+  });
 });

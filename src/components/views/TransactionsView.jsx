@@ -155,6 +155,10 @@ export default function TransactionsView({
         const destOrigin = (tx.destOrigin || '').toLowerCase();
         const notes = (tx.notes || tx.description || tx.title || '').toLowerCase();
         const currency = (tx.currency || '').toLowerCase();
+        const ref = (tx.referenceNumber || '').toLowerCase();
+        const bank = (tx.bank || '').toLowerCase();
+        const recipient = (tx.recipientId || '').toLowerCase();
+        const paymentMethod = (tx.paymentMethod || '').toLowerCase();
 
         const matches =
           cat.includes(q) ||
@@ -164,7 +168,11 @@ export default function TransactionsView({
           origin.includes(q) ||
           destOrigin.includes(q) ||
           notes.includes(q) ||
-          currency.includes(q);
+          currency.includes(q) ||
+          ref.includes(q) ||
+          bank.includes(q) ||
+          recipient.includes(q) ||
+          paymentMethod.includes(q);
 
         if (!matches) return false;
       }
@@ -221,7 +229,7 @@ export default function TransactionsView({
         <input
           type="text"
           className="input-field"
-          placeholder="Buscar por categoría, cuenta, nota..."
+          placeholder="Buscar por categoría, cuenta, referencia, banco..."
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           style={{
@@ -476,6 +484,18 @@ export default function TransactionsView({
                             Tasa: {formatAmount(tx.effectiveRate || tx.effectiveRateData?.rate, 'VES')} Bs./$
                           </div>
                         )}
+                        {Boolean(tx.paymentMethod || tx.referenceNumber) && (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.7rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '1px 6px', borderRadius: '4px', width: 'fit-content', marginTop: '2px' }}>
+                            <span>📱</span>
+                            <span>{tx.paymentMethod || 'Pago Móvil'}{tx.referenceNumber ? ` • Ref: ${tx.referenceNumber}` : ''}</span>
+                          </div>
+                        )}
+                        {Boolean(tx.parentTransactionId) && (
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.68rem', color: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)', padding: '1px 6px', borderRadius: '4px', width: 'fit-content', marginTop: '2px' }}>
+                            <span>🔗</span>
+                            <span>Vinculado a gasto</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -611,6 +631,14 @@ export default function TransactionsView({
                       <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
                         Valor original: ~${formatAmount(usdVal, 'USD')} USD
                       </div>
+                      {Boolean(tx.paymentMethod || tx.referenceNumber || tx.bank || tx.recipientId) && (
+                        <div style={{ fontSize: '0.75rem', color: '#cbd5e1', marginTop: '0.35rem', textAlign: 'center', background: '#172033', padding: '0.4rem 0.65rem', borderRadius: '8px', border: '1px solid #1e293b', width: '100%' }}>
+                          {tx.paymentMethod && <div><strong>Tipo:</strong> {tx.paymentMethod}</div>}
+                          {tx.referenceNumber && <div><strong>Referencia:</strong> {tx.referenceNumber}</div>}
+                          {tx.bank && <div><strong>Banco:</strong> {tx.bank}</div>}
+                          {tx.recipientId && <div><strong>Destinatario:</strong> {tx.recipientId}</div>}
+                        </div>
+                      )}
                       <button
                         type="button"
                         title="Editar transacción"

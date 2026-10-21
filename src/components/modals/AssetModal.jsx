@@ -62,7 +62,12 @@ export default function AssetModal({
     name: '',
     type: initialType || 'fiat',
     amount: '',
-    location: ''
+    location: '',
+    hasTransferCommission: false,
+    commissionPercent: '',
+    commissionFixed: '',
+    appliesIgtf: false,
+    igtfPercent: '3'
   });
 
   useEffect(() => {
@@ -71,7 +76,12 @@ export default function AssetModal({
         name: '',
         type: initialType || 'fiat',
         amount: '',
-        location: ''
+        location: '',
+        hasTransferCommission: false,
+        commissionPercent: '',
+        commissionFixed: '',
+        appliesIgtf: false,
+        igtfPercent: '3'
       });
       setAssetStep(2);
       setIsCustomAsset(false);
@@ -111,7 +121,17 @@ export default function AssetModal({
   if (!isOpen) return null;
 
   const resetModal = () => {
-    setNewAsset({ name: '', type: initialType || 'fiat', amount: '', location: '' });
+    setNewAsset({
+      name: '',
+      type: initialType || 'fiat',
+      amount: '',
+      location: '',
+      hasTransferCommission: false,
+      commissionPercent: '',
+      commissionFixed: '',
+      appliesIgtf: false,
+      igtfPercent: '3'
+    });
     setAssetStep(2);
     setIsCustomAsset(false);
     setIsCustomLocation(false);
@@ -226,7 +246,12 @@ export default function AssetModal({
 
   const handleSelectFromList = async (sym) => {
     const clean = sym.toUpperCase();
-    setNewAsset(prev => ({ ...prev, name: clean }));
+    setNewAsset(prev => ({
+      ...prev,
+      name: clean,
+      appliesIgtf: clean !== 'VES',
+      igtfPercent: '3'
+    }));
     setAssetValidationError('');
     setSuggestedSymbols([]);
     const ok = await validateAndFetchCurrency(clean, newAsset.type);
@@ -264,7 +289,26 @@ export default function AssetModal({
       return;
     }
     const cleanSym = newAsset.name.trim().toUpperCase();
-    onAddAsset({ ...newAsset, name: cleanSym, amount: round(parsed, cleanSym) });
+    const commPct = newAsset.hasTransferCommission && newAsset.commissionPercent
+      ? (parseAmount(newAsset.commissionPercent) ?? 0)
+      : 0;
+    const commFix = newAsset.hasTransferCommission && newAsset.commissionFixed
+      ? (parseAmount(newAsset.commissionFixed) ?? 0)
+      : 0;
+    const igtfPct = newAsset.appliesIgtf && newAsset.igtfPercent
+      ? (parseAmount(newAsset.igtfPercent) ?? 3)
+      : 3;
+
+    onAddAsset({
+      ...newAsset,
+      name: cleanSym,
+      amount: round(parsed, cleanSym),
+      hasTransferCommission: Boolean(newAsset.hasTransferCommission),
+      commissionPercent: Number(commPct) || 0,
+      commissionFixed: Number(commFix) || 0,
+      appliesIgtf: cleanSym !== 'VES' && Boolean(newAsset.appliesIgtf),
+      igtfPercent: Number(igtfPct) || 3
+    });
     resetModal();
     if (showToast) showToast('Cuenta guardada con éxito');
   };
@@ -348,7 +392,12 @@ export default function AssetModal({
                       type="button"
                       className={`segmented-btn ${newAsset.name === a && !isCustomAsset ? 'active-success' : ''}`}
                       onClick={() => {
-                        setNewAsset({ ...newAsset, name: a });
+                        setNewAsset({
+                          ...newAsset,
+                          name: a,
+                          appliesIgtf: a !== 'VES',
+                          igtfPercent: '3'
+                        });
                         setIsCustomAsset(false);
                         setAssetValidationError('');
                         setSuggestedSymbols([]);
@@ -614,7 +663,7 @@ export default function AssetModal({
             )}
 
             {assetStep === 4 && (
-              <div className="input-group">
+              <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.55rem', marginBottom: '0.75rem', padding: '0.5rem 0.75rem', borderRadius: '10px', background: '#171f2e', border: '1px solid #2a3447' }}>
                   <CurrencyIcon symbol={newAsset.name} type={newAsset.type} size={28} />
                   <div>
@@ -628,17 +677,100 @@ export default function AssetModal({
                     )}
                   </div>
                 </div>
-                <label>Balance Inicial ({newAsset.name})</label>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  className="input-field"
-                  placeholder="0,00"
-                  value={newAsset.amount}
-                  onChange={e => setNewAsset({ ...newAsset, amount: e.target.value })}
-                  autoFocus
-                  required
-                />
+
+                <div className="input-group">
+                  <label>Balance Inicial ({newAsset.name})</label>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    className="input-field"
+                    placeholder="0,00"
+                    value={newAsset.amount}
+                    onChange={e => setNewAsset({ ...newAsset, amount: e.target.value })}
+                    autoFocus
+                    required
+                  />
+                </div>
+
+                {/* Comisiones configurables e IGTF */}
+                <div style={{ marginTop: '1rem', padding: '0.85rem', background: '#151b26', borderRadius: '12px', border: '1px solid #2a3447' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f1f5f9', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <span>⚙️</span>
+                    <span>Costos y Comisiones de la cuenta</span>
+                  </div>
+
+                  {/* Transferencia saliente */}
+                  <div style={{ marginBottom: '0.85rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: '#cbd5e1' }}>
+                      <input
+                        type="checkbox"
+                        checked={newAsset.hasTransferCommission}
+                        onChange={e => setNewAsset({ ...newAsset, hasTransferCommission: e.target.checked })}
+                        style={{ width: '16px', height: '16px' }}
+                      />
+                      <span>Comisión por transferencia saliente</span>
+                    </label>
+
+                    {newAsset.hasTransferCommission && (
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
+                        <div>
+                          <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>% Comisión</label>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            className="input-field"
+                            placeholder="0,3 %"
+                            style={{ padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
+                            value={newAsset.commissionPercent}
+                            onChange={e => setNewAsset({ ...newAsset, commissionPercent: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>Monto fijo ({newAsset.name})</label>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            className="input-field"
+                            placeholder="0,00"
+                            style={{ padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
+                            value={newAsset.commissionFixed}
+                            onChange={e => setNewAsset({ ...newAsset, commissionFixed: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* IGTF para divisas */}
+                  {newAsset.name !== 'VES' && (
+                    <div style={{ paddingTop: '0.65rem', borderTop: '1px solid #232c3d' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: '#cbd5e1' }}>
+                        <input
+                          type="checkbox"
+                          checked={newAsset.appliesIgtf}
+                          onChange={e => setNewAsset({ ...newAsset, appliesIgtf: e.target.checked })}
+                          style={{ width: '16px', height: '16px' }}
+                        />
+                        <span>Aplica IGTF en pagos en divisas</span>
+                      </label>
+
+                      {newAsset.appliesIgtf && (
+                        <div style={{ marginTop: '0.5rem' }}>
+                          <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>Porcentaje de IGTF (%)</label>
+                          <input
+                            type="text"
+                            inputMode="decimal"
+                            className="input-field"
+                            placeholder="3 %"
+                            style={{ padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
+                            value={newAsset.igtfPercent}
+                            onChange={e => setNewAsset({ ...newAsset, igtfPercent: e.target.value })}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>

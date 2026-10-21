@@ -49,7 +49,25 @@ export default function TransactionModal({
                 fontWeight: 700
               }}
               onClick={() => {
-                setNewTx({ id: '', assetId: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
+                setNewTx({
+                  id: '',
+                  assetId: '',
+                  type: 'income',
+                  currency: '',
+                  amount: '',
+                  origin: '',
+                  category: '',
+                  subcategory: '',
+                  date: todayLocal(),
+                  includeIgtf: false,
+                  igtfAmount: '',
+                  includeCommission: false,
+                  commissionAmount: '',
+                  paymentMethod: '',
+                  referenceNumber: '',
+                  bank: '',
+                  recipientId: ''
+                });
                 setMode('form');
               }}
             >
@@ -68,7 +86,25 @@ export default function TransactionModal({
                 fontWeight: 700
               }}
               onClick={() => {
-                setNewTx({ id: '', assetId: '', type: 'spent', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
+                setNewTx({
+                  id: '',
+                  assetId: '',
+                  type: 'spent',
+                  currency: '',
+                  amount: '',
+                  origin: '',
+                  category: '',
+                  subcategory: '',
+                  date: todayLocal(),
+                  includeIgtf: false,
+                  igtfAmount: '',
+                  includeCommission: false,
+                  commissionAmount: '',
+                  paymentMethod: '',
+                  referenceNumber: '',
+                  bank: '',
+                  recipientId: ''
+                });
                 setMode('form');
               }}
             >
@@ -82,6 +118,98 @@ export default function TransactionModal({
 
   const isEditing = Boolean(newTx.id);
   const oldTx = isEditing ? transactions.find(t => t.id === newTx.id) : null;
+
+  const selectedAsset = assets.find(a => a.id === newTx.assetId) ||
+    assets.find(a => (a.name || '').toUpperCase() === (newTx.currency || '').toUpperCase() && a.location === newTx.origin) || null;
+
+  const handleAmountChange = (val) => {
+    const parsedAmt = parseAmount(val);
+    let nextIgtf = newTx.igtfAmount;
+    let nextIncludeIgtf = newTx.includeIgtf;
+    let nextComm = newTx.commissionAmount;
+    let nextIncludeComm = newTx.includeCommission;
+
+    if (selectedAsset && newTx.type === 'spent') {
+      if (selectedAsset.name !== 'VES' && selectedAsset.appliesIgtf) {
+        if (parsedAmt !== null && parsedAmt > 0) {
+          const igtfRate = selectedAsset.igtfPercent != null ? Number(selectedAsset.igtfPercent) : 3;
+          const calcIgtf = round((parsedAmt * igtfRate) / 100, selectedAsset.name);
+          nextIgtf = calcIgtf.toString();
+          if (nextIncludeIgtf === undefined || nextIncludeIgtf === false) nextIncludeIgtf = true;
+        } else {
+          nextIgtf = '';
+        }
+      }
+
+      if (selectedAsset.hasTransferCommission || selectedAsset.commissionPercent > 0 || selectedAsset.commissionFixed > 0) {
+        if (parsedAmt !== null && parsedAmt > 0) {
+          const pct = Number(selectedAsset.commissionPercent) || 0;
+          const fix = Number(selectedAsset.commissionFixed) || 0;
+          const calcComm = round((parsedAmt * (pct / 100)) + fix, selectedAsset.name);
+          if (calcComm > 0) {
+            nextComm = calcComm.toString();
+            if (nextIncludeComm === undefined || nextIncludeComm === false) nextIncludeComm = true;
+          }
+        } else {
+          nextComm = '';
+        }
+      }
+    }
+
+    setNewTx(prev => ({
+      ...prev,
+      amount: val,
+      igtfAmount: nextIgtf,
+      includeIgtf: nextIncludeIgtf ?? prev.includeIgtf,
+      commissionAmount: nextComm,
+      includeCommission: nextIncludeComm ?? prev.includeCommission
+    }));
+  };
+
+  const handleAssetSelect = (assetId) => {
+    const target = assets.find(a => a.id === assetId);
+    if (!target) {
+      setNewTx(prev => ({ ...prev, assetId: '', origin: '' }));
+      return;
+    }
+    const parsedAmt = parseAmount(newTx.amount);
+    let nextIgtf = '';
+    let nextIncludeIgtf = false;
+    let nextComm = '';
+    let nextIncludeComm = false;
+
+    if (newTx.type === 'spent') {
+      if (target.name !== 'VES' && target.appliesIgtf) {
+        nextIncludeIgtf = true;
+        if (parsedAmt !== null && parsedAmt > 0) {
+          const igtfRate = target.igtfPercent != null ? Number(target.igtfPercent) : 3;
+          nextIgtf = round((parsedAmt * igtfRate) / 100, target.name).toString();
+        }
+      }
+      if (target.hasTransferCommission || target.commissionPercent > 0 || target.commissionFixed > 0) {
+        if (parsedAmt !== null && parsedAmt > 0) {
+          const pct = Number(target.commissionPercent) || 0;
+          const fix = Number(target.commissionFixed) || 0;
+          const calcComm = round((parsedAmt * (pct / 100)) + fix, target.name);
+          if (calcComm > 0) {
+            nextIncludeComm = true;
+            nextComm = calcComm.toString();
+          }
+        }
+      }
+    }
+
+    setNewTx(prev => ({
+      ...prev,
+      assetId: target.id,
+      currency: target.name,
+      origin: target.location,
+      includeIgtf: nextIncludeIgtf,
+      igtfAmount: nextIgtf,
+      includeCommission: nextIncludeComm,
+      commissionAmount: nextComm
+    }));
+  };
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -148,7 +276,7 @@ export default function TransactionModal({
               className="input-field"
               placeholder="0,00"
               value={newTx.amount}
-              onChange={e => setNewTx({ ...newTx, amount: e.target.value })}
+              onChange={e => handleAmountChange(e.target.value)}
               required
             />
           </div>
@@ -159,23 +287,7 @@ export default function TransactionModal({
               placeholder={newTx.type === 'income' ? 'Seleccionar Destino' : 'Seleccionar Origen'}
               title={newTx.type === 'income' ? 'Seleccionar Cuenta Destino' : 'Seleccionar Cuenta Origen'}
               value={newTx.assetId || ''}
-              onChange={e => {
-                const selectedAsset = assets.find(a => a.id === e.target.value);
-                if (selectedAsset) {
-                  setNewTx({
-                    ...newTx,
-                    assetId: selectedAsset.id,
-                    currency: selectedAsset.name,
-                    origin: selectedAsset.location
-                  });
-                } else {
-                  setNewTx({
-                    ...newTx,
-                    assetId: '',
-                    origin: ''
-                  });
-                }
-              }}
+              onChange={e => handleAssetSelect(e.target.value)}
               options={availableAssetsForTx.map(a => ({
                 value: a.id,
                 label: `${a.location} (${a.name}) - Saldo: ${formatAmount(a.amount, a.name)}`
@@ -190,6 +302,10 @@ export default function TransactionModal({
                   const currentBalance = asset ? Number(asset.amount) : 0;
                   const parsedEntered = parseAmount(newTx.amount);
                   const amountEntered = parsedEntered !== null ? parsedEntered : 0;
+                  const igtfEntered = (newTx.type === 'spent' && newTx.includeIgtf && newTx.igtfAmount) ? (parseAmount(newTx.igtfAmount) || 0) : 0;
+                  const commEntered = (newTx.type === 'spent' && newTx.includeCommission && newTx.commissionAmount) ? (parseAmount(newTx.commissionAmount) || 0) : 0;
+                  const totalDeducted = add(add(amountEntered, igtfEntered), commEntered);
+
                   const isSameAccount = oldTx && (
                     (oldTx.assetId && newTx.assetId ? oldTx.assetId === newTx.assetId : false) ||
                     ((oldTx.currency || '').toUpperCase() === (newTx.currency || '').toUpperCase() && oldTx.origin === newTx.origin)
@@ -198,16 +314,16 @@ export default function TransactionModal({
                   if (isSameAccount) {
                     const oldAmount = Number(oldTx.amount) || 0;
                     if (oldTx.type === 'spent' && newTx.type === 'spent') {
-                      newBalance = sub(add(currentBalance, oldAmount), amountEntered);
+                      newBalance = sub(add(currentBalance, oldAmount), totalDeducted);
                     } else if (oldTx.type === 'income' && newTx.type === 'income') {
                       newBalance = add(sub(currentBalance, oldAmount), amountEntered);
                     } else if (oldTx.type === 'spent' && newTx.type === 'income') {
                       newBalance = add(add(currentBalance, oldAmount), amountEntered);
                     } else {
-                      newBalance = sub(sub(currentBalance, oldAmount), amountEntered);
+                      newBalance = sub(sub(currentBalance, oldAmount), totalDeducted);
                     }
                   } else {
-                    newBalance = newTx.type === 'income' ? add(currentBalance, amountEntered) : sub(currentBalance, amountEntered);
+                    newBalance = newTx.type === 'income' ? add(currentBalance, amountEntered) : sub(currentBalance, totalDeducted);
                   }
                   newBalance = round(newBalance, newTx.currency);
                   return (
@@ -226,6 +342,152 @@ export default function TransactionModal({
               </div>
             )}
           </div>
+
+          {/* Comisiones e IGTF vinculados calculados */}
+          {newTx.type === 'spent' && selectedAsset && (selectedAsset.appliesIgtf || selectedAsset.hasTransferCommission || selectedAsset.commissionPercent > 0 || selectedAsset.commissionFixed > 0) && (
+            <div style={{ marginBottom: '1rem', padding: '0.85rem', background: '#151b26', borderRadius: '12px', border: '1px solid #2a3447' }}>
+              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f1f5f9', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span>🧾</span>
+                <span>Comisiones e IGTF vinculados (editables)</span>
+              </div>
+
+              {/* IGTF */}
+              {selectedAsset.name !== 'VES' && selectedAsset.appliesIgtf && (
+                <div style={{ marginBottom: (selectedAsset.hasTransferCommission || selectedAsset.commissionPercent > 0 || selectedAsset.commissionFixed > 0) ? '0.75rem' : '0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: '#cbd5e1' }}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(newTx.includeIgtf)}
+                        onChange={e => setNewTx(prev => ({ ...prev, includeIgtf: e.target.checked }))}
+                        style={{ width: '16px', height: '16px' }}
+                      />
+                      <span>Cobrar IGTF ({selectedAsset.igtfPercent || 3}%)</span>
+                    </label>
+                    {newTx.includeIgtf && (
+                      <div style={{ width: '110px' }}>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          className="input-field"
+                          placeholder="0,00"
+                          style={{ padding: '0.35rem 0.5rem', fontSize: '0.85rem', textAlign: 'right' }}
+                          value={newTx.igtfAmount || ''}
+                          onChange={e => setNewTx(prev => ({ ...prev, igtfAmount: e.target.value }))}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Comisión bancaria */}
+              {(selectedAsset.hasTransferCommission || selectedAsset.commissionPercent > 0 || selectedAsset.commissionFixed > 0) && (
+                <div style={{ paddingTop: selectedAsset.name !== 'VES' && selectedAsset.appliesIgtf ? '0.65rem' : '0', borderTop: selectedAsset.name !== 'VES' && selectedAsset.appliesIgtf ? '1px solid #232c3d' : 'none' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: '#cbd5e1' }}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(newTx.includeCommission)}
+                        onChange={e => setNewTx(prev => ({ ...prev, includeCommission: e.target.checked }))}
+                        style={{ width: '16px', height: '16px' }}
+                      />
+                      <span>Comisión bancaria</span>
+                    </label>
+                    {newTx.includeCommission && (
+                      <div style={{ width: '110px' }}>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          className="input-field"
+                          placeholder="0,00"
+                          style={{ padding: '0.35rem 0.5rem', fontSize: '0.85rem', textAlign: 'right' }}
+                          value={newTx.commissionAmount || ''}
+                          onChange={e => setNewTx(prev => ({ ...prev, commissionAmount: e.target.value }))}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Detalles opcionales para movimientos en Bs. */}
+          {newTx.currency === 'VES' && (
+            <div style={{ marginBottom: '1rem', padding: '0.85rem', background: '#151b26', borderRadius: '12px', border: '1px solid #2a3447' }}>
+              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f1f5f9', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <span>🇻🇪</span>
+                <span>Detalles de pago en Bolívares (Opcional)</span>
+              </div>
+
+              {/* Tipo de pago */}
+              <div style={{ marginBottom: '0.65rem' }}>
+                <label style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', marginBottom: '0.35rem' }}>Tipo de pago</label>
+                <div className="segmented-control" style={{ flexWrap: 'wrap' }}>
+                  {['Pago Móvil', 'Transferencia', 'Punto de venta', 'Efectivo'].map(method => (
+                    <button
+                      key={method}
+                      type="button"
+                      className={`segmented-btn ${newTx.paymentMethod === method ? 'active-success' : ''}`}
+                      onClick={() => setNewTx(prev => ({
+                        ...prev,
+                        paymentMethod: prev.paymentMethod === method ? '' : method
+                      }))}
+                      style={{ fontSize: '0.75rem', padding: '0.35rem 0.5rem' }}
+                    >
+                      {method}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Nro Referencia y Banco */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.65rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>
+                    Nro. de Referencia
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="Ej. 849201"
+                    style={{ padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
+                    value={newTx.referenceNumber || ''}
+                    onChange={e => setNewTx(prev => ({ ...prev, referenceNumber: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>
+                    Banco
+                  </label>
+                  <input
+                    type="text"
+                    className="input-field"
+                    placeholder="Ej. Banesco, BDV..."
+                    style={{ padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
+                    value={newTx.bank || ''}
+                    onChange={e => setNewTx(prev => ({ ...prev, bank: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              {/* Destinatario */}
+              <div>
+                <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>
+                  Teléfono o Cédula / RIF del destinatario
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="Ej. V-12345678 o 0414-1234567"
+                  style={{ padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
+                  value={newTx.recipientId || ''}
+                  onChange={e => setNewTx(prev => ({ ...prev, recipientId: e.target.value }))}
+                />
+              </div>
+            </div>
+          )}
 
           <div className="input-group">
             <label>Fecha</label>

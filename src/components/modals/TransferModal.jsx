@@ -23,6 +23,100 @@ export default function TransferModal({
   const dest = assets.find(a => a.id === newTransfer.destAssetId);
   const isSameCurrency = src && dest && src.name === dest.name;
 
+  const handleSourceChange = (srcId) => {
+    const selectedSrc = assets.find(a => a.id === srcId);
+    const currentDest = assets.find(a => a.id === newTransfer.destAssetId);
+    let autoFill = newTransfer.amountReceived;
+    if (selectedSrc && currentDest && selectedSrc.name === currentDest.name && newTransfer.amountDeducted) {
+      autoFill = newTransfer.amountDeducted;
+    }
+
+    const parsedDed = parseAmount(newTransfer.amountDeducted);
+    let nextComm = newTransfer.commissionAmount;
+    let nextHasComm = newTransfer.hasCommission;
+    let nextIgtf = newTransfer.igtfAmount;
+    let nextHasIgtf = newTransfer.hasIgtf;
+
+    if (selectedSrc) {
+      if (selectedSrc.hasTransferCommission || selectedSrc.commissionPercent > 0 || selectedSrc.commissionFixed > 0) {
+        if (parsedDed !== null && parsedDed > 0) {
+          const calcComm = round((parsedDed * ((selectedSrc.commissionPercent || 0) / 100)) + (selectedSrc.commissionFixed || 0), selectedSrc.name);
+          if (calcComm > 0) {
+            nextHasComm = true;
+            nextComm = calcComm.toString();
+          }
+        }
+      }
+      if (selectedSrc.name !== 'VES' && selectedSrc.appliesIgtf) {
+        if (parsedDed !== null && parsedDed > 0) {
+          const calcIgtf = round(parsedDed * (selectedSrc.igtfPercent || 3) / 100, selectedSrc.name);
+          if (calcIgtf > 0) {
+            nextHasIgtf = true;
+            nextIgtf = calcIgtf.toString();
+          }
+        }
+      }
+    }
+
+    setNewTransfer({
+      ...newTransfer,
+      sourceAssetId: srcId,
+      amountReceived: autoFill,
+      hasCommission: nextHasComm,
+      commissionAmount: nextComm,
+      hasIgtf: nextHasIgtf,
+      igtfAmount: nextIgtf
+    });
+  };
+
+  const handleAmountDeductedChange = (val) => {
+    let autoFill = newTransfer.amountReceived;
+    if (isSameCurrency) {
+      autoFill = val;
+    }
+
+    const parsedDed = parseAmount(val);
+    let nextComm = newTransfer.commissionAmount;
+    let nextHasComm = newTransfer.hasCommission;
+    let nextIgtf = newTransfer.igtfAmount;
+    let nextHasIgtf = newTransfer.hasIgtf;
+
+    if (src) {
+      if (src.hasTransferCommission || src.commissionPercent > 0 || src.commissionFixed > 0) {
+        if (parsedDed !== null && parsedDed > 0) {
+          const calcComm = round((parsedDed * ((src.commissionPercent || 0) / 100)) + (src.commissionFixed || 0), src.name);
+          if (calcComm > 0) {
+            nextHasComm = true;
+            nextComm = calcComm.toString();
+          }
+        } else {
+          nextComm = '';
+        }
+      }
+      if (src.name !== 'VES' && src.appliesIgtf) {
+        if (parsedDed !== null && parsedDed > 0) {
+          const calcIgtf = round(parsedDed * (src.igtfPercent || 3) / 100, src.name);
+          if (calcIgtf > 0) {
+            nextHasIgtf = true;
+            nextIgtf = calcIgtf.toString();
+          }
+        } else {
+          nextIgtf = '';
+        }
+      }
+    }
+
+    setNewTransfer({
+      ...newTransfer,
+      amountDeducted: val,
+      amountReceived: autoFill,
+      hasCommission: nextHasComm,
+      commissionAmount: nextComm,
+      hasIgtf: nextHasIgtf,
+      igtfAmount: nextIgtf
+    });
+  };
+
   return (
     <div className="modal-overlay" onClick={handleClose}>
       <div className="modal-content" onClick={e => e.stopPropagation()}>
@@ -41,15 +135,7 @@ export default function TransferModal({
               placeholder="Seleccionar Origen"
               title="Seleccionar Cuenta de Origen"
               value={newTransfer.sourceAssetId}
-              onChange={e => {
-                const selectedSrc = assets.find(a => a.id === e.target.value);
-                const currentDest = assets.find(a => a.id === newTransfer.destAssetId);
-                let autoFill = newTransfer.amountReceived;
-                if (selectedSrc && currentDest && selectedSrc.name === currentDest.name && newTransfer.amountDeducted) {
-                  autoFill = newTransfer.amountDeducted;
-                }
-                setNewTransfer({ ...newTransfer, sourceAssetId: e.target.value, amountReceived: autoFill });
-              }}
+              onChange={e => handleSourceChange(e.target.value)}
               options={assets.map(a => ({
                 value: a.id,
                 label: `${a.location} (${a.name}) - Bal: ${formatAmount(a.amount, a.name)}`
@@ -86,13 +172,7 @@ export default function TransferModal({
               inputMode="decimal"
               className="input-field"
               value={newTransfer.amountDeducted}
-              onChange={e => {
-                let autoFill = newTransfer.amountReceived;
-                if (isSameCurrency) {
-                  autoFill = e.target.value;
-                }
-                setNewTransfer({ ...newTransfer, amountDeducted: e.target.value, amountReceived: autoFill });
-              }}
+              onChange={e => handleAmountDeductedChange(e.target.value)}
               placeholder="0,00"
               required
             />
@@ -113,44 +193,73 @@ export default function TransferModal({
             </div>
           )}
 
-          {isSameCurrency && (
-            <div
-              className="input-group"
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: '0.5rem',
-                marginTop: '1rem',
-                marginBottom: newTransfer.hasCommission ? '0' : '1rem'
-              }}
-            >
-              <input
-                type="checkbox"
-                id="hasCommission"
-                checked={newTransfer.hasCommission}
-                onChange={e => setNewTransfer({ ...newTransfer, hasCommission: e.target.checked })}
-                style={{ width: '16px', height: '16px' }}
-              />
-              <label htmlFor="hasCommission" style={{ marginBottom: 0, cursor: 'pointer' }}>
-                ¿Hubo comisión bancaria?
-              </label>
+          {/* Comisiones bancarias e IGTF configurados/propuestos */}
+          <div style={{ marginTop: '0.75rem', padding: '0.85rem', background: '#151b26', borderRadius: '12px', border: '1px solid #2a3447', marginBottom: '1rem' }}>
+            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f1f5f9', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span>🧾</span>
+              <span>Comisión bancaria e IGTF (editables)</span>
             </div>
-          )}
 
-          {isSameCurrency && newTransfer.hasCommission && (
-            <div className="input-group">
-              <label>Monto de la comisión</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                className="input-field"
-                value={newTransfer.commissionAmount}
-                onChange={e => setNewTransfer({ ...newTransfer, commissionAmount: e.target.value })}
-                placeholder="0,00"
-                required
-              />
+            {/* Comisión */}
+            <div style={{ marginBottom: src && src.name !== 'VES' && src.appliesIgtf ? '0.75rem' : '0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: '#cbd5e1' }}>
+                  <input
+                    type="checkbox"
+                    id="hasCommission"
+                    checked={Boolean(newTransfer.hasCommission)}
+                    onChange={e => setNewTransfer({ ...newTransfer, hasCommission: e.target.checked })}
+                    style={{ width: '16px', height: '16px' }}
+                  />
+                  <span>Comisión por transferencia</span>
+                </label>
+                {newTransfer.hasCommission && (
+                  <div style={{ width: '110px' }}>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      className="input-field"
+                      placeholder="0,00"
+                      style={{ padding: '0.35rem 0.5rem', fontSize: '0.85rem', textAlign: 'right' }}
+                      value={newTransfer.commissionAmount || ''}
+                      onChange={e => setNewTransfer({ ...newTransfer, commissionAmount: e.target.value })}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
-          )}
+
+            {/* IGTF si aplica */}
+            {src && src.name !== 'VES' && src.appliesIgtf && (
+              <div style={{ paddingTop: '0.65rem', borderTop: '1px solid #232c3d' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: '#cbd5e1' }}>
+                    <input
+                      type="checkbox"
+                      id="hasIgtf"
+                      checked={Boolean(newTransfer.hasIgtf)}
+                      onChange={e => setNewTransfer({ ...newTransfer, hasIgtf: e.target.checked })}
+                      style={{ width: '16px', height: '16px' }}
+                    />
+                    <span>Aplica IGTF ({src.igtfPercent || 3}%)</span>
+                  </label>
+                  {newTransfer.hasIgtf && (
+                    <div style={{ width: '110px' }}>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        className="input-field"
+                        placeholder="0,00"
+                        style={{ padding: '0.35rem 0.5rem', fontSize: '0.85rem', textAlign: 'right' }}
+                        value={newTransfer.igtfAmount || ''}
+                        onChange={e => setNewTransfer({ ...newTransfer, igtfAmount: e.target.value })}
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
 
           {!isSameCurrency && newTransfer.amountDeducted && newTransfer.amountReceived && src && dest && (() => {
             const parsedRec = parseAmount(newTransfer.amountReceived);

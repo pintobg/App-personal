@@ -104,7 +104,25 @@ export default function AppModals({
         onClose={() => {
           setTxModalMode(null);
           setTxValidationError('');
-          setNewTx({ id: '', assetId: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
+          setNewTx({
+            id: '',
+            assetId: '',
+            type: 'income',
+            currency: '',
+            amount: '',
+            origin: '',
+            category: '',
+            subcategory: '',
+            date: todayLocal(),
+            includeIgtf: false,
+            igtfAmount: '',
+            includeCommission: false,
+            commissionAmount: '',
+            paymentMethod: '',
+            referenceNumber: '',
+            bank: '',
+            recipientId: ''
+          });
         }}
         newTx={newTx}
         setNewTx={setNewTx}

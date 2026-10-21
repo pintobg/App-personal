@@ -132,13 +132,14 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     return result;
   }, [assets, transactions, applyDomainResult]);
 
-  const adjustAssetBalance = useCallback((asset, newAmount, difference) => {
+  const adjustAssetBalance = useCallback((asset, newAmount, difference, extraConfig = {}) => {
     const nowIso = new Date().toISOString();
     const roundedNew = round(newAmount, asset.name);
     const roundedDiff = round(difference, asset.name);
 
     const updatedAsset = {
       ...asset,
+      ...extraConfig,
       amount: roundedNew,
       updated_at: nowIso
     };
@@ -146,35 +147,40 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     const nextAssets = assets.map((a) => (a.id === asset.id ? updatedAsset : a));
     setAssets(nextAssets);
 
-    const assetCurr = (asset.name || 'USD').toUpperCase();
-    const rateSnapshot = rates[assetCurr] ?? (['USD', 'USDT', 'USDC'].includes(assetCurr) ? 1 : 0);
-    const usdEquivalent = convert(roundedDiff, assetCurr, 'USD', rates);
-
-    const adjustmentTx = {
-      id: crypto.randomUUID(),
-      type: 'adjustment',
-      delta: roundedDiff,
-      assetId: asset.id,
-      currency: asset.name,
-      amount: roundedDiff,
-      origin: asset.location,
-      category: 'Ajuste de saldo',
-      subcategory: roundedDiff >= 0 ? 'Ajuste positivo' : 'Ajuste negativo',
-      date: nowIso,
-      rateSnapshot,
-      usdEquivalent,
-      updated_at: nowIso
-    };
-
-    const nextTxs = [adjustmentTx, ...transactions];
-    setTransactions(nextTxs);
-
     if (user?.id) {
       syncService.queueChange('assets', 'upsert', updatedAsset, user.id);
-      syncService.queueChange('transactions', 'upsert', adjustmentTx, user.id);
     }
 
-    if (showToast) showToast('Saldo y movimiento de ajuste guardados');
+    if (roundedDiff !== 0) {
+      const assetCurr = (asset.name || 'USD').toUpperCase();
+      const rateSnapshot = rates[assetCurr] ?? (['USD', 'USDT', 'USDC'].includes(assetCurr) ? 1 : 0);
+      const usdEquivalent = convert(roundedDiff, assetCurr, 'USD', rates);
+
+      const adjustmentTx = {
+        id: crypto.randomUUID(),
+        type: 'adjustment',
+        delta: roundedDiff,
+        assetId: asset.id,
+        currency: asset.name,
+        amount: roundedDiff,
+        origin: asset.location,
+        category: 'Ajuste de saldo',
+        subcategory: roundedDiff >= 0 ? 'Ajuste positivo' : 'Ajuste negativo',
+        date: nowIso,
+        rateSnapshot,
+        usdEquivalent,
+        updated_at: nowIso
+      };
+
+      const nextTxs = [adjustmentTx, ...transactions];
+      setTransactions(nextTxs);
+
+      if (user?.id) {
+        syncService.queueChange('transactions', 'upsert', adjustmentTx, user.id);
+      }
+    }
+
+    if (showToast) showToast('Cuenta y saldo actualizados');
   }, [assets, transactions, rates, setAssets, setTransactions, user?.id, showToast]);
 
   const syncNow = useCallback(async () => {

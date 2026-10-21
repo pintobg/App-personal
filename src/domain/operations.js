@@ -140,6 +140,10 @@ export function executeAddOrEditTransaction({ assets, transactions, rates = {} }
       origin: targetAsset.location,
       category: txPayload.category,
       subcategory: txPayload.subcategory,
+      paymentMethod: txPayload.paymentMethod !== undefined ? txPayload.paymentMethod : (oldTx.paymentMethod || null),
+      referenceNumber: txPayload.referenceNumber !== undefined ? txPayload.referenceNumber : (oldTx.referenceNumber || null),
+      bank: txPayload.bank !== undefined ? txPayload.bank : (oldTx.bank || null),
+      recipientId: txPayload.recipientId !== undefined ? txPayload.recipientId : (oldTx.recipientId || null),
       date: txDate,
       rateSnapshot,
       usdEquivalent,
@@ -165,17 +169,30 @@ export function executeAddOrEditTransaction({ assets, transactions, rates = {} }
   }
 
   const roundedAmount = round(amountNum, targetAsset.name);
+
+  // Comisiones e IGTF vinculados opcionales para gastos
+  const igtfNum = (txPayload.type === 'spent' && txPayload.includeIgtf && txPayload.igtfAmount)
+    ? (parseAmount(txPayload.igtfAmount) || 0)
+    : 0;
+  const commNum = (txPayload.type === 'spent' && txPayload.includeCommission && txPayload.commissionAmount)
+    ? (parseAmount(txPayload.commissionAmount) || 0)
+    : 0;
+
+  const roundedIgtf = round(igtfNum, targetAsset.name);
+  const roundedCommission = round(commNum, targetAsset.name);
+  const totalSpent = add(add(roundedAmount, roundedIgtf), roundedCommission);
+
   if (txPayload.type === 'spent') {
     const currentBalance = Number(targetAsset.amount) || 0;
-    if (roundedAmount > currentBalance) {
+    if (totalSpent > currentBalance) {
       return {
         success: false,
-        error: `Saldo insuficiente. Tienes ${currentBalance} ${targetAsset.name} en ${targetAsset.location}.`
+        error: `Saldo insuficiente. Tienes ${currentBalance} ${targetAsset.name} en ${targetAsset.location}, pero requieres ${totalSpent} (incluyendo comisiones/IGTF).`
       };
     }
   }
 
-  const delta = txPayload.type === 'income' ? roundedAmount : sub(0, roundedAmount);
+  const delta = txPayload.type === 'income' ? roundedAmount : sub(0, totalSpent);
   const res = applyBalanceDelta(assets, targetAsset.id, delta);
   if (!res) {
     return { success: false, error: 'Error al actualizar el saldo de la cuenta' };
@@ -184,9 +201,10 @@ export function executeAddOrEditTransaction({ assets, transactions, rates = {} }
   const txCurr = targetAsset.name.toUpperCase();
   const txRateSnapshot = rates[txCurr] ?? (['USD', 'USDT', 'USDC'].includes(txCurr) ? 1 : 0);
   const txUsdEquivalent = convert(roundedAmount, txCurr, 'USD', rates);
+  const mainTxId = txPayload.id || crypto.randomUUID();
 
   const newTxItem = {
-    id: txPayload.id || crypto.randomUUID(),
+    id: mainTxId,
     type: txPayload.type,
     assetId: targetAsset.id,
     currency: targetAsset.name,
@@ -194,18 +212,64 @@ export function executeAddOrEditTransaction({ assets, transactions, rates = {} }
     amount: roundedAmount,
     category: txPayload.category,
     subcategory: txPayload.subcategory,
+    paymentMethod: txPayload.paymentMethod || null,
+    referenceNumber: txPayload.referenceNumber || null,
+    bank: txPayload.bank || null,
+    recipientId: txPayload.recipientId || null,
     date: txDate,
     rateSnapshot: txRateSnapshot,
     usdEquivalent: txUsdEquivalent,
     updated_at: nowIso
   };
 
-  const nextAssets = res.nextAssets;
-  const nextTransactions = [newTxItem, ...transactions];
+  const newTxs = [newTxItem];
   const syncChanges = [
     { table: 'assets', type: 'upsert', record: res.updatedAsset },
     { table: 'transactions', type: 'upsert', record: newTxItem }
   ];
+
+  if (roundedIgtf > 0) {
+    const igtfTx = {
+      id: crypto.randomUUID(),
+      parentTransactionId: mainTxId,
+      assetId: targetAsset.id,
+      type: 'spent',
+      currency: targetAsset.name,
+      origin: targetAsset.location,
+      amount: roundedIgtf,
+      category: 'Impuestos',
+      subcategory: `IGTF (${targetAsset.igtfPercent || 3}%)`,
+      date: txDate,
+      rateSnapshot: txRateSnapshot,
+      usdEquivalent: convert(roundedIgtf, txCurr, 'USD', rates),
+      updated_at: nowIso
+    };
+    newTxs.push(igtfTx);
+    syncChanges.push({ table: 'transactions', type: 'upsert', record: igtfTx });
+  }
+
+  if (roundedCommission > 0) {
+    const commTx = {
+      id: crypto.randomUUID(),
+      parentTransactionId: mainTxId,
+      assetId: targetAsset.id,
+      type: 'spent',
+      currency: targetAsset.name,
+      origin: targetAsset.location,
+      amount: roundedCommission,
+      category: 'Comisiones',
+      subcategory: 'Comisión bancaria',
+      date: txDate,
+      rateSnapshot: txRateSnapshot,
+      usdEquivalent: convert(roundedCommission, txCurr, 'USD', rates),
+      updated_at: nowIso
+    };
+    newTxs.push(commTx);
+    syncChanges.push({ table: 'transactions', type: 'upsert', record: commTx });
+  }
+
+  const nextAssets = res.nextAssets;
+  const nextTransactions = [...newTxs, ...transactions];
 
   return {
     success: true,
@@ -224,7 +288,16 @@ export function executeAddOrEditTransaction({ assets, transactions, rates = {} }
  * @returns {Object} { success, error, nextAssets, nextTransactions, syncChanges, toastMessage }
  */
 export function executeTransfer({ assets, transactions, rates = {} }, transferPayload) {
-  const { sourceAssetId, destAssetId, amountDeducted, amountReceived, hasCommission, commissionAmount } = transferPayload;
+  const {
+    sourceAssetId,
+    destAssetId,
+    amountDeducted,
+    amountReceived,
+    hasCommission,
+    commissionAmount,
+    hasIgtf,
+    igtfAmount
+  } = transferPayload;
 
   if (!sourceAssetId || !destAssetId || !amountDeducted || !amountReceived) {
     return { success: false, error: 'Completa todos los campos obligatorios de la transferencia' };
@@ -244,6 +317,7 @@ export function executeTransfer({ assets, transactions, rates = {} }, transferPa
   const amountDeductedNum = parseAmount(amountDeducted);
   const amountReceivedNum = parseAmount(amountReceived);
   const commNum = hasCommission ? (parseAmount(commissionAmount) || 0) : 0;
+  const igtfNum = hasIgtf ? (parseAmount(igtfAmount) || 0) : 0;
 
   if (isNaN(amountDeductedNum) || amountDeductedNum <= 0) {
     return { success: false, error: 'Ingresa un monto a debitar válido mayor a 0' };
@@ -255,19 +329,21 @@ export function executeTransfer({ assets, transactions, rates = {} }, transferPa
   const roundedDeducted = round(amountDeductedNum, sourceAsset.name);
   const roundedReceived = round(amountReceivedNum, destAsset.name);
   const roundedCommission = round(commNum, sourceAsset.name);
-  const totalDeduction = add(roundedDeducted, roundedCommission);
+  const roundedIgtf = round(igtfNum, sourceAsset.name);
+  const totalExtraFees = add(roundedCommission, roundedIgtf);
+  const totalDeduction = add(roundedDeducted, totalExtraFees);
 
   if (totalDeduction > Number(sourceAsset.amount)) {
     return {
       success: false,
-      error: `Saldo insuficiente. Tienes ${sourceAsset.amount} ${sourceAsset.name} en ${sourceAsset.location}, pero requieres ${totalDeduction} (incluyendo comisión).`
+      error: `Saldo insuficiente. Tienes ${sourceAsset.amount} ${sourceAsset.name} en ${sourceAsset.location}, pero requieres ${totalDeduction} (incluyendo comisión/IGTF).`
     };
   }
 
   const transferDeltas = calculateTransferDeltas({
     amountDeducted: roundedDeducted,
     amountReceived: roundedReceived,
-    commission: roundedCommission
+    commission: totalExtraFees
   });
 
   let nextAssets = [...assets];
@@ -297,7 +373,7 @@ export function executeTransfer({ assets, transactions, rates = {} }, transferPa
       fromAmount: roundedDeducted,
       toCurrency: destAsset.name,
       toAmount: roundedReceived,
-      commission: roundedCommission,
+      commission: totalExtraFees,
       ratesSnapshot: {
         bcvUsd: rates.bcvUsd || rates.VES,
         paralelo: rates.paralelo || rates.VES_PARALELO
@@ -348,6 +424,26 @@ export function executeTransfer({ assets, transactions, rates = {} }, transferPa
     };
     newTxs.push(commissionTx);
     syncChanges.push({ table: 'transactions', type: 'upsert', record: commissionTx });
+  }
+
+  if (roundedIgtf > 0) {
+    const igtfTx = {
+      id: crypto.randomUUID(),
+      parentTransferId: transferId,
+      assetId: sourceAsset.id,
+      type: 'spent',
+      currency: sourceAsset.name,
+      amount: roundedIgtf,
+      origin: sourceAsset.location,
+      category: 'Impuestos',
+      subcategory: `IGTF (${sourceAsset.igtfPercent || 3}%)`,
+      rateSnapshot: srcRateSnapshot,
+      usdEquivalent: convert(roundedIgtf, srcCurr, 'USD', rates),
+      date: nowIso,
+      updated_at: nowIso
+    };
+    newTxs.push(igtfTx);
+    syncChanges.push({ table: 'transactions', type: 'upsert', record: igtfTx });
   }
 
   const nextTransactions = [...newTxs, ...transactions];
@@ -499,8 +595,7 @@ export function executeBulkDelete({ assets, transactions }, selectedTxs) {
     processedIds.add(tx.id);
 
     if (tx.type === 'transfer') {
-      const linkedCommissionTx = transactions.find((t) => t.parentTransferId === tx.id);
-      const reversal = calculateTransferReversalDeltas(tx, linkedCommissionTx);
+      const reversal = calculateTransferReversalDeltas(tx);
 
       const srcAsset = findAsset(nextAssets, tx.assetId, tx.currency, tx.origin);
       const dstAsset = findAsset(nextAssets, tx.destAssetId, tx.destCurrency, tx.destOrigin);
@@ -521,23 +616,26 @@ export function executeBulkDelete({ assets, transactions }, selectedTxs) {
         }
       }
 
-      if (linkedCommissionTx && !processedIds.has(linkedCommissionTx.id)) {
-        processedIds.add(linkedCommissionTx.id);
-        deletedTxIds.add(linkedCommissionTx.id);
-        const commAsset = findAsset(nextAssets, linkedCommissionTx.assetId, linkedCommissionTx.currency, linkedCommissionTx.origin);
-        if (commAsset) {
-          const resComm = applyBalanceDelta(nextAssets, commAsset.id, reversal.commissionRevertDelta);
-          if (resComm) {
-            nextAssets = resComm.nextAssets;
-            syncChanges.push({ table: 'assets', type: 'upsert', record: resComm.updatedAsset });
+      const linkedTransferTxs = transactions.filter((t) => t.parentTransferId === tx.id);
+      linkedTransferTxs.forEach((child) => {
+        if (!processedIds.has(child.id)) {
+          processedIds.add(child.id);
+          deletedTxIds.add(child.id);
+          const commAsset = findAsset(nextAssets, child.assetId, child.currency, child.origin);
+          if (commAsset) {
+            const resComm = applyBalanceDelta(nextAssets, commAsset.id, Number(child.amount) || 0);
+            if (resComm) {
+              nextAssets = resComm.nextAssets;
+              syncChanges.push({ table: 'assets', type: 'upsert', record: resComm.updatedAsset });
+            }
           }
+          syncChanges.push({
+            table: 'transactions',
+            type: 'delete',
+            record: { id: child.id, deleted_at: nowIso, updated_at: nowIso }
+          });
         }
-        syncChanges.push({
-          table: 'transactions',
-          type: 'delete',
-          record: { id: linkedCommissionTx.id, deleted_at: nowIso, updated_at: nowIso }
-        });
-      }
+      });
     } else if (tx.type === 'adjustment') {
       const adjAsset = findAsset(nextAssets, tx.assetId, tx.currency, tx.origin);
       if (adjAsset) {
@@ -549,7 +647,7 @@ export function executeBulkDelete({ assets, transactions }, selectedTxs) {
         }
       }
     } else {
-      if (tx.parentTransferId && selectedIds.has(tx.parentTransferId)) {
+      if ((tx.parentTransferId && selectedIds.has(tx.parentTransferId)) || (tx.parentTransactionId && selectedIds.has(tx.parentTransactionId))) {
         deletedTxIds.add(tx.id);
         syncChanges.push({
           table: 'transactions',
@@ -558,6 +656,29 @@ export function executeBulkDelete({ assets, transactions }, selectedTxs) {
         });
         return;
       }
+
+      // Revertir y eliminar movimientos hijos vinculados (ej. IGTF o comisiones asociadas al gasto)
+      const linkedChildren = transactions.filter((t) => t.parentTransactionId === tx.id);
+      linkedChildren.forEach((child) => {
+        if (!processedIds.has(child.id)) {
+          processedIds.add(child.id);
+          deletedTxIds.add(child.id);
+          const childAsset = findAsset(nextAssets, child.assetId, child.currency, child.origin);
+          if (childAsset) {
+            const childRevertDelta = child.type === 'income' ? -Number(child.amount) : Number(child.amount);
+            const resChild = applyBalanceDelta(nextAssets, childAsset.id, childRevertDelta);
+            if (resChild) {
+              nextAssets = resChild.nextAssets;
+              syncChanges.push({ table: 'assets', type: 'upsert', record: resChild.updatedAsset });
+            }
+          }
+          syncChanges.push({
+            table: 'transactions',
+            type: 'delete',
+            record: { id: child.id, deleted_at: nowIso, updated_at: nowIso }
+          });
+        }
+      });
 
       const reverseDelta = tx.type === 'income' ? -Number(tx.amount) : Number(tx.amount);
       const txAsset = findAsset(nextAssets, tx.assetId, tx.currency, tx.origin);

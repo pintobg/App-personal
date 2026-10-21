@@ -28,7 +28,23 @@ export function useAppModalsState(requestConfirm, showToast) {
   const [txModalMode, setTxModalMode] = useState(null);
   const [txValidationError, setTxValidationError] = useState('');
   const [newTx, setNewTx] = useState({
-    id: '', assetId: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal()
+    id: '',
+    assetId: '',
+    type: 'income',
+    currency: '',
+    amount: '',
+    origin: '',
+    category: '',
+    subcategory: '',
+    date: todayLocal(),
+    includeIgtf: false,
+    igtfAmount: '',
+    includeCommission: false,
+    commissionAmount: '',
+    paymentMethod: '',
+    referenceNumber: '',
+    bank: '',
+    recipientId: ''
   });
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedTxs, setSelectedTxs] = useState([]);
@@ -37,7 +53,14 @@ export function useAppModalsState(requestConfirm, showToast) {
   // Transfer Modal
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [newTransfer, setNewTransfer] = useState({
-    sourceAssetId: '', amountDeducted: '', destAssetId: '', amountReceived: '', hasCommission: false, commissionAmount: ''
+    sourceAssetId: '',
+    amountDeducted: '',
+    destAssetId: '',
+    amountReceived: '',
+    hasCommission: false,
+    commissionAmount: '',
+    hasIgtf: false,
+    igtfAmount: ''
   });
 
   // Obligation Modal
@@ -58,9 +81,9 @@ export function useAppModalsState(requestConfirm, showToast) {
   // Handlers
   const handleAddAsset = (assetData) => addAsset(assetData);
 
-  const handleAdjustBalance = (asset, delta, newAmount) => {
-    if (!asset || delta === 0) return;
-    adjustAssetBalance(asset, newAmount, delta);
+  const handleAdjustBalance = (asset, delta, newAmount, extraConfig) => {
+    if (!asset) return;
+    adjustAssetBalance(asset, newAmount, delta, extraConfig);
   };
 
   const handleDeleteAsset = (id, name, location) => {
@@ -147,7 +170,25 @@ export function useAppModalsState(requestConfirm, showToast) {
     if (res.success) {
       setTxModalMode(null);
       setTxValidationError('');
-      setNewTx({ id: '', assetId: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
+      setNewTx({
+        id: '',
+        assetId: '',
+        type: 'income',
+        currency: '',
+        amount: '',
+        origin: '',
+        category: '',
+        subcategory: '',
+        date: todayLocal(),
+        includeIgtf: false,
+        igtfAmount: '',
+        includeCommission: false,
+        commissionAmount: '',
+        paymentMethod: '',
+        referenceNumber: '',
+        bank: '',
+        recipientId: ''
+      });
     } else {
       setTxValidationError(res.error);
     }
@@ -160,7 +201,16 @@ export function useAppModalsState(requestConfirm, showToast) {
     if (res.success) {
       setIsTransferModalOpen(false);
       setTxValidationError('');
-      setNewTransfer({ sourceAssetId: '', amountDeducted: '', destAssetId: '', amountReceived: '', hasCommission: false, commissionAmount: '' });
+      setNewTransfer({
+        sourceAssetId: '',
+        amountDeducted: '',
+        destAssetId: '',
+        amountReceived: '',
+        hasCommission: false,
+        commissionAmount: '',
+        hasIgtf: false,
+        igtfAmount: ''
+      });
     } else {
       setTxValidationError(res.error);
     }
