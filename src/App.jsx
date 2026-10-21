@@ -23,6 +23,7 @@ import { useAppLock } from './hooks/useAppLock';
 import Toast from './components/common/Toast';
 import PwaInstallPrompt from './components/common/PwaInstallPrompt';
 import AutoUpdater from './components/common/AutoUpdater';
+import FabAction from './components/common/FabAction';
 import { todayLocal, toLocalDateString, parseLocalDate } from './utils/dates';
 import { add, convert, round, parseAmount } from './domain/money';
 import { formatAmount, getTxUsdEquivalent, translateCategory } from './utils/formatters';
@@ -539,21 +540,23 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
       {currentPage !== 'dashboard' && currentPage !== 'calculator' && (
         <>
           {deleteMode ? (
-            <div style={{ position: 'absolute', bottom: 'calc(60px + env(safe-area-inset-bottom))', right: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', zIndex: 60 }}>
+            <div className="bulk-delete-bar">
               <button
+                type="button"
+                className="bulk-delete-btn confirm"
                 onClick={handleBulkDelete}
-                style={{ width: '52px', height: '52px', borderRadius: '50%', border: 'none', background: 'var(--success-color)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35)', cursor: 'pointer', position: 'relative' }}
               >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
                 {selectedTxs.length > 0 && (
-                  <span style={{ position: 'absolute', top: '-4px', right: '-4px', background: '#fff', color: 'var(--success-color)', borderRadius: '50%', width: '20px', height: '20px', fontSize: '0.75rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
+                  <span className="bulk-delete-badge">
                     {selectedTxs.length}
                   </span>
                 )}
               </button>
               <button
+                type="button"
+                className="bulk-delete-btn cancel"
                 onClick={() => { setDeleteMode(false); setSelectedTxs([]); }}
-                style={{ width: '52px', height: '52px', borderRadius: '50%', border: 'none', background: 'var(--danger-color)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0, 0, 0, 0.35)', cursor: 'pointer' }}
               >
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
               </button>
@@ -568,210 +571,124 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
               )}
 
               {currentPage === 'transactions' && isFabExpanded && (
-                <div className="fab-menu" style={{ position: 'fixed', bottom: 'calc(118px + env(safe-area-inset-bottom))', right: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', zIndex: 70, alignItems: 'flex-end' }}>
-                  <button
-                    type="button"
-                    className="fab-action-pill"
-                    onClick={() => { setTxModalMode('form'); setNewTx({ id: '', assetId: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() }); setIsFabExpanded(false); }}
-                    style={{
-                      backgroundColor: '#1b2230',
-                      border: '1px solid #2a3447',
-                      borderRadius: '9999px',
-                      padding: '0.75rem 1.25rem',
-                      fontWeight: 600,
-                      color: '#f1f5f9',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.6rem',
-                      boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35)',
-                      cursor: 'pointer'
+                <div className="fab-menu">
+                  <FabAction
+                    variant="success"
+                    label="Ingreso"
+                    onClick={() => {
+                      setTxModalMode('form');
+                      setNewTx({ id: '', assetId: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
+                      setIsFabExpanded(false);
                     }}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#14332b', color: '#10b981' }}>
+                    icon={
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                         <line x1="12" y1="19" x2="12" y2="5"></line>
                         <polyline points="5 12 12 5 19 12"></polyline>
                       </svg>
-                    </span>
-                    <span style={{ color: '#f1f5f9' }}>Ingreso</span>
-                  </button>
+                    }
+                  />
 
-                  <button
-                    type="button"
-                    className="fab-action-pill"
-                    onClick={() => { setIsTransferModalOpen(true); setIsFabExpanded(false); }}
-                    style={{
-                      backgroundColor: '#1b2230',
-                      border: '1px solid #2a3447',
-                      borderRadius: '9999px',
-                      padding: '0.75rem 1.25rem',
-                      fontWeight: 600,
-                      color: '#f1f5f9',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.6rem',
-                      boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35)',
-                      cursor: 'pointer'
+                  <FabAction
+                    variant="info"
+                    label="Transferencia / Cambio"
+                    onClick={() => {
+                      setIsTransferModalOpen(true);
+                      setIsFabExpanded(false);
                     }}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#172742', color: '#3b82f6' }}>
+                    icon={
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="17 1 21 5 17 9"></polyline>
                         <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
                         <polyline points="7 23 3 19 7 15"></polyline>
                         <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
                       </svg>
-                    </span>
-                    <span style={{ color: '#f1f5f9' }}>Transferencia / Cambio</span>
-                  </button>
+                    }
+                  />
 
-                  <button
-                    type="button"
-                    className="fab-action-pill"
-                    onClick={() => { setTxModalMode('form'); setNewTx({ id: '', assetId: '', type: 'spent', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() }); setIsFabExpanded(false); }}
-                    style={{
-                      backgroundColor: '#1b2230',
-                      border: '1px solid #2a3447',
-                      borderRadius: '9999px',
-                      padding: '0.75rem 1.25rem',
-                      fontWeight: 600,
-                      color: '#f1f5f9',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.6rem',
-                      boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35)',
-                      cursor: 'pointer'
+                  <FabAction
+                    variant="danger"
+                    label="Gasto"
+                    onClick={() => {
+                      setTxModalMode('form');
+                      setNewTx({ id: '', assetId: '', type: 'spent', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
+                      setIsFabExpanded(false);
                     }}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#311b22', color: '#ef4444' }}>
+                    icon={
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                         <line x1="12" y1="5" x2="12" y2="19"></line>
                         <polyline points="19 12 12 19 5 12"></polyline>
                       </svg>
-                    </span>
-                    <span style={{ color: '#f1f5f9' }}>Gasto</span>
-                  </button>
+                    }
+                  />
                 </div>
               )}
 
               {currentPage === 'obligations' && isFabExpanded && (
-                <div className="fab-menu" style={{ position: 'fixed', bottom: 'calc(118px + env(safe-area-inset-bottom))', right: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', zIndex: 70, alignItems: 'flex-end' }}>
-                  <button
-                    type="button"
-                    className="fab-action-pill"
+                <div className="fab-menu">
+                  <FabAction
+                    variant="danger"
+                    label="Deuda por pagar"
                     onClick={() => {
                       setNewOb({ id: '', type: 'pay', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: todayLocal(), totalInstallments: '', paidInstallments: 0 });
                       setIsObModalOpen(true);
                       setIsFabExpanded(false);
                     }}
-                    style={{
-                      backgroundColor: '#1b2230',
-                      border: '1px solid #2a3447',
-                      borderRadius: '9999px',
-                      padding: '0.75rem 1.25rem',
-                      fontWeight: 600,
-                      color: '#f1f5f9',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.6rem',
-                      boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35)',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#311b22', color: '#ef4444' }}>
+                    icon={
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                       </svg>
-                    </span>
-                    <span style={{ color: '#f1f5f9' }}>Deuda por pagar</span>
-                  </button>
+                    }
+                  />
 
-                  <button
-                    type="button"
-                    className="fab-action-pill"
+                  <FabAction
+                    variant="success"
+                    label="Cobro pendiente"
                     onClick={() => {
                       setNewOb({ id: '', type: 'receive', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: todayLocal(), totalInstallments: '', paidInstallments: 0 });
                       setIsObModalOpen(true);
                       setIsFabExpanded(false);
                     }}
-                    style={{
-                      backgroundColor: '#1b2230',
-                      border: '1px solid #2a3447',
-                      borderRadius: '9999px',
-                      padding: '0.75rem 1.25rem',
-                      fontWeight: 600,
-                      color: '#f1f5f9',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.6rem',
-                      boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35)',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#14332b', color: '#10b981' }}>
+                    icon={
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
                       </svg>
-                    </span>
-                    <span style={{ color: '#f1f5f9' }}>Cobro pendiente</span>
-                  </button>
+                    }
+                  />
                 </div>
               )}
 
               {currentPage === 'balances' && isFabExpanded && (
-                <div className="fab-menu" style={{ position: 'fixed', bottom: 'calc(118px + env(safe-area-inset-bottom))', right: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', zIndex: 70, alignItems: 'flex-end' }}>
-                  <button
-                    type="button"
-                    className="fab-action-pill"
-                    onClick={() => { setAssetInitialType('fiat'); setIsAssetModalOpen(true); setIsFabExpanded(false); }}
-                    style={{
-                      backgroundColor: '#1b2230',
-                      border: '1px solid #2a3447',
-                      borderRadius: '9999px',
-                      padding: '0.75rem 1.25rem',
-                      fontWeight: 600,
-                      color: '#f1f5f9',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.6rem',
-                      boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35)',
-                      cursor: 'pointer'
+                <div className="fab-menu">
+                  <FabAction
+                    variant="success"
+                    label="Cuenta Bancaria / Efectivo"
+                    onClick={() => {
+                      setAssetInitialType('fiat');
+                      setIsAssetModalOpen(true);
+                      setIsFabExpanded(false);
                     }}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#14332b', color: '#10b981' }}>
+                    icon={
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                         <line x1="12" y1="2" x2="12" y2="22"></line>
                         <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                       </svg>
-                    </span>
-                    <span style={{ color: '#f1f5f9' }}>Cuenta Bancaria / Efectivo</span>
-                  </button>
+                    }
+                  />
 
-                  <button
-                    type="button"
-                    className="fab-action-pill"
-                    onClick={() => { setAssetInitialType('crypto'); setIsAssetModalOpen(true); setIsFabExpanded(false); }}
-                    style={{
-                      backgroundColor: '#1b2230',
-                      border: '1px solid #2a3447',
-                      borderRadius: '9999px',
-                      padding: '0.75rem 1.25rem',
-                      fontWeight: 600,
-                      color: '#f1f5f9',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.6rem',
-                      boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35)',
-                      cursor: 'pointer'
+                  <FabAction
+                    variant="info"
+                    label="Criptomoneda / Token"
+                    onClick={() => {
+                      setAssetInitialType('crypto');
+                      setIsAssetModalOpen(true);
+                      setIsFabExpanded(false);
                     }}
-                  >
-                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '26px', height: '26px', borderRadius: '50%', backgroundColor: '#172742', color: '#3b82f6' }}>
+                    icon={
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M11.767 19.089c4.924.868 6.14-6.025 1.216-6.894m-1.216 6.894L5.86 18.047m5.908 1.042-.347 1.97m1.563-8.864c4.924.869 6.14-6.025 1.215-6.893m-1.215 6.893-3.94-.694m5.155-6.2-5.155-.909m5.155.91-.348 1.97M7.076 11.153l-3.94-.694m3.94.694 1.216-6.894m-1.216 6.894L5.86 18.047m1.216-6.894L4.86 6.279"></path>
                       </svg>
-                    </span>
-                    <span style={{ color: '#f1f5f9' }}>Criptomoneda / Token</span>
-                  </button>
+                    }
+                  />
                 </div>
               )}
 

@@ -265,3 +265,157 @@
 .step-transition {
   animation: slideInRight 0.25s ease-out forwards;
 }
+
+/* Floating Action Button (FAB) & Actions */
+.fab-container {
+  position: fixed;
+  bottom: calc(60px + env(safe-area-inset-bottom));
+  right: 1.25rem;
+  z-index: 80;
+}
+
+.fab-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--primary-color, #0284c7);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.fab-btn:active {
+  transform: scale(0.92);
+}
+
+.fab-btn svg {
+  transition: transform 0.25s ease;
+}
+
+.fab-btn.expanded svg {
+  transform: rotate(45deg);
+}
+
+.fab-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 65;
+}
+
+.fab-menu {
+  position: fixed;
+  bottom: calc(118px + env(safe-area-inset-bottom));
+  right: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  z-index: 70;
+  align-items: flex-end;
+}
+
+.fab-action-pill {
+  background-color: #1b2230;
+  border: 1px solid #2a3447;
+  border-radius: 9999px;
+  padding: 0.75rem 1.25rem;
+  font-weight: 600;
+  color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.fab-action-pill:active {
+  transform: scale(0.96);
+  background-color: #242e40;
+}
+
+.fab-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.fab-action-icon.success {
+  background-color: #14332b;
+  color: #10b981;
+}
+
+.fab-action-icon.danger {
+  background-color: #311b22;
+  color: #ef4444;
+}
+
+.fab-action-icon.info {
+  background-color: #172742;
+  color: #3b82f6;
+}
+
+.fab-action-label {
+  color: #f1f5f9;
+  font-size: 0.88rem;
+  white-space: nowrap;
+}
+
+.bulk-delete-bar {
+  position: absolute;
+  bottom: calc(60px + env(safe-area-inset-bottom));
+  right: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  z-index: 60;
+}
+
+.bulk-delete-btn {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  position: relative;
+}
+
+.bulk-delete-btn.confirm {
+  background: var(--success-color, #10b981);
+}
+
+.bulk-delete-btn.cancel {
+  background: var(--danger-color, #ef4444);
+}
+
+.bulk-delete-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #fff;
+  color: var(--success-color, #10b981);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
