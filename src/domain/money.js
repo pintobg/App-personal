@@ -329,3 +329,23 @@ export function convertForPayment(monto, monedaDeuda, monedaCuenta, tasas = {}, 
 
   return round(result.toString(), cuentaCurr);
 }
+
+/**
+ * Convierte un valor a un número válido o null si es vacío (''), NaN, null o undefined.
+ * Soporta montos con coma y formato venezolano usando parseAmount.
+ */
+export function toNullableNumber(val) {
+  if (val === null || val === undefined || val === '') return null;
+  const parsed = parseAmount(val);
+  if (parsed === null || isNaN(parsed)) return null;
+  return parsed;
+}
+
+/**
+ * Convierte un valor a un entero o null si es vacío (''), NaN, null o undefined.
+ */
+export function toNullableInt(val) {
+  const num = toNullableNumber(val);
+  if (num === null) return null;
+  return Math.trunc(num);
+}

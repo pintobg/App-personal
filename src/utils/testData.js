@@ -1,12 +1,23 @@
 import { toLocalDateString } from './dates';
+import { convert } from '../domain/money';
 
 export const TEST_DATA_SEED_KEY = 'finanzas_test_seed_v2';
 
 export function generateTestData(rates = {}) {
   const now = new Date();
-  const vesRate = rates.VES || (1 / 742);
+  const rawVes = rates.VES || 742;
+  const vesRate = rawVes < 1 ? 1 / rawVes : rawVes;
   const btcRate = rates.BTC || 64000;
   const eurRate = rates.EUR || 1.08;
+  const effectiveRates = {
+    USD: 1,
+    USDT: 1,
+    USDC: 1,
+    VES: vesRate,
+    BTC: btcRate,
+    EUR: eurRate,
+    ...rates
+  };
 
   const daysAgo = (days) => {
     const d = new Date(now);
@@ -66,7 +77,7 @@ export function generateTestData(rates = {}) {
       subcategory: 'Taxi/Uber',
       date: daysAgo(0),
       rateSnapshot: vesRate,
-      usdEquivalent: Number((1484 * vesRate).toFixed(2))
+      usdEquivalent: convert(1484, 'VES', 'USD', effectiveRates)
     },
     {
       id: crypto.randomUUID(),
@@ -148,7 +159,7 @@ export function generateTestData(rates = {}) {
       subcategory: 'Suscripciones',
       date: daysAgo(11),
       rateSnapshot: eurRate,
-      usdEquivalent: Number((25 * eurRate).toFixed(2))
+      usdEquivalent: convert(25, 'EUR', 'USD', effectiveRates)
     },
     {
       id: crypto.randomUUID(),
@@ -187,7 +198,7 @@ export function generateTestData(rates = {}) {
       subcategory: 'Gasolina',
       date: daysAgo(21),
       rateSnapshot: vesRate,
-      usdEquivalent: Number((8900 * vesRate).toFixed(2))
+      usdEquivalent: convert(8900, 'VES', 'USD', effectiveRates)
     },
     {
       id: crypto.randomUUID(),
@@ -226,7 +237,7 @@ export function generateTestData(rates = {}) {
       subcategory: 'Ahorro Cripto',
       date: daysAgo(65),
       rateSnapshot: btcRate,
-      usdEquivalent: Number((0.005 * btcRate).toFixed(2))
+      usdEquivalent: convert(0.005, 'BTC', 'USD', effectiveRates)
     }
   ];
 

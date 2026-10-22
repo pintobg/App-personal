@@ -44,6 +44,22 @@ export function parseLocalDate(dateStr) {
 }
 
 /**
+ * Determina si una cadena de fecha contiene una hora explícita diferente de medianoche.
+ * Cadenas como '2026-10-22', '2026-10-22T00:00:00', '2026-10-22T00:00:00-04:00' retornan false.
+ * Cadenas como '2026-10-22T16:12:51.985Z' retornan true.
+ */
+export function hasExplicitTime(dateInput) {
+  if (!dateInput) return false;
+  const str = String(dateInput).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return false;
+  if (/T00:00:00(\.000)?([+-]\d{2}:?\d{2}|Z)?$/i.test(str)) return false;
+  const d = new Date(str);
+  if (isNaN(d.getTime())) return false;
+  if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0) return false;
+  return true;
+}
+
+/**
  * Suma 'n' meses a una fecha sin desbordar el último día del mes destino.
  * Ej: 31 de enero + 1 mes = 28 o 29 de febrero (en lugar de saltar a marzo).
  * Acepta string 'YYYY-MM-DD' o Date. Retorna Date a las 12:00 locales.

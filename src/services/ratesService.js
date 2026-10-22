@@ -8,6 +8,8 @@
  * - Criptomonedas: Binance Public Ticker API
  */
 
+import { parseLocalDate, toLocalDateString, todayLocal, hasExplicitTime } from '../utils/dates';
+
 export const CACHED_RATES_KEY = 'finanzas_cached_rates';
 export const CACHED_RATES_DETAILS_KEY = 'finanzas_cached_rates_details';
 export const CUSTOM_RATE_KEY = 'finanzas_custom_rate';
@@ -68,12 +70,20 @@ export async function fetchBcvRates() {
     const res = await fetch('https://rates.dolarvzla.com/bcv/current.json');
     if (res.ok) {
       const data = await res.json();
+      const rawDate = data?.current?.date || data?.date;
+      console.info('[ratesService] dolarvzla raw date:', rawDate);
       const usdVal = data?.current?.usd;
       const eurVal = data?.current?.eur;
       if (usdVal && Number(usdVal) > 0) {
         bcvUsd = Number(usdVal);
         fuente = 'dolarvzla';
-        fechaValor = data?.current?.date || data?.date || now;
+        if (rawDate) {
+          fechaValor = hasExplicitTime(rawDate)
+            ? rawDate
+            : toLocalDateString(parseLocalDate(rawDate));
+        } else {
+          fechaValor = toLocalDateString(new Date());
+        }
       }
       if (eurVal && Number(eurVal) > 0) {
         bcvEur = Number(eurVal);
@@ -89,10 +99,18 @@ export async function fetchBcvRates() {
       const res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
       if (res.ok) {
         const data = await res.json();
+        console.info('[ratesService] dolarapi oficial raw date:', data?.fechaActualizacion);
         if (data?.promedio && Number(data.promedio) > 0) {
           bcvUsd = Number(data.promedio);
           fuente = 'dolarapi';
-          fechaValor = data.fechaActualizacion || now;
+          const rawDate = data.fechaActualizacion;
+          if (rawDate) {
+            fechaValor = hasExplicitTime(rawDate)
+              ? rawDate
+              : toLocalDateString(parseLocalDate(rawDate));
+          } else {
+            fechaValor = toLocalDateString(new Date());
+          }
         }
       }
     } catch (err) {
@@ -105,9 +123,15 @@ export async function fetchBcvRates() {
       const res = await fetch('https://ve.dolarapi.com/v1/euros/oficial');
       if (res.ok) {
         const data = await res.json();
+        console.info('[ratesService] dolarapi euros raw date:', data?.fechaActualizacion);
         if (data?.promedio && Number(data.promedio) > 0) {
           bcvEur = Number(data.promedio);
-          if (!fechaValor) fechaValor = data.fechaActualizacion || now;
+          if (!fechaValor && data.fechaActualizacion) {
+            const rawDate = data.fechaActualizacion;
+            fechaValor = hasExplicitTime(rawDate)
+              ? rawDate
+              : toLocalDateString(parseLocalDate(rawDate));
+          }
         }
       }
     } catch (err) {
@@ -140,12 +164,18 @@ export async function fetchParaleloRate() {
     const res = await fetch('https://ve.dolarapi.com/v1/dolares/paralelo');
     if (res.ok) {
       const data = await res.json();
+      console.info('[ratesService] dolarapi paralelo raw date:', data?.fechaActualizacion);
       if (data?.promedio && Number(data.promedio) > 0) {
+        const rawDate = data.fechaActualizacion;
+        let fechaValor = rawDate || now;
+        if (rawDate && !hasExplicitTime(rawDate)) {
+          fechaValor = toLocalDateString(parseLocalDate(rawDate));
+        }
         return {
           valor: Number(data.promedio),
           fuente: 'dolarapi',
           fechaConsulta: now,
-          fechaValor: data.fechaActualizacion || now
+          fechaValor
         };
       }
     }
@@ -447,8 +477,10 @@ export async function fetchAllExchangeRates(assetSymbols = [], currentCustomRate
 /**
  * Determina el estado de frescura y texto para una referencia de tasa.
  * - Si valor no existe o es <= 0: { hasRate: false, isStale: false, label: 'Sin tasa' }
- * - Si tiene más de 24 horas: { hasRate: true, isStale: true, label: `Tasa del ${fecha}` }
- * - Si es reciente: { hasRate: true, isStale: false, label: `Actualizado: ${hora}` }
+ * - Si fechaValor es mañana: { hasRate: true, isStale: false, label: 'BCV vigente desde mañana' }
+ * - Si tiene más de 24 horas (según fechaConsulta): { hasRate: true, isStale: true, label: `Tasa del ${fecha}` }
+ * - Si es reciente y fechaValor tiene hora: { hasRate: true, isStale: false, label: `Publicado: ${hora}` }
+ * - Si es reciente y fechaValor es solo fecha: { hasRate: true, isStale: false, label: `BCV vigente: ${fecha}` }
  */
 export function getRateStatus(rateInfo) {
   if (!rateInfo || !rateInfo.valor || Number(rateInfo.valor) <= 0) {
@@ -469,21 +501,39 @@ export function getRateStatus(rateInfo) {
     };
   }
 
-  const dateObj = new Date(rawDate);
-  const isValidDate = !isNaN(dateObj.getTime());
-  if (!isValidDate) {
+  const todayStr = todayLocal();
+  const tomorrowDate = parseLocalDate(todayStr);
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrowStr = toLocalDateString(tomorrowDate);
+
+  const valDateStr = rateInfo.fechaValor ? toLocalDateString(parseLocalDate(rateInfo.fechaValor)) : null;
+
+  // Si fechaValor es mañana, no se marca como vieja y se indica vigencia
+  if (valDateStr && valDateStr === tomorrowStr) {
     return {
       hasRate: true,
       isStale: false,
-      label: 'Actualizado'
+      label: 'BCV vigente desde mañana'
     };
   }
 
-  const msDiff = Date.now() - dateObj.getTime();
-  const isStale = msDiff > 24 * 60 * 60 * 1000;
+  // Comprobar si está desactualizada (> 24h) según fechaConsulta (o fallback a fechaValor)
+  const consultaRaw = rateInfo.fechaConsulta || rateInfo.fechaValor;
+  const consultaObj = new Date(consultaRaw);
+  let isStale = false;
+  if (!isNaN(consultaObj.getTime())) {
+    const msDiff = Date.now() - consultaObj.getTime();
+    isStale = msDiff > 24 * 60 * 60 * 1000;
+  }
+
+  // Si la fecha de vigencia es futura, no marcar como vieja
+  if (valDateStr && valDateStr >= todayStr) {
+    isStale = false;
+  }
 
   if (isStale) {
-    const formattedDate = dateObj.toLocaleDateString('es-VE', {
+    const targetDate = parseLocalDate(rateInfo.fechaValor || rateInfo.fechaConsulta);
+    const formattedDate = targetDate.toLocaleDateString('es-VE', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric'
@@ -495,15 +545,42 @@ export function getRateStatus(rateInfo) {
     };
   }
 
-  const formattedTime = dateObj.toLocaleTimeString('es-VE', {
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  // Tasa vigente / reciente
+  if (rateInfo.fechaValor) {
+    if (hasExplicitTime(rateInfo.fechaValor)) {
+      const valDate = new Date(rateInfo.fechaValor);
+      const formattedTime = !isNaN(valDate.getTime())
+        ? valDate.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })
+        : '';
+      return {
+        hasRate: true,
+        isStale: false,
+        label: formattedTime ? `Publicado: ${formattedTime}` : 'Actualizado'
+      };
+    }
 
+    const valDate = parseLocalDate(rateInfo.fechaValor);
+    const formattedDate = valDate.toLocaleDateString('es-VE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+    return {
+      hasRate: true,
+      isStale: false,
+      label: `BCV vigente: ${formattedDate}`
+    };
+  }
+
+  // Si solo tiene fechaConsulta
+  const consultaDate = new Date(rateInfo.fechaConsulta);
+  const formattedTime = !isNaN(consultaDate.getTime())
+    ? consultaDate.toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })
+    : '';
   return {
     hasRate: true,
     isStale: false,
-    label: `Actualizado: ${formattedTime}`
+    label: formattedTime ? `Actualizado: ${formattedTime}` : 'Actualizado'
   };
 }
 

@@ -1,5 +1,6 @@
 import FabAction from './FabAction';
 import { todayLocal } from '../../utils/dates';
+import { DEFAULT_INSTALLMENTS } from '../../domain/installmentPurchase';
 
 export default function FabOverlay({
   currentPage,
@@ -116,7 +117,7 @@ export default function FabOverlay({
             variant="danger"
             label="Deuda por pagar"
             onClick={() => {
-              setNewOb({ id: '', type: 'pay', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: todayLocal(), totalInstallments: '', paidInstallments: 0 });
+              setNewOb({ id: '', type: 'pay', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: todayLocal(), totalInstallments: '', paidInstallments: 0, installmentsCount: String(DEFAULT_INSTALLMENTS) });
               setIsObModalOpen(true);
               setIsFabExpanded(false);
             }}

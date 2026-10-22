@@ -22,6 +22,34 @@ import { scheduleObligationReminders } from '../services/notificationService';
 
 const FinanceContext = createContext(null);
 
+export function simplifyErrorMessage(rawError) {
+  if (!rawError) return 'error desconocido';
+  const str = typeof rawError === 'string' ? rawError : (rawError?.message || String(rawError));
+
+  if (/invalid input syntax for (type )?integer/i.test(str)) {
+    return 'formato de número o cuotas inválido';
+  }
+  if (/invalid input syntax for (type )?numeric/i.test(str)) {
+    return 'formato de monto inválido';
+  }
+  if (/failed to fetch|network|sin internet|offline|timeout/i.test(str)) {
+    return 'sin conexión con el servidor';
+  }
+  if (/jwt|expired|token|auth/i.test(str)) {
+    return 'sesión expirada';
+  }
+  if (/duplicate key|unique constraint/i.test(str)) {
+    return 'registro duplicado';
+  }
+  if (/row-level security|permission denied/i.test(str)) {
+    return 'permiso denegado por seguridad';
+  }
+  if (/column .* does not exist/i.test(str)) {
+    return 'estructura de base de datos desactualizada';
+  }
+  return str.length > 50 ? `${str.slice(0, 47)}...` : str;
+}
+
 export function FinanceProvider({ children, showToast, requestConfirm }) {
   const auth = useAuth();
   const { user } = auth;
@@ -195,7 +223,7 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
   const syncNow = useCallback(async () => {
     if (!user?.id) return;
     try {
-      await syncService.flushQueue(user.id);
+      const flushRes = await syncService.flushQueue(user.id);
       const remote = await syncService.fetchRemoteAll(user.id);
       if (remote) {
         setAssets((prev) => mergeById(prev, remote.assets || []));
@@ -204,10 +232,21 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
         setBudgets((prev) => mergeBudgets(prev, remote.budgets || {}));
         setGoals((prev) => mergeById(prev, remote.goals || []));
       }
-      if (showToast) showToast('Datos sincronizados con éxito');
+
+      if (flushRes?.ok && remote !== null) {
+        if (showToast) showToast('Datos sincronizados con éxito');
+      } else {
+        const count = flushRes?.pending ?? (flushRes?.errors?.length || 1);
+        const rawFirst = flushRes?.errors?.[0] || (remote === null ? 'sin conexión con la nube' : 'error de sincronización');
+        const friendly = simplifyErrorMessage(rawFirst);
+        if (showToast) {
+          showToast(`No se pudieron subir ${count === 1 ? '1 cambio' : `${count} cambios`}: ${friendly}`, 'error');
+        }
+      }
     } catch (e) {
       console.warn('Sync failed:', e);
-      if (showToast) showToast('Error en la sincronización', 'error');
+      const friendly = simplifyErrorMessage(e);
+      if (showToast) showToast(`No se pudieron subir los cambios: ${friendly}`, 'error');
     }
   }, [user?.id, setAssets, setTransactions, setObligations, setBudgets, setGoals, showToast]);
 

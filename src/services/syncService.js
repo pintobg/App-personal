@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
+import { toNullableInt, toNullableNumber } from '../domain/money';
 
 const QUEUE_STORAGE_KEY = 'finanzas_sync_queue';
 const DEMO_CLOUD_PREFIX = 'demo_cloud_db_';
@@ -53,13 +54,33 @@ function scheduleRetry(delayMs) {
 }
 
 // Queue Persistence
-function getQueue() {
+export function getQueue() {
   try {
     const raw = localStorage.getItem(QUEUE_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const list = raw ? JSON.parse(raw) : [];
+    return list.map((item, idx) => ({
+      ...item,
+      id: item.id || item.payload?.id || `${item.table}_${item.timestamp || idx}`
+    }));
   } catch {
     return [];
   }
+}
+
+export function discardQueueItem(itemIdOrTimestamp) {
+  const queue = getQueue();
+  const updated = queue.filter(item => {
+    if (item.id && item.id === itemIdOrTimestamp) return false;
+    if (item.timestamp && item.timestamp === itemIdOrTimestamp) return false;
+    return true;
+  });
+  saveQueue(updated);
+  if (updated.length === 0) {
+    setSyncStatus(navigator.onLine ? 'synced' : 'offline');
+  } else {
+    notifyStatusUpdate();
+  }
+  return updated;
 }
 
 function saveQueue(queue) {
@@ -71,7 +92,7 @@ function saveQueue(queue) {
 }
 
 // Formatters for DB
-function mapTxToDb(tx, userId) {
+export function mapTxToDb(tx, userId) {
   return {
     id: tx.id,
     user_id: userId,
@@ -79,25 +100,25 @@ function mapTxToDb(tx, userId) {
     dest_asset_id: tx.destAssetId || tx.dest_asset_id || null,
     type: tx.type,
     currency: tx.currency || null,
-    amount: Number(tx.amount) || 0,
+    amount: toNullableNumber(tx.amount) ?? 0,
     origin: tx.origin || null,
     destination: tx.destOrigin || tx.destination || null,
     dest_currency: tx.destCurrency || null,
-    dest_amount: tx.destAmount != null ? Number(tx.destAmount) : null,
+    dest_amount: toNullableNumber(tx.destAmount ?? tx.dest_amount),
     category: tx.category || null,
     subcategory: tx.subcategory || null,
     date: tx.date || new Date().toISOString(),
     notes: tx.notes || null,
-    commission: Number(tx.commission) || 0,
+    commission: toNullableNumber(tx.commission) ?? 0,
     parent_transfer_id: tx.parentTransferId || null,
-    rate_snapshot: tx.rateSnapshot != null ? Number(tx.rateSnapshot) : null,
-    usd_equivalent: tx.usdEquivalent != null ? Number(tx.usdEquivalent) : null,
+    rate_snapshot: toNullableNumber(tx.rateSnapshot ?? tx.rate_snapshot),
+    usd_equivalent: toNullableNumber(tx.usdEquivalent ?? tx.usd_equivalent),
     deleted_at: tx.deleted_at || tx.deletedAt || null,
     updated_at: tx.updated_at || tx.updatedAt || new Date().toISOString()
   };
 }
 
-function mapDbToTx(row) {
+export function mapDbToTx(row) {
   return {
     id: row.id,
     assetId: row.assetId || row.asset_id || undefined,
@@ -123,7 +144,7 @@ function mapDbToTx(row) {
   };
 }
 
-function mapObToDb(ob, userId) {
+export function mapObToDb(ob, userId) {
   return {
     id: ob.id,
     user_id: userId,
@@ -132,12 +153,12 @@ function mapObToDb(ob, userId) {
     person: ob.title || ob.person || '',
     category: ob.category || 'Otros',
     description: ob.description || '',
-    amount: Number(ob.amount) || 0,
+    amount: toNullableNumber(ob.amount) ?? 0,
     currency: ob.currency,
     due_date: ob.dueDate || null,
     frequency: ob.frequency || null,
-    total_installments: ob.totalInstallments ?? null,
-    paid_installments: Number(ob.paidInstallments) || 0,
+    total_installments: toNullableInt(ob.totalInstallments ?? ob.total_installments),
+    paid_installments: toNullableInt(ob.paidInstallments ?? ob.paid_installments) ?? 0,
     status: ob.status || 'pending',
     date_created: ob.dateCreated || new Date().toISOString(),
     payments: ob.payments || [],
@@ -146,7 +167,8 @@ function mapObToDb(ob, userId) {
   };
 }
 
-function mapDbToOb(row) {
+export function mapDbToOb(row) {
+  const total = row.total_installments ?? row.totalInstallments;
   return {
     id: row.id,
     type: row.type,
@@ -157,7 +179,7 @@ function mapDbToOb(row) {
     currency: row.currency,
     dueDate: row.due_date || row.dueDate || '',
     frequency: row.frequency || 'monthly',
-    totalInstallments: row.total_installments ?? row.totalInstallments ?? '',
+    totalInstallments: (total == null || total === '') ? '' : String(total),
     paidInstallments: Number(row.paid_installments ?? row.paidInstallments) || 0,
     status: row.status,
     dateCreated: row.date_created || row.dateCreated,
@@ -167,21 +189,23 @@ function mapDbToOb(row) {
   };
 }
 
-function mapAssetToDb(asset, userId) {
+export function mapAssetToDb(asset, userId) {
+  const amount = toNullableNumber(asset.amount) ?? 0;
+  const initialAmount = toNullableNumber(asset.initialAmount ?? asset.initial_amount);
   return {
     id: asset.id,
     user_id: userId,
     name: asset.name,
     type: asset.type,
-    amount: Number(asset.amount) || 0,
-    initial_amount: asset.initialAmount != null ? Number(asset.initialAmount) : (Number(asset.amount) || 0),
+    amount,
+    initial_amount: initialAmount ?? amount,
     location: asset.location,
     deleted_at: asset.deleted_at || asset.deletedAt || null,
     updated_at: asset.updated_at || asset.updatedAt || new Date().toISOString()
   };
 }
 
-function mapDbToAsset(row) {
+export function mapDbToAsset(row) {
   return {
     id: row.id,
     name: row.name,
@@ -194,12 +218,12 @@ function mapDbToAsset(row) {
   };
 }
 
-function mapGoalToDb(goal, userId) {
+export function mapGoalToDb(goal, userId) {
   return {
     id: goal.id,
     user_id: userId,
     name: goal.name || '',
-    target_amount: Number(goal.targetAmount) || 0,
+    target_amount: toNullableNumber(goal.targetAmount ?? goal.target_amount) ?? 0,
     currency: goal.currency || 'USD',
     deadline: goal.deadline || null,
     account_ids: goal.accountIds || [],
@@ -208,7 +232,7 @@ function mapGoalToDb(goal, userId) {
   };
 }
 
-function mapDbToGoal(row) {
+export function mapDbToGoal(row) {
   return {
     id: row.id,
     name: row.name,
@@ -252,6 +276,7 @@ export const syncService = {
     );
 
     filteredQueue.push({
+      id: payload?.id || (table === 'budgets' ? `${userId}_${payload?.category}` : null) || `${table}_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       table,
       action, // 'upsert' | 'delete'
       payload,
@@ -277,13 +302,15 @@ export const syncService = {
 
     if (!navigator.onLine) {
       setSyncStatus('offline');
-      return;
+      const q = getQueue();
+      const errors = q.map(i => i.lastError).filter(Boolean);
+      return { ok: false, pending: q.length, errors: errors.length ? errors : ['Sin conexión a internet'] };
     }
 
     const queue = getQueue();
     if (queue.length === 0) {
       setSyncStatus('synced');
-      return;
+      return { ok: true, pending: 0, errors: [] };
     }
 
     setSyncStatus('syncing');
@@ -339,7 +366,7 @@ export const syncService = {
                   id: `${userId}_${payload.category}`,
                   user_id: userId,
                   category: payload.category,
-                  amount: Number(payload.amount) || 0,
+                  amount: toNullableNumber(payload.amount) ?? 0,
                   deleted_at: null,
                   updated_at: payload.updated_at || new Date().toISOString()
                 }, { onConflict: 'user_id,id' });
@@ -380,6 +407,7 @@ export const syncService = {
 
         if (remainingQueue.length === 0) {
           setSyncStatus('synced');
+          return { ok: true, pending: 0, errors: [] };
         } else {
           setSyncStatus('error');
           // Programar reintento con backoff exponencial basado en el máximo número de intentos
@@ -387,6 +415,8 @@ export const syncService = {
           const backoffIndex = Math.min(maxAttempts - 1, BACKOFF_STEPS.length - 1);
           const nextDelay = BACKOFF_STEPS[Math.max(0, backoffIndex)];
           scheduleRetry(nextDelay);
+          const errors = remainingQueue.map(i => i.lastError).filter(Boolean);
+          return { ok: false, pending: remainingQueue.length, errors };
         }
       } else if (!import.meta.env.PROD) {
         // Demo Cloud Simulation (solo en desarrollo)
@@ -440,14 +470,19 @@ export const syncService = {
 
         saveQueue([]);
         setSyncStatus('synced');
+        return { ok: true, pending: 0, errors: [] };
       } else {
         // En producción sin Supabase configurado, limpiamos cola y marcamos estado local
         saveQueue([]);
         setSyncStatus('guest');
+        return { ok: true, pending: 0, errors: [] };
       }
     } catch (err) {
       console.error('Error flushing sync queue:', err);
       setSyncStatus('error');
+      const q = getQueue();
+      const errors = q.map(i => i.lastError).filter(Boolean);
+      return { ok: false, pending: q.length, errors: errors.length ? errors : [err?.message || String(err)] };
     }
   },
 
@@ -542,7 +577,7 @@ export const syncService = {
             id: `${userId}_${category}`,
             user_id: userId,
             category,
-            amount: Number(amount) || 0,
+            amount: toNullableNumber(amount) ?? 0,
             updated_at: new Date().toISOString()
           }));
           const { error } = await supabase.from('budgets').upsert(dbBudgets, { onConflict: 'user_id,id' });
@@ -569,6 +604,14 @@ export const syncService = {
       setSyncStatus('error');
       return false;
     }
+  },
+
+  getQueue() {
+    return getQueue();
+  },
+
+  discardQueueItem(itemIdOrTimestamp) {
+    return discardQueueItem(itemIdOrTimestamp);
   }
 };
 

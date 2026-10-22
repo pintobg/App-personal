@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import { parseAmount, round } from '../domain/money';
+import { DEFAULT_INSTALLMENTS } from '../domain/installmentPurchase';
+import { getCurrencySymbol } from '../utils/formatters';
 import { todayLocal, toLocalDateString } from '../utils/dates';
 
 export function useAppModalsState(requestConfirm, showToast) {
@@ -69,7 +71,7 @@ export function useAppModalsState(requestConfirm, showToast) {
   // Obligation Modal
   const [isObModalOpen, setIsObModalOpen] = useState(false);
   const [newOb, setNewOb] = useState({
-    id: '', type: 'pay', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: todayLocal(), totalInstallments: '', paidInstallments: 0
+    id: '', type: 'pay', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: todayLocal(), totalInstallments: '', paidInstallments: 0, installmentsCount: String(DEFAULT_INSTALLMENTS)
   });
   const [payingOb, setPayingOb] = useState(null);
   const [payData, setPayData] = useState({ assetId: '', actualAmount: '', rateType: 'BCV_USD', customRate: '' });
@@ -113,14 +115,23 @@ export function useAppModalsState(requestConfirm, showToast) {
       showToast('Completa todos los campos con un monto válido', 'error');
       return;
     }
-    const finalInstallments = obToSave.frequency === 'one-time' ? '1' : (obToSave.totalInstallments || '1');
+
+    const parsedDownPayment = parseAmount(obToSave.downPayment) || 0;
+    const parsedTotalPurchase = parseAmount(obToSave.totalPurchaseAmount) || 0;
+
+    if (obToSave.isInstallmentPurchase && parsedDownPayment > parsedTotalPurchase) {
+      showToast('La inicial no puede ser mayor que el total', 'error');
+      return;
+    }
+
+    const finalInstallments = obToSave.frequency === 'one-time' ? '1' : (obToSave.totalInstallments || '');
     const finalAmount = round(parsedAmount, obToSave.currency);
 
     // Si es compra en cuotas y se pagó una inicial desde una cuenta
-    if (obToSave.isInstallmentPurchase && Number(obToSave.downPayment) > 0 && obToSave.downPaymentAssetId) {
+    if (obToSave.isInstallmentPurchase && parsedDownPayment > 0 && obToSave.downPaymentAssetId) {
       saveTransaction({
         type: 'spent',
-        amount: String(obToSave.downPayment),
+        amount: String(parsedDownPayment),
         assetId: obToSave.downPaymentAssetId,
         category: obToSave.category,
         subcategory: `Inicial ${obToSave.title}`,
@@ -128,13 +139,15 @@ export function useAppModalsState(requestConfirm, showToast) {
       });
     }
 
+    const curSymbol = getCurrencySymbol(obToSave.currency);
+
     if (obToSave.id) {
       updateObligation(obToSave.id, { ...obToSave, amount: finalAmount, totalInstallments: finalInstallments });
       showToast('Obligación actualizada');
     } else {
       addObligation({ ...obToSave, amount: finalAmount, totalInstallments: finalInstallments });
-      if (obToSave.isInstallmentPurchase && Number(obToSave.downPayment) > 0) {
-        showToast(`Compra en cuotas creada (${finalInstallments} cuotas de $${finalAmount}) e inicial registrada`);
+      if (obToSave.isInstallmentPurchase && parsedDownPayment > 0) {
+        showToast(`Compra en cuotas creada (${finalInstallments} cuotas de ${curSymbol}${finalAmount}) e inicial registrada`);
       } else {
         showToast('Obligación creada');
       }
@@ -142,7 +155,7 @@ export function useAppModalsState(requestConfirm, showToast) {
 
     setIsObModalOpen(false);
     setNewOb({
-      id: '', type: 'pay', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: todayLocal(), totalInstallments: '', paidInstallments: 0
+      id: '', type: 'pay', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: todayLocal(), totalInstallments: '', paidInstallments: 0, installmentsCount: String(DEFAULT_INSTALLMENTS)
     });
   };
 

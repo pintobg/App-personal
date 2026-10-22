@@ -229,12 +229,24 @@ export function useExchangeRates(assets = []) {
 
   // Objeto estructurado veRates para compatibilidad con calculadora y modales
   const veRates = useMemo(() => {
+    const fechaConsulta =
+      ratesDetails.bcvUsd?.fechaConsulta ||
+      ratesDetails.paralelo?.fechaConsulta ||
+      ratesDetails.bcvEur?.fechaConsulta ||
+      null;
+    const fechaValor =
+      ratesDetails.bcvUsd?.fechaValor ||
+      ratesDetails.paralelo?.fechaValor ||
+      null;
+
     return {
       bcvUsd: ratesDetails.bcvUsd?.valor || null,
       bcvEur: ratesDetails.bcvEur?.valor || null,
       paralelo: ratesDetails.paralelo?.valor || null,
       custom: customRate > 0 ? customRate : (ratesDetails.custom?.valor || 0),
-      lastUpdated: ratesDetails.bcvUsd?.fechaValor || ratesDetails.bcvUsd?.fechaConsulta || null,
+      fechaConsulta,
+      fechaValor,
+      lastUpdated: fechaConsulta || fechaValor,
       details: ratesDetails
     };
   }, [ratesDetails, customRate]);

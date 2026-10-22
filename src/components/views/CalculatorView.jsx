@@ -213,16 +213,17 @@ export default function CalculatorView({
     if (hasAutoFetchedRef.current) return;
 
     const tenMinutesMs = 10 * 60 * 1000;
+    const lastCheck = veRates?.fechaConsulta || veRates?.lastUpdated;
     const shouldFetch =
-      !veRates?.lastUpdated ||
-      (Date.now() - new Date(veRates.lastUpdated).getTime() > tenMinutesMs);
+      !lastCheck ||
+      (Date.now() - new Date(lastCheck).getTime() > tenMinutesMs);
 
     hasAutoFetchedRef.current = true;
     if (shouldFetch && typeof fetchVeRates === 'function') {
       fetchVeRates(true);
     }
     fetchRateHistory();
-  }, [veRates?.lastUpdated, fetchVeRates, fetchRateHistory]);
+  }, [veRates?.fechaConsulta, veRates?.lastUpdated, fetchVeRates, fetchRateHistory]);
 
   // Resolver la tasa histórica correspondiente a la fecha elegida (o la inmediata anterior si fue fin de semana/feriado)
   const resolvedHistoricalEntry = useMemo(() => {
@@ -425,17 +426,18 @@ export default function CalculatorView({
           <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.15rem' }}>
             {isFetchingRates
               ? 'Actualizando tasas...'
-              : (veRates?.lastUpdated
+              : ((veRates?.fechaConsulta || veRates?.lastUpdated)
                   ? (() => {
-                      const msDiff = Date.now() - new Date(veRates.lastUpdated).getTime();
+                      const checkDate = veRates.fechaConsulta || veRates.lastUpdated;
+                      const msDiff = Date.now() - new Date(checkDate).getTime();
                       if (msDiff > 24 * 60 * 60 * 1000) {
                         return (
                           <span style={{ color: '#f59e0b', fontWeight: 600 }}>
-                            Tasa del {new Date(veRates.lastUpdated).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            Consultado: {new Date(checkDate).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                           </span>
                         );
                       }
-                      return `Actualizado: ${new Date(veRates.lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+                      return `Consultado: ${new Date(checkDate).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })}`;
                     })()
                   : (!activeRates.bcvUsd ? <span style={{ color: '#f59e0b', fontWeight: 600 }}>Sin conexión a tasas</span> : 'Tasas listas'))}
           </div>
@@ -786,8 +788,10 @@ export default function CalculatorView({
                   />
                 </div>
                 {(() => {
-                  const bcvInfo = ratesDetails?.bcvUsd || veRates?.details?.bcvUsd;
-                  const status = getRateStatus(bcvInfo || { valor: activeRates.bcvUsd, fechaValor: veRates?.lastUpdated });
+                  const bcvInfo = rateMode === 'historical'
+                    ? { valor: activeRates.bcvUsd, fechaValor: resolvedHistoricalEntry?.date }
+                    : (ratesDetails?.bcvUsd || veRates?.details?.bcvUsd);
+                  const status = getRateStatus(bcvInfo || { valor: activeRates.bcvUsd, fechaValor: veRates?.fechaValor, fechaConsulta: veRates?.fechaConsulta });
                   if (!activeRates.bcvUsd) {
                     return (
                       <div style={{ fontSize: '0.74rem', color: '#f59e0b', fontWeight: 600 }}>
@@ -860,8 +864,10 @@ export default function CalculatorView({
                   />
                 </div>
                 {(() => {
-                  const parInfo = ratesDetails?.paralelo || veRates?.details?.paralelo;
-                  const status = getRateStatus(parInfo || { valor: activeRates.paralelo, fechaValor: veRates?.lastUpdated });
+                  const parInfo = rateMode === 'historical'
+                    ? { valor: activeRates.paralelo, fechaValor: resolvedHistoricalEntry?.date }
+                    : (ratesDetails?.paralelo || veRates?.details?.paralelo);
+                  const status = getRateStatus(parInfo || { valor: activeRates.paralelo, fechaValor: veRates?.fechaValor, fechaConsulta: veRates?.fechaConsulta });
                   if (!activeRates.paralelo) {
                     return (
                       <div style={{ fontSize: '0.74rem', color: '#f59e0b', fontWeight: 600 }}>
@@ -934,8 +940,10 @@ export default function CalculatorView({
                   />
                 </div>
                 {(() => {
-                  const eurInfo = ratesDetails?.bcvEur || veRates?.details?.bcvEur;
-                  const status = getRateStatus(eurInfo || { valor: activeRates.bcvEur, fechaValor: veRates?.lastUpdated });
+                  const eurInfo = rateMode === 'historical'
+                    ? { valor: activeRates.bcvEur, fechaValor: resolvedHistoricalEntry?.date }
+                    : (ratesDetails?.bcvEur || veRates?.details?.bcvEur);
+                  const status = getRateStatus(eurInfo || { valor: activeRates.bcvEur, fechaValor: veRates?.fechaValor, fechaConsulta: veRates?.fechaConsulta });
                   if (!activeRates.bcvEur) {
                     return (
                       <div style={{ fontSize: '0.74rem', color: '#f59e0b', fontWeight: 600 }}>
@@ -1306,13 +1314,11 @@ export default function CalculatorView({
               <span style={{ color: '#94a3b8' }}>Estado de sincronización:</span>
               <span style={{
                 fontWeight: 600,
-                color: (auth.syncStatus === 'synced' && (auth.pendingCount || 0) === 0) ? '#10b981' : auth.syncStatus === 'syncing' ? '#3b82f6' : (auth.syncStatus === 'offline' || (auth.pendingCount || 0) > 0) ? '#f59e0b' : '#ef4444'
+                color: (auth.syncStatus === 'synced' && (auth.pendingCount || 0) === 0) ? '#10b981' : auth.syncStatus === 'syncing' ? '#3b82f6' : auth.syncStatus === 'error' ? '#ef4444' : (auth.syncStatus === 'offline' || (auth.pendingCount || 0) > 0) ? '#f59e0b' : '#ef4444'
               }}>
                 {auth.syncStatus === 'syncing' && '🔄 Sincronizando...'}
                 {auth.syncStatus !== 'syncing' && auth.syncStatus === 'offline' && '⚠️ Sin conexión'}
-                {auth.syncStatus !== 'syncing' && auth.syncStatus !== 'offline' && (auth.pendingCount || 0) > 0 && `⏳ Pendiente (${auth.pendingCount})`}
-                {auth.syncStatus !== 'syncing' && auth.syncStatus !== 'offline' && (auth.pendingCount || 0) === 0 && auth.syncStatus === 'synced' && '● Sincronizado'}
-                {auth.syncStatus !== 'syncing' && auth.syncStatus !== 'offline' && (auth.pendingCount || 0) === 0 && auth.syncStatus === 'error' && (
+                {auth.syncStatus !== 'syncing' && auth.syncStatus !== 'offline' && auth.syncStatus === 'error' && (
                   <button
                     type="button"
                     onClick={onSyncNow}
@@ -1329,6 +1335,8 @@ export default function CalculatorView({
                     ✕ Error, reintentar
                   </button>
                 )}
+                {auth.syncStatus !== 'syncing' && auth.syncStatus !== 'offline' && auth.syncStatus !== 'error' && (auth.pendingCount || 0) > 0 && `⏳ Pendiente (${auth.pendingCount})`}
+                {auth.syncStatus !== 'syncing' && auth.syncStatus !== 'offline' && auth.syncStatus !== 'error' && (auth.pendingCount || 0) === 0 && auth.syncStatus === 'synced' && '● Sincronizado'}
                 {auth.syncStatus === 'guest' && '👤 Local'}
               </span>
             </div>

@@ -1,7 +1,8 @@
 import CustomSelect from '../common/CustomSelect';
 import { SPENT_CATEGORIES } from '../../utils/constants';
-import { calculateInstallmentPlan } from '../../domain/installmentPurchase';
-import { formatAmount } from '../../utils/formatters';
+import { calculateInstallmentPlan, DEFAULT_INSTALLMENTS } from '../../domain/installmentPurchase';
+import { formatAmount, getCurrencySymbol } from '../../utils/formatters';
+import { parseAmount } from '../../domain/money';
 
 export default function ObligationModal({
   isOpen,
@@ -16,24 +17,42 @@ export default function ObligationModal({
   const isNewDebt = !newOb.id && newOb.type === 'pay';
   const isInstallment = Boolean(newOb.isInstallmentPurchase && isNewDebt);
 
+  const rawCount = newOb.installmentsCount;
+  const hasValidCount = rawCount !== '' && rawCount !== null && rawCount !== undefined && parseInt(rawCount, 10) > 0;
+
+  const parsedDown = parseAmount(newOb.downPayment) || 0;
+  const parsedTotal = parseAmount(newOb.totalPurchaseAmount) || 0;
+  const isDownPaymentTooHigh = Boolean(newOb.totalPurchaseAmount && parsedDown > parsedTotal);
+
   // Cálculo en vivo si es compra en cuotas
   let installmentPlan = null;
+  let planError = null;
+
   if (isInstallment) {
-    try {
-      installmentPlan = calculateInstallmentPlan({
-        totalAmount: newOb.totalPurchaseAmount || 0,
-        downPayment: newOb.downPayment || 0,
-        installmentsCount: newOb.installmentsCount || 3,
-        currency: newOb.currency || 'USD'
-      });
-    } catch {
-      installmentPlan = null;
+    if (!hasValidCount) {
+      planError = 'Indica el número de cuotas';
+    } else if (isDownPaymentTooHigh) {
+      planError = 'La inicial no puede ser mayor que el total';
+    } else {
+      try {
+        installmentPlan = calculateInstallmentPlan({
+          totalAmount: newOb.totalPurchaseAmount || 0,
+          downPayment: newOb.downPayment || 0,
+          installmentsCount: newOb.installmentsCount,
+          currency: newOb.currency || 'USD'
+        });
+      } catch (err) {
+        planError = err.message || 'Error al calcular cuotas';
+      }
     }
   }
 
   const handleFormSubmit = (e) => {
     e.preventDefault();
-    if (isInstallment && installmentPlan) {
+    if (isInstallment) {
+      if (!hasValidCount || isDownPaymentTooHigh || !installmentPlan) {
+        return;
+      }
       // Ajustar amount y totalInstallments según el plan antes de enviar
       const updatedOb = {
         ...newOb,
@@ -106,7 +125,7 @@ export default function ObligationModal({
                       ...newOb,
                       isInstallmentPurchase: checked,
                       frequency: checked ? (newOb.frequency === 'one-time' ? 'semi-monthly' : (newOb.frequency || 'semi-monthly')) : newOb.frequency,
-                      installmentsCount: checked ? (newOb.installmentsCount || '4') : (newOb.totalInstallments || '1'),
+                      installmentsCount: checked ? (newOb.installmentsCount || String(DEFAULT_INSTALLMENTS)) : (newOb.totalInstallments || '1'),
                       totalPurchaseAmount: checked ? (newOb.totalPurchaseAmount || newOb.amount || '') : '',
                       downPayment: checked ? (newOb.downPayment || '') : ''
                     });
@@ -183,19 +202,28 @@ export default function ObligationModal({
                 <div className="input-group" style={{ flex: 1 }}>
                   <label>Número de Cuotas</label>
                   <input
-                    type="number"
-                    min="1"
+                    type="text"
+                    inputMode="numeric"
                     className="input-field"
-                    placeholder="4"
-                    value={newOb.installmentsCount || '4'}
-                    onChange={e => setNewOb({ ...newOb, installmentsCount: e.target.value })}
+                    placeholder={String(DEFAULT_INSTALLMENTS)}
+                    value={newOb.installmentsCount ?? ''}
+                    onChange={e => {
+                      const digits = e.target.value.replace(/\D/g, '');
+                      if (digits === '') {
+                        setNewOb({ ...newOb, installmentsCount: '' });
+                        return;
+                      }
+                      const num = parseInt(digits, 10);
+                      if (num > 24) return;
+                      setNewOb({ ...newOb, installmentsCount: String(num) });
+                    }}
                     required
                   />
                 </div>
               </div>
 
               {/* Selector de cuenta para pago de inicial si > 0 */}
-              {Number(newOb.downPayment) > 0 && (
+              {(parseAmount(newOb.downPayment) || 0) > 0 && (
                 <div className="input-group">
                   <label>Cuenta de donde se pagó la inicial</label>
                   <CustomSelect
@@ -215,19 +243,38 @@ export default function ObligationModal({
               )}
 
               {/* Resumen dinámico del plan de cuotas */}
-              {installmentPlan && (
+              {isInstallment && (
                 <div style={{
-                  background: 'rgba(2, 132, 199, 0.1)',
-                  border: '1px solid rgba(2, 132, 199, 0.3)',
+                  background: planError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(2, 132, 199, 0.1)',
+                  border: planError ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(2, 132, 199, 0.3)',
                   borderRadius: '10px',
                   padding: '0.75rem 0.9rem',
                   marginBottom: '1rem',
                   fontSize: '0.82rem',
-                  color: '#38bdf8',
+                  color: planError ? '#f87171' : '#38bdf8',
                   lineHeight: '1.45'
                 }}>
-                  <div>Total: <strong>${formatAmount(installmentPlan.total, newOb.currency)}</strong> — Inicial: <strong>${formatAmount(installmentPlan.initial, newOb.currency)}</strong></div>
-                  <div>Restan: <strong>${formatAmount(installmentPlan.remaining, newOb.currency)}</strong> en <strong>{installmentPlan.installmentsCount} cuotas de ${formatAmount(installmentPlan.installmentAmount, newOb.currency)}</strong> c/u</div>
+                  {planError ? (
+                    <div>⚠️ {planError}</div>
+                  ) : (
+                    installmentPlan && (
+                      <>
+                        <div>Total: <strong>{getCurrencySymbol(newOb.currency)}{formatAmount(installmentPlan.total, newOb.currency)}</strong> — Inicial: <strong>{getCurrencySymbol(newOb.currency)}{formatAmount(installmentPlan.initial, newOb.currency)}</strong></div>
+                        <div>
+                          Restan: <strong>{getCurrencySymbol(newOb.currency)}{formatAmount(installmentPlan.remaining, newOb.currency)}</strong> en{' '}
+                          {installmentPlan.hasDifferentLast ? (
+                            <>
+                              <strong>{installmentPlan.installmentsCount - 1} cuotas de {getCurrencySymbol(newOb.currency)}{formatAmount(installmentPlan.installmentAmount, newOb.currency)}</strong> y <strong>1 cuota final de {getCurrencySymbol(newOb.currency)}{formatAmount(installmentPlan.lastInstallmentAmount, newOb.currency)}</strong>
+                            </>
+                          ) : (
+                            <>
+                              <strong>{installmentPlan.installmentsCount} cuotas de {getCurrencySymbol(newOb.currency)}{formatAmount(installmentPlan.installmentAmount, newOb.currency)}</strong> c/u
+                            </>
+                          )}
+                        </div>
+                      </>
+                    )
+                  )}
                 </div>
               )}
             </>
@@ -412,7 +459,11 @@ export default function ObligationModal({
             <button type="button" className="btn btn-secondary" onClick={onClose}>
               Cancelar
             </button>
-            <button type="submit" className="btn btn-primary">
+            <button
+              type="submit"
+              className="btn btn-primary"
+              disabled={isInstallment && (!hasValidCount || isDownPaymentTooHigh || !installmentPlan)}
+            >
               Guardar
             </button>
           </div>

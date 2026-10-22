@@ -390,10 +390,10 @@ export default function DashboardView({
                       ? 'Sincronizando...'
                       : auth.syncStatus === 'offline'
                       ? 'Sin conexión'
-                      : auth.pendingCount > 0
-                      ? `Pendiente (${auth.pendingCount})`
                       : auth.syncStatus === 'error'
                       ? 'Error, reintentar'
+                      : auth.pendingCount > 0
+                      ? `Pendiente (${auth.pendingCount})`
                       : 'Sincronizado')
                   : 'Modo local'}
               </span>

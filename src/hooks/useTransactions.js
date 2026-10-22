@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { getTxRateSnapshot } from '../utils/formatters';
+import { convert } from '../domain/money';
 import { syncService } from '../services/syncService';
 import { loadTransactionsFromDB, persistTransactionsToDB } from '../services/db';
 
@@ -53,7 +54,7 @@ export function useTransactions(currentRates = {}, user = null) {
     const amountNum = Number(transaction.amount) || 0;
     const usdEquivalent = transaction.usdEquivalent != null && !isNaN(Number(transaction.usdEquivalent))
       ? Number(transaction.usdEquivalent)
-      : amountNum * rateSnapshot;
+      : convert(amountNum, transaction.currency, 'USD', activeRates);
 
     const nowIso = new Date().toISOString();
     const newTxItem = {

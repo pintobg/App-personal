@@ -341,7 +341,7 @@ export default function AssetModal({
   const formatPreviewRate = (sym) => {
     const r = rates[sym];
     if (!r || r <= 0) return null;
-    if (sym === 'VES') return `Bs. ${(1 / r).toFixed(2)} / $`;
+    if (sym === 'VES') return `Bs. ${(r < 1 ? 1 / r : r).toFixed(2)} / $`;
     if (sym === 'USD') return '$1.00';
     const maxDec = r < 0.01 ? 6 : r < 1 ? 4 : 2;
     return `$${r.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: maxDec })}`;

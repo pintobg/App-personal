@@ -192,10 +192,10 @@ export default function BalancesView({
                       ? 'Sincronizando...'
                       : auth.syncStatus === 'offline'
                       ? 'Sin conexión'
-                      : auth.pendingCount > 0
-                      ? `Pendiente (${auth.pendingCount})`
                       : auth.syncStatus === 'error'
                       ? 'Error, reintentar'
+                      : auth.pendingCount > 0
+                      ? `Pendiente (${auth.pendingCount})`
                       : 'Sincronizado')
                   : 'Modo local'}
               </span>
@@ -695,81 +695,74 @@ export default function BalancesView({
         <div
           style={{
             display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
             borderBottom: '1px solid #2a3447',
-            gap: '0.75rem',
-            paddingBottom: '2px'
+            gap: '1.25rem',
+            overflowX: 'auto',
+            whiteSpace: 'nowrap',
+            WebkitOverflowScrolling: 'touch',
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none'
           }}
         >
-          <div
+          <button
+            onClick={() => { setActiveFilter('all'); if (setSelectedFilters) setSelectedFilters([]); }}
             style={{
-              display: 'flex',
-              gap: '1.25rem',
-              overflowX: 'auto',
+              background: 'transparent',
+              border: 'none',
+              padding: '0.5rem 0',
+              color: activeFilter === 'all' ? '#10b981' : '#94a3b8',
+              borderBottom: activeFilter === 'all' ? '2px solid #10b981' : '2px solid transparent',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              cursor: 'pointer',
               whiteSpace: 'nowrap',
-              WebkitOverflowScrolling: 'touch',
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none'
+              flexShrink: 0
             }}
           >
-            <button
-              onClick={() => { setActiveFilter('all'); if (setSelectedFilters) setSelectedFilters([]); }}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                padding: '0.5rem 0',
-                color: activeFilter === 'all' ? '#10b981' : '#94a3b8',
-                borderBottom: activeFilter === 'all' ? '2px solid #10b981' : '2px solid transparent',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                flexShrink: 0
-              }}
-            >
-              Todos
-            </button>
-            <button
-              onClick={() => { setActiveFilter('asset'); if (setSelectedFilters) setSelectedFilters([]); }}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                padding: '0.5rem 0',
-                color: activeFilter === 'asset' ? '#10b981' : '#94a3b8',
-                borderBottom: activeFilter === 'asset' ? '2px solid #10b981' : '2px solid transparent',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                flexShrink: 0
-              }}
-            >
-              Por Moneda
-            </button>
-            <button
-              onClick={() => { setActiveFilter('account'); if (setSelectedFilters) setSelectedFilters([]); }}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                padding: '0.5rem 0',
-                color: activeFilter === 'account' ? '#10b981' : '#94a3b8',
-                borderBottom: activeFilter === 'account' ? '2px solid #10b981' : '2px solid transparent',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                flexShrink: 0
-              }}
-            >
-              Por Cuenta
-            </button>
-          </div>
+            Todos
+          </button>
+          <button
+            onClick={() => { setActiveFilter('asset'); if (setSelectedFilters) setSelectedFilters([]); }}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              padding: '0.5rem 0',
+              color: activeFilter === 'asset' ? '#10b981' : '#94a3b8',
+              borderBottom: activeFilter === 'asset' ? '2px solid #10b981' : '2px solid transparent',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+            }}
+          >
+            Por Moneda
+          </button>
+          <button
+            onClick={() => { setActiveFilter('account'); if (setSelectedFilters) setSelectedFilters([]); }}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              padding: '0.5rem 0',
+              color: activeFilter === 'account' ? '#10b981' : '#94a3b8',
+              borderBottom: activeFilter === 'account' ? '2px solid #10b981' : '2px solid transparent',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap',
+              flexShrink: 0
+            }}
+          >
+            Por Cuenta
+          </button>
+        </div>
 
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
           <button
             type="button"
             onClick={() => setIsVerifyModalOpen(true)}
             title="Verificar saldos con el historial de movimientos"
+            aria-label="Verificar saldos"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -782,9 +775,7 @@ export default function BalancesView({
               fontSize: '0.76rem',
               fontWeight: 600,
               cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              flexShrink: 0,
-              marginBottom: '4px'
+              whiteSpace: 'nowrap'
             }}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -814,7 +805,7 @@ export default function BalancesView({
                 const assetSymbol = (asset.name || '').trim().toUpperCase();
                 const rateVal = getRateForSymbol(assetSymbol);
                 const isUnrecognized = !rateVal || rateVal <= 0;
-                const valueUsd = Number(asset.amount) * rateVal;
+                const valueUsd = convert(asset.amount, assetSymbol, 'USD', rates);
                 const assetDisplayName = assetSymbol === 'VES' ? 'Bs.' : assetSymbol;
                 const displayTitle = asset.location.toLowerCase() === 'cash' ? `${assetDisplayName} Efectivo` : assetDisplayName;
 

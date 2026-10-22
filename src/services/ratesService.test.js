@@ -140,12 +140,52 @@ describe('Service: ratesService', () => {
       expect(status.label).toMatch(/^Tasa del \d{2}\/\d{2}\/\d{4}$/);
     });
 
-    it('reporta hora si la tasa tiene menos de 24 horas', () => {
+    it('reporta hora si la tasa tiene menos de 24 horas y solo fechaConsulta', () => {
       const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
       const status = getRateStatus({ valor: 74.5, fechaConsulta: oneHourAgo });
       expect(status.hasRate).toBe(true);
       expect(status.isStale).toBe(false);
       expect(status.label).toMatch(/^Actualizado: \d{1,2}:\d{2}/);
+    });
+
+    it('reporta "BCV vigente: DD/MM/YYYY" para fecha sin hora (BCV)', () => {
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+      const status = getRateStatus({
+        valor: 884.75,
+        fechaValor: todayStr,
+        fechaConsulta: new Date().toISOString()
+      });
+      expect(status.hasRate).toBe(true);
+      expect(status.isStale).toBe(false);
+      expect(status.label).toMatch(/^BCV vigente: \d{2}\/\d{2}\/\d{4}$/);
+    });
+
+    it('reporta "Publicado: HH:mm a.m./p.m." para fecha con hora explícita (Paralelo)', () => {
+      const now = new Date();
+      now.setHours(17, 1, 0, 0); // 05:01 p.m.
+      const status = getRateStatus({
+        valor: 910.25,
+        fechaValor: now.toISOString(),
+        fechaConsulta: new Date().toISOString()
+      });
+      expect(status.hasRate).toBe(true);
+      expect(status.isStale).toBe(false);
+      expect(status.label).toMatch(/^Publicado: \d{1,2}:\d{2}\s?(a\.\s?m\.|p\.\s?m\.|AM|PM)?/i);
+    });
+
+    it('reporta "BCV vigente desde mañana" y no la marca como vieja si la fecha es mañana', () => {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, '0')}-${String(tomorrow.getDate()).padStart(2, '0')}`;
+      const status = getRateStatus({
+        valor: 890.10,
+        fechaValor: tomorrowStr,
+        fechaConsulta: new Date().toISOString()
+      });
+      expect(status.hasRate).toBe(true);
+      expect(status.isStale).toBe(false);
+      expect(status.label).toBe('BCV vigente desde mañana');
     });
   });
 

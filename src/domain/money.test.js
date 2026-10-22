@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { add, sub, mul, div, round, convert, convertForPayment, parseAmount, getDecimals } from './money';
+import { add, sub, mul, div, round, convert, convertForPayment, parseAmount, getDecimals, toNullableNumber, toNullableInt } from './money';
 import { formatAmount } from '../utils/formatters';
 
 describe('Domain: money.js - Precisión monetaria y conversión', () => {
@@ -71,6 +71,43 @@ describe('Domain: money.js - Precisión monetaria y conversión', () => {
       expect(parseAmount('')).toBeNull();
       expect(parseAmount(null)).toBeNull();
       expect(parseAmount(undefined)).toBeNull();
+    });
+  });
+
+  describe('toNullableNumber y toNullableInt', () => {
+    it('toNullableNumber convierte strings numéricos, montos con coma o punto a número', () => {
+      expect(toNullableNumber('1.234,56')).toBe(1234.56);
+      expect(toNullableNumber('1234,56')).toBe(1234.56);
+      expect(toNullableNumber('50')).toBe(50);
+      expect(toNullableNumber(50)).toBe(50);
+      expect(toNullableNumber(0)).toBe(0);
+      expect(toNullableNumber('0')).toBe(0);
+    });
+
+    it('toNullableNumber retorna null para texto vacío, NaN, null o undefined', () => {
+      expect(toNullableNumber('')).toBeNull();
+      expect(toNullableNumber('   ')).toBeNull();
+      expect(toNullableNumber(null)).toBeNull();
+      expect(toNullableNumber(undefined)).toBeNull();
+      expect(toNullableNumber(NaN)).toBeNull();
+      expect(toNullableNumber('abc')).toBeNull();
+    });
+
+    it('toNullableInt convierte valores a enteros truncados', () => {
+      expect(toNullableInt('12')).toBe(12);
+      expect(toNullableInt(12)).toBe(12);
+      expect(toNullableInt('12,8')).toBe(12);
+      expect(toNullableInt(12.9)).toBe(12);
+      expect(toNullableInt('0')).toBe(0);
+      expect(toNullableInt(0)).toBe(0);
+    });
+
+    it('toNullableInt retorna null para texto vacío, NaN, null o undefined', () => {
+      expect(toNullableInt('')).toBeNull();
+      expect(toNullableInt(null)).toBeNull();
+      expect(toNullableInt(undefined)).toBeNull();
+      expect(toNullableInt(NaN)).toBeNull();
+      expect(toNullableInt('abc')).toBeNull();
     });
   });
 

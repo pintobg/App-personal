@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { todayLocal, addMonthsClamped, toLocalDateString, parseLocalDate, getNextDueDate } from './dates';
+import { todayLocal, addMonthsClamped, toLocalDateString, parseLocalDate, getNextDueDate, hasExplicitTime } from './dates';
 
 describe('Utils: dates.js', () => {
   describe('todayLocal() en hora nocturna en Venezuela (America/Caracas)', () => {
@@ -42,6 +42,23 @@ describe('Utils: dates.js', () => {
     it('15 de enero + 1 mes da 15 de febrero (sin necesidad de clampeo)', () => {
       const nextDate = addMonthsClamped('2026-01-15', 1);
       expect(toLocalDateString(nextDate)).toBe('2026-02-15');
+    });
+  });
+
+  describe('hasExplicitTime()', () => {
+    it('retorna false para fechas YYYY-MM-DD sin hora o con medianoche', () => {
+      expect(hasExplicitTime('2026-10-22')).toBe(false);
+      expect(hasExplicitTime('2026-10-22T00:00:00')).toBe(false);
+      expect(hasExplicitTime('2026-10-22T00:00:00Z')).toBe(false);
+      expect(hasExplicitTime('2026-10-22T00:00:00-04:00')).toBe(false);
+      expect(hasExplicitTime('')).toBe(false);
+      expect(hasExplicitTime(null)).toBe(false);
+    });
+
+    it('retorna true para timestamps con hora real', () => {
+      expect(hasExplicitTime('2026-10-22T16:12:51.985Z')).toBe(true);
+      expect(hasExplicitTime('2026-10-22T17:01:00-04:00')).toBe(true);
+      expect(hasExplicitTime('2026-10-22 17:01:00')).toBe(true);
     });
   });
 
