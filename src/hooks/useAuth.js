@@ -90,6 +90,12 @@ export function useAuth() {
   const signIn = useCallback(async (email, password, { syncLocalData = false, localState = {} } = {}) => {
     setLoading(true);
     try {
+      const hasLocalData = Boolean(
+        localState?.assets?.length > 0 ||
+        localState?.transactions?.length > 0 ||
+        localState?.obligations?.length > 0
+      );
+
       if (isSupabaseConfigured && supabase) {
         const { data, error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
@@ -98,7 +104,7 @@ export function useAuth() {
           setSession(data.session);
           setIsGuest(false);
 
-          if (syncLocalData) {
+          if (syncLocalData && hasLocalData) {
             await syncService.uploadLocalData(data.user.id, localState);
           }
           return { success: true, user: data.user };
@@ -114,7 +120,7 @@ export function useAuth() {
         setSession(demoSession);
         setIsGuest(false);
 
-        if (syncLocalData) {
+        if (syncLocalData && hasLocalData) {
           await syncService.uploadLocalData(demoId, localState);
         }
         return { success: true, user: demoUser };
@@ -136,6 +142,12 @@ export function useAuth() {
   const signUp = useCallback(async (email, password, { syncLocalData = false, localState = {} } = {}) => {
     setLoading(true);
     try {
+      const hasLocalData = Boolean(
+        localState?.assets?.length > 0 ||
+        localState?.transactions?.length > 0 ||
+        localState?.obligations?.length > 0
+      );
+
       if (isSupabaseConfigured && supabase) {
         const { data, error } = await supabase.auth.signUp({ email, password });
         if (error) throw error;
@@ -144,7 +156,7 @@ export function useAuth() {
           setSession(data.session);
           setIsGuest(false);
 
-          if (syncLocalData) {
+          if (syncLocalData && hasLocalData) {
             await syncService.uploadLocalData(data.user.id, localState);
           }
           return {
@@ -164,7 +176,7 @@ export function useAuth() {
         setSession(demoSession);
         setIsGuest(false);
 
-        if (syncLocalData) {
+        if (syncLocalData && hasLocalData) {
           await syncService.uploadLocalData(demoId, localState);
         }
         return { success: true, user: demoUser, needsEmailConfirmation: false };

@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
 import { toNullableInt, toNullableNumber } from '../domain/money';
+import { mergeById, mergeBudgets } from './merge';
 
 const QUEUE_STORAGE_KEY = 'finanzas_sync_queue';
 const DEMO_CLOUD_PREFIX = 'demo_cloud_db_';
@@ -91,7 +92,17 @@ function saveQueue(queue) {
   }
 }
 
-// Formatters for DB
+// Helper para upsert resiliente a esquemas con clave (user_id, id) o (id)
+async function resilientUpsert(table, records, onConflict = 'user_id,id') {
+  if (!supabase) return { error: new Error('Supabase no inicializado') };
+  let { error } = await supabase.from(table).upsert(records, { onConflict });
+  if (error && (error.code === '42P10' || error.message?.includes('ON CONFLICT') || error.message?.includes('constraint'))) {
+    // Si la base de datos no tiene aún la clave compuesta (user_id, id), intentar con 'id'
+    const fallback = await supabase.from(table).upsert(records, { onConflict: 'id' });
+    if (!fallback.error) return { error: null };
+  }
+  return { error };
+}
 export function mapTxToDb(tx, userId) {
   return {
     id: tx.id,
@@ -326,7 +337,7 @@ export const syncService = {
 
             if (table === 'assets') {
               if (action === 'upsert') {
-                const { error } = await supabase.from('assets').upsert(mapAssetToDb(payload, userId), { onConflict: 'user_id,id' });
+                const { error } = await resilientUpsert('assets', mapAssetToDb(payload, userId));
                 if (error) throw error;
               } else if (action === 'delete') {
                 // Borrado lógico con deleted_at
@@ -338,7 +349,7 @@ export const syncService = {
               }
             } else if (table === 'transactions') {
               if (action === 'upsert') {
-                const { error } = await supabase.from('transactions').upsert(mapTxToDb(payload, userId), { onConflict: 'user_id,id' });
+                const { error } = await resilientUpsert('transactions', mapTxToDb(payload, userId));
                 if (error) throw error;
               } else if (action === 'delete') {
                 // Borrado lógico con deleted_at
@@ -350,7 +361,7 @@ export const syncService = {
               }
             } else if (table === 'obligations') {
               if (action === 'upsert') {
-                const { error } = await supabase.from('obligations').upsert(mapObToDb(payload, userId), { onConflict: 'user_id,id' });
+                const { error } = await resilientUpsert('obligations', mapObToDb(payload, userId));
                 if (error) throw error;
               } else if (action === 'delete') {
                 // Borrado lógico con deleted_at
@@ -362,14 +373,14 @@ export const syncService = {
               }
             } else if (table === 'budgets') {
               if (action === 'upsert') {
-                const { error } = await supabase.from('budgets').upsert({
+                const { error } = await resilientUpsert('budgets', {
                   id: `${userId}_${payload.category}`,
                   user_id: userId,
                   category: payload.category,
                   amount: toNullableNumber(payload.amount) ?? 0,
                   deleted_at: null,
                   updated_at: payload.updated_at || new Date().toISOString()
-                }, { onConflict: 'user_id,id' });
+                });
                 if (error) throw error;
               } else if (action === 'delete') {
                 // Borrado lógico con deleted_at
@@ -382,7 +393,7 @@ export const syncService = {
             } else if (table === 'goals') {
               if (action === 'upsert') {
                 const dbGoal = mapGoalToDb(payload, userId);
-                const { error } = await supabase.from('goals').upsert(dbGoal, { onConflict: 'user_id,id' });
+                const { error } = await resilientUpsert('goals', dbGoal);
                 if (error) throw error;
               } else if (action === 'delete') {
                 const { error } = await supabase.from('goals').update({
@@ -493,7 +504,7 @@ export const syncService = {
     setSyncStatus('syncing');
     try {
       if (isSupabaseConfigured && supabase) {
-        const [assetsRes, txRes, obRes, bgRes, goalsRes] = await Promise.all([
+        const [assetsRes, txRes, obRes, bgRes, goalsRes] = await Promise.allSettled([
           supabase.from('assets').select('*').eq('user_id', userId),
           supabase.from('transactions').select('*').eq('user_id', userId).order('date', { ascending: false }),
           supabase.from('obligations').select('*').eq('user_id', userId),
@@ -501,18 +512,36 @@ export const syncService = {
           supabase.from('goals').select('*').eq('user_id', userId)
         ]);
 
-        if (assetsRes.error) throw assetsRes.error;
-        if (txRes.error) throw txRes.error;
-        if (obRes.error) throw obRes.error;
-        if (bgRes.error) throw bgRes.error;
-        if (goalsRes.error) throw goalsRes.error;
+        const getResData = (res, name) => {
+          if (res.status === 'fulfilled' && !res.value.error) {
+            return res.value.data || [];
+          }
+          if (res.status === 'fulfilled' && res.value.error) {
+            console.warn(`[syncService] Advertencia consultando ${name}:`, res.value.error.message);
+          } else if (res.status === 'rejected') {
+            console.warn(`[syncService] Fallo de red consultando ${name}:`, res.reason);
+          }
+          return null;
+        };
 
-        const remoteAssets = (assetsRes.data || []).map(mapDbToAsset);
-        const remoteTxs = (txRes.data || []).map(mapDbToTx);
-        const remoteObs = (obRes.data || []).map(mapDbToOb);
-        const remoteGoals = (goalsRes.data || []).map(mapDbToGoal);
+        const rawAssets = getResData(assetsRes, 'assets');
+        const rawTxs = getResData(txRes, 'transactions');
+        const rawObs = getResData(obRes, 'obligations');
+        const rawBg = getResData(bgRes, 'budgets');
+        const rawGoals = getResData(goalsRes, 'goals');
+
+        // Si fallan todas las tablas principales consideramos error total de conexión
+        if (rawAssets === null && rawTxs === null && rawObs === null) {
+          setSyncStatus('error');
+          return null;
+        }
+
+        const remoteAssets = (rawAssets || []).map(mapDbToAsset);
+        const remoteTxs = (rawTxs || []).map(mapDbToTx);
+        const remoteObs = (rawObs || []).map(mapDbToOb);
+        const remoteGoals = (rawGoals || []).map(mapDbToGoal);
         const remoteBudgets = {};
-        (bgRes.data || []).forEach(b => {
+        (rawBg || []).forEach(b => {
           remoteBudgets[b.category] = {
             category: b.category,
             amount: Number(b.amount),
@@ -555,19 +584,19 @@ export const syncService = {
         // 1. Assets
         if (assets.length > 0) {
           const dbAssets = assets.map(a => mapAssetToDb(a, userId));
-          const { error } = await supabase.from('assets').upsert(dbAssets, { onConflict: 'user_id,id' });
+          const { error } = await resilientUpsert('assets', dbAssets);
           if (error) throw error;
         }
         // 2. Transactions
         if (transactions.length > 0) {
           const dbTxs = transactions.map(t => mapTxToDb(t, userId));
-          const { error } = await supabase.from('transactions').upsert(dbTxs, { onConflict: 'user_id,id' });
+          const { error } = await resilientUpsert('transactions', dbTxs);
           if (error) throw error;
         }
         // 3. Obligations
         if (obligations.length > 0) {
           const dbObs = obligations.map(o => mapObToDb(o, userId));
-          const { error } = await supabase.from('obligations').upsert(dbObs, { onConflict: 'user_id,id' });
+          const { error } = await resilientUpsert('obligations', dbObs);
           if (error) throw error;
         }
         // 4. Budgets
@@ -580,18 +609,30 @@ export const syncService = {
             amount: toNullableNumber(amount) ?? 0,
             updated_at: new Date().toISOString()
           }));
-          const { error } = await supabase.from('budgets').upsert(dbBudgets, { onConflict: 'user_id,id' });
+          const { error } = await resilientUpsert('budgets', dbBudgets);
           if (error) throw error;
         }
         // 5. Goals
         if (goals.length > 0) {
           const dbGoals = goals.map(g => mapGoalToDb(g, userId));
-          const { error } = await supabase.from('goals').upsert(dbGoals, { onConflict: 'user_id,id' });
+          const { error } = await resilientUpsert('goals', dbGoals);
           if (error) throw error;
         }
       } else if (!import.meta.env.PROD) {
-        // Demo Cloud (solo en desarrollo)
-        saveDemoCloudData(userId, { assets, transactions, obligations, budgets, goals });
+        // Demo Cloud (solo en desarrollo): combinar con datos remotos en vez de sobreescribir
+        const currentCloud = getDemoCloudData(userId);
+        const mergedAssets = mergeById(currentCloud.assets || [], assets || []);
+        const mergedTxs = mergeById(currentCloud.transactions || [], transactions || []);
+        const mergedObs = mergeById(currentCloud.obligations || [], obligations || []);
+        const mergedBudgets = mergeBudgets(currentCloud.budgets || {}, budgets || {});
+        const mergedGoals = mergeById(currentCloud.goals || [], goals || []);
+        saveDemoCloudData(userId, {
+          assets: mergedAssets,
+          transactions: mergedTxs,
+          obligations: mergedObs,
+          budgets: mergedBudgets,
+          goals: mergedGoals
+        });
       } else {
         setSyncStatus('guest');
         return false;

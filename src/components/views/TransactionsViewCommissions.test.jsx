@@ -61,7 +61,7 @@ describe('Comisiones y Pago Móvil - Vistas', () => {
     expect(screen.queryByText(/Gasolina/i)).toBeNull();
   });
 
-  it('DashboardView: calcula y muestra la tarjeta de Comisiones del mes desglosada por cuenta', () => {
+  it('DashboardView: no muestra la tarjeta de comisiones al abrir la app (se manejan como gasto ordinario)', () => {
     const transactions = [
       {
         id: 'tx-comm-1',
@@ -118,12 +118,7 @@ describe('Comisiones y Pago Móvil - Vistas', () => {
       />
     );
 
-    // Debe mostrar la tarjeta "Comisiones del mes"
-    expect(screen.getByText(/Comisiones del mes/i)).toBeDefined();
-    // Total: 0.60 + 0.30 = 0.90
-    expect(screen.getByText(/\$0,90/i)).toBeDefined();
-    // Desglose por cuenta
-    expect(screen.getByText('Zelle')).toBeDefined();
-    expect(screen.getByText('Banesco')).toBeDefined();
+    // No debe mostrar la tarjeta destacada "Comisiones del mes" en la pantalla de inicio
+    expect(screen.queryByText(/Comisiones del mes/i)).toBeNull();
   });
 });

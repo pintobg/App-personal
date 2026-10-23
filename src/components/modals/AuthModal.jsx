@@ -47,6 +47,12 @@ export default function AuthModal({
     continueAsGuest
   } = auth;
 
+  const hasLocalData = Boolean(
+    localState?.assets?.length > 0 ||
+    localState?.transactions?.length > 0 ||
+    localState?.obligations?.length > 0
+  );
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
@@ -66,6 +72,9 @@ export default function AuthModal({
         const res = await signIn(email, password, { syncLocalData, localState });
         if (res.success) {
           showToast(`¡Sesión iniciada como ${email}!`);
+          if (onSyncNow) {
+            await onSyncNow();
+          }
           onClose();
         } else {
           setErrorMsg(res.error || 'Credenciales inválidas');
@@ -77,6 +86,9 @@ export default function AuthModal({
             showToast('Cuenta creada. Revisa tu correo para confirmar.');
           } else {
             showToast(`¡Cuenta creada y sincronizada!`);
+            if (onSyncNow) {
+              await onSyncNow();
+            }
           }
           onClose();
         } else {
@@ -100,6 +112,13 @@ export default function AuthModal({
           cancelText: 'Mantener en este teléfono',
           variant: 'danger',
           onConfirm: async () => {
+            if (user?.id) {
+              try {
+                await syncService.flushQueue(user.id);
+              } catch (e) {
+                console.warn('Flush before signOut warning:', e);
+              }
+            }
             await signOut();
             if (onClearLocalData) {
               onClearLocalData();
@@ -687,15 +706,17 @@ export default function AuthModal({
                 />
               </div>
 
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.25rem' }}>
-                <input
-                  type="checkbox"
-                  checked={syncLocalData}
-                  onChange={(e) => setSyncLocalData(e.target.checked)}
-                  style={{ accentColor: '#10b981', width: '16px', height: '16px' }}
-                />
-                Subir y respaldar mis datos locales actuales a esta cuenta
-              </label>
+              {hasLocalData && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={syncLocalData}
+                    onChange={(e) => setSyncLocalData(e.target.checked)}
+                    style={{ accentColor: '#10b981', width: '16px', height: '16px' }}
+                  />
+                  Subir y respaldar mis datos locales actuales a esta cuenta
+                </label>
+              )}
 
               {/* AJUSTE GLOBAL: TASA DE REFERENCIA */}
             <div
