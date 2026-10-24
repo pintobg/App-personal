@@ -6,7 +6,23 @@ export function useGoals(user = null) {
   const [goals, setGoals] = useState(() => {
     const saved = localStorage.getItem('personal_goals');
     try {
-      return saved ? JSON.parse(saved) : [];
+      const parsed = saved ? JSON.parse(saved) : [];
+      if (Array.isArray(parsed)) {
+        let changed = false;
+        const sanitized = parsed.map(g => {
+          if (!g || typeof g !== 'object') return g;
+          if (!g.id || String(g.id).trim() === '') {
+            changed = true;
+            return { ...g, id: crypto.randomUUID() };
+          }
+          return g;
+        });
+        if (changed) {
+          localStorage.setItem('personal_goals', JSON.stringify(sanitized));
+        }
+        return sanitized;
+      }
+      return [];
     } catch {
       return [];
     }
@@ -31,16 +47,20 @@ export function useGoals(user = null) {
 
   const addGoal = (goal) => {
     const nowIso = new Date().toISOString();
+    const cleanId = (goal.id && String(goal.id).trim() !== '')
+      ? goal.id
+      : crypto.randomUUID();
+
     const newGoal = {
-      id: goal.id || crypto.randomUUID(),
+      ...goal,
+      id: cleanId,
       name: (goal.name || '').trim(),
       targetAmount: Number(goal.targetAmount) || 0,
       currency: (goal.currency || 'USD').toUpperCase(),
       deadline: goal.deadline || null,
       accountIds: Array.isArray(goal.accountIds) ? goal.accountIds : [],
       updated_at: nowIso,
-      created_at: nowIso,
-      ...goal
+      created_at: nowIso
     };
 
     const nextList = [newGoal, ...goalsRef.current];

@@ -26,23 +26,28 @@ export function mergeById(localList = [], remoteList = []) {
 
   // 1. Indexar registros locales
   for (const item of (localList || [])) {
-    if (!item || !item.id) continue;
-    map.set(item.id, item);
+    if (!item) continue;
+    const validId = (item.id && String(item.id).trim() !== '')
+      ? String(item.id).trim()
+      : (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `item_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`);
+    const record = item.id === validId ? item : { ...item, id: validId };
+    map.set(validId, record);
   }
 
   // 2. Resolver con registros remotos
   for (const remoteItem of (remoteList || [])) {
-    if (!remoteItem || !remoteItem.id) continue;
-    const existing = map.get(remoteItem.id);
+    if (!remoteItem || !remoteItem.id || String(remoteItem.id).trim() === '') continue;
+    const remoteId = String(remoteItem.id).trim();
+    const existing = map.get(remoteId);
 
     if (!existing) {
-      map.set(remoteItem.id, remoteItem);
+      map.set(remoteId, remoteItem);
     } else {
       const localTime = getTimestamp(existing);
       const remoteTime = getTimestamp(remoteItem);
 
       if (remoteTime >= localTime) {
-        map.set(remoteItem.id, remoteItem);
+        map.set(remoteId, remoteItem);
       }
       // Si localTime > remoteTime, gana el local que ya estaba en map
     }

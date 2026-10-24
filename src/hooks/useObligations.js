@@ -10,7 +10,23 @@ export const useObligations = (user = null) => {
   const [obligations, setObligations] = useState(() => {
     const saved = localStorage.getItem('obligations');
     try {
-      return saved ? JSON.parse(saved) : [];
+      const parsed = saved ? JSON.parse(saved) : [];
+      if (Array.isArray(parsed)) {
+        let changed = false;
+        const sanitized = parsed.map(ob => {
+          if (!ob || typeof ob !== 'object') return ob;
+          if (!ob.id || String(ob.id).trim() === '') {
+            changed = true;
+            return { ...ob, id: crypto.randomUUID() };
+          }
+          return ob;
+        });
+        if (changed) {
+          localStorage.setItem('obligations', JSON.stringify(sanitized));
+        }
+        return sanitized;
+      }
+      return [];
     } catch {
       return [];
     }
@@ -34,12 +50,16 @@ export const useObligations = (user = null) => {
 
   const addObligation = (obligation) => {
     const nowIso = new Date().toISOString();
+    const cleanId = (obligation.id && String(obligation.id).trim() !== '')
+      ? obligation.id
+      : crypto.randomUUID();
+
     const newOb = {
-      id: obligation.id || crypto.randomUUID(),
+      ...obligation,
+      id: cleanId,
       dateCreated: obligation.dateCreated || nowIso,
       updated_at: nowIso,
-      reminderEnabled: obligation.reminderEnabled !== false,
-      ...obligation
+      reminderEnabled: obligation.reminderEnabled !== false
     };
     const nextList = [newOb, ...obligationsRef.current];
     obligationsRef.current = nextList;

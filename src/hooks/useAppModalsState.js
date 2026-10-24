@@ -141,13 +141,18 @@ export function useAppModalsState(requestConfirm, showToast) {
 
     const curSymbol = getCurrencySymbol(obToSave.currency);
 
-    if (obToSave.id) {
+    if (obToSave.id && String(obToSave.id).trim() !== '') {
       updateObligation(obToSave.id, { ...obToSave, amount: finalAmount, totalInstallments: finalInstallments });
       showToast('Obligación actualizada');
     } else {
-      addObligation({ ...obToSave, amount: finalAmount, totalInstallments: finalInstallments });
+      const { id: _unusedId, ...cleanOb } = obToSave;
+      addObligation({ ...cleanOb, amount: finalAmount, totalInstallments: finalInstallments });
       if (obToSave.isInstallmentPurchase && parsedDownPayment > 0) {
-        showToast(`Compra en cuotas creada (${finalInstallments} cuotas de ${curSymbol}${finalAmount}) e inicial registrada`);
+        if (obToSave.downPaymentAssetId) {
+          showToast(`Compra en cuotas creada (${finalInstallments} cuotas de ${curSymbol}${finalAmount}) e inicial registrada`);
+        } else {
+          showToast(`Compra en cuotas creada (${finalInstallments} cuotas de ${curSymbol}${finalAmount})`);
+        }
       } else {
         showToast('Obligación creada');
       }

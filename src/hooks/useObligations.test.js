@@ -60,4 +60,55 @@ describe('Hook: useObligations - Pago de cuotas y llamadas a syncService', () =>
       'usr-abc-123'
     );
   });
+
+  it('addObligation genera un UUID válido aunque reciba id vacío (como al registrar una deuda Cashea)', () => {
+    const user = { id: 'usr-123' };
+    const { result } = renderHook(() => useObligations(user));
+
+    let createdOb;
+    act(() => {
+      createdOb = result.current.addObligation({
+        id: '',
+        title: 'Traki Cashea',
+        amount: 20,
+        currency: 'USD',
+        totalInstallments: '4',
+        paidInstallments: 0
+      });
+    });
+
+    // El objeto devuelto y almacenado DEBE tener un ID válido y no vacío
+    expect(createdOb.id).toBeDefined();
+    expect(createdOb.id).not.toBe('');
+    expect(createdOb.id.length).toBeGreaterThan(10);
+
+    const stored = JSON.parse(localStorage.getItem('obligations'));
+    expect(stored).toHaveLength(1);
+    expect(stored[0].id).toBe(createdOb.id);
+  });
+
+  it('auto-repara y asigna UUID a obligaciones que tenían id vacío en localStorage para no perderlas al reabrir la app', () => {
+    // Simular que en localStorage quedó guardada una deuda con id vacío antes del fix
+    const corruptStorage = [
+      {
+        id: '',
+        title: 'Deuda Vieja',
+        amount: 50,
+        currency: 'USD',
+        totalInstallments: '3'
+      }
+    ];
+    localStorage.setItem('obligations', JSON.stringify(corruptStorage));
+
+    const { result } = renderHook(() => useObligations(null));
+
+    expect(result.current.obligations).toHaveLength(1);
+    expect(result.current.obligations[0].id).toBeDefined();
+    expect(result.current.obligations[0].id).not.toBe('');
+    expect(result.current.obligations[0].title).toBe('Deuda Vieja');
+
+    // Debe haberse actualizado también en localStorage
+    const repairedStorage = JSON.parse(localStorage.getItem('obligations'));
+    expect(repairedStorage[0].id).toBe(result.current.obligations[0].id);
+  });
 });

@@ -121,4 +121,67 @@ describe('useAppModalsState - Guardar compra en cuotas con inicial', () => {
     expect(saveTransaction).not.toHaveBeenCalled();
     expect(addObligation).not.toHaveBeenCalled();
   });
+
+  it('registra una deuda tipo Cashea SIN seleccionar cuenta de inicial (no altera saldos ni crea movimiento)', () => {
+    const saveTransaction = vi.fn();
+    const addObligation = vi.fn();
+    const showToast = vi.fn();
+
+    vi.spyOn(FinanceContext, 'useFinance').mockReturnValue({
+      assets: [{ id: 'acc-1', name: 'USD', location: 'Efectivo', amount: 200 }],
+      saveTransaction,
+      addObligation,
+      updateObligation: vi.fn(),
+      deleteObligation: vi.fn(),
+      addAsset: vi.fn(),
+      adjustAssetBalance: vi.fn(),
+      deleteAsset: vi.fn(),
+      payObligation: vi.fn(),
+      transferFunds: vi.fn(),
+      bulkDeleteTransactions: vi.fn(),
+      addGoal: vi.fn(),
+      updateGoal: vi.fn(),
+      deleteGoal: vi.fn()
+    });
+
+    const { result } = renderHook(() => useAppModalsState(vi.fn(), showToast));
+
+    act(() => {
+      result.current.handleAddObligation(null, {
+        id: '',
+        type: 'pay',
+        title: 'Celular Daka (Cashea)',
+        amount: '30,00',
+        currency: 'USD',
+        frequency: 'semi-monthly',
+        category: 'Tecnología',
+        dueDate: '2026-11-15',
+        totalInstallments: '4',
+        paidInstallments: 0,
+        isInstallmentPurchase: true,
+        totalPurchaseAmount: '160,00',
+        downPayment: '40,00',
+        downPaymentAssetId: '' // No se seleccionó cuenta porque ya los saldos estaban ajustados
+      });
+    });
+
+    // NO debe registrar transacción de gasto (no debe alterar balances)
+    expect(saveTransaction).not.toHaveBeenCalled();
+
+    // SÍ debe registrar la obligación, y sin id vacío
+    expect(addObligation).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Celular Daka (Cashea)',
+        amount: 30,
+        totalInstallments: '4'
+      })
+    );
+    const calledArg = addObligation.mock.calls[0][0];
+    expect(calledArg.id).toBeUndefined();
+
+    // Mensaje confirmando que se creó la compra en cuotas
+    expect(showToast).toHaveBeenCalledWith(
+      expect.stringContaining('Compra en cuotas creada (4 cuotas de $30)')
+    );
+  });
 });

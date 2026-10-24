@@ -104,8 +104,9 @@ async function resilientUpsert(table, records, onConflict = 'user_id,id') {
   return { error };
 }
 export function mapTxToDb(tx, userId) {
+  const cleanId = (tx.id && String(tx.id).trim() !== '') ? tx.id : crypto.randomUUID();
   return {
-    id: tx.id,
+    id: cleanId,
     user_id: userId,
     asset_id: tx.assetId || tx.asset_id || null,
     dest_asset_id: tx.destAssetId || tx.dest_asset_id || null,
@@ -156,8 +157,9 @@ export function mapDbToTx(row) {
 }
 
 export function mapObToDb(ob, userId) {
+  const cleanId = (ob.id && String(ob.id).trim() !== '') ? ob.id : crypto.randomUUID();
   return {
-    id: ob.id,
+    id: cleanId,
     user_id: userId,
     type: ob.type,
     title: ob.title || ob.person || '',
@@ -201,10 +203,11 @@ export function mapDbToOb(row) {
 }
 
 export function mapAssetToDb(asset, userId) {
+  const cleanId = (asset.id && String(asset.id).trim() !== '') ? asset.id : crypto.randomUUID();
   const amount = toNullableNumber(asset.amount) ?? 0;
   const initialAmount = toNullableNumber(asset.initialAmount ?? asset.initial_amount);
   return {
-    id: asset.id,
+    id: cleanId,
     user_id: userId,
     name: asset.name,
     type: asset.type,
@@ -230,8 +233,9 @@ export function mapDbToAsset(row) {
 }
 
 export function mapGoalToDb(goal, userId) {
+  const cleanId = (goal.id && String(goal.id).trim() !== '') ? goal.id : crypto.randomUUID();
   return {
-    id: goal.id,
+    id: cleanId,
     user_id: userId,
     name: goal.name || '',
     target_amount: toNullableNumber(goal.targetAmount ?? goal.target_amount) ?? 0,
