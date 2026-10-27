@@ -52,9 +52,21 @@ export function applyBalanceDelta(assets, assetId, delta) {
  * @returns {Object} { success, error, nextAssets, nextTransactions, syncChanges, toastMessage }
  */
 export function executeAddOrEditTransaction({ assets, transactions, rates = {} }, txPayload) {
-  if (!txPayload.currency || !txPayload.amount || !txPayload.origin) {
+  let currency = txPayload.currency;
+  let origin = txPayload.origin;
+  if ((!currency || !origin) && txPayload.assetId) {
+    const found = assets.find((a) => a.id === txPayload.assetId);
+    if (found) {
+      currency = currency || found.name;
+      origin = origin || found.location;
+    }
+  }
+
+  if (!currency || !txPayload.amount || !origin) {
     return { success: false, error: 'Faltan campos obligatorios' };
   }
+
+  txPayload = { ...txPayload, currency, origin };
 
   const amountNum = parseAmount(txPayload.amount);
   if (isNaN(amountNum) || amountNum <= 0) {
@@ -140,6 +152,7 @@ export function executeAddOrEditTransaction({ assets, transactions, rates = {} }
       origin: targetAsset.location,
       category: txPayload.category,
       subcategory: txPayload.subcategory,
+      notes: txPayload.notes !== undefined ? (txPayload.notes ? String(txPayload.notes).trim() : null) : (oldTx.notes || null),
       paymentMethod: txPayload.paymentMethod !== undefined ? txPayload.paymentMethod : (oldTx.paymentMethod || null),
       referenceNumber: txPayload.referenceNumber !== undefined ? txPayload.referenceNumber : (oldTx.referenceNumber || null),
       bank: txPayload.bank !== undefined ? txPayload.bank : (oldTx.bank || null),
@@ -212,6 +225,7 @@ export function executeAddOrEditTransaction({ assets, transactions, rates = {} }
     amount: roundedAmount,
     category: txPayload.category,
     subcategory: txPayload.subcategory,
+    notes: txPayload.notes ? String(txPayload.notes).trim() : null,
     paymentMethod: txPayload.paymentMethod || null,
     referenceNumber: txPayload.referenceNumber || null,
     bank: txPayload.bank || null,
@@ -510,6 +524,12 @@ export function executePayObligation({ assets, transactions, obligations, rates 
   }
 
   const nowIso = new Date().toISOString();
+  const nextPaidCount = (Number(payingOb.paidInstallments) || 0) + 1;
+  const totalInst = Number(payingOb.totalInstallments) || 0;
+  const isCompleted = totalInst > 0 && nextPaidCount >= totalInst;
+  const isStillPending = !isCompleted;
+  const installmentText = totalInst > 0 ? ` (Cuota ${nextPaidCount}/${totalInst})` : '';
+
   const tx = {
     id: crypto.randomUUID(),
     type: payingOb.type === 'pay' ? 'spent' : 'income',
@@ -517,8 +537,9 @@ export function executePayObligation({ assets, transactions, obligations, rates 
     currency: asset.name,
     amount: roundedAmount,
     origin: asset.location,
-    category: payingOb.category,
+    category: payingOb.category || 'Deudas/Préstamos',
     subcategory: payingOb.title,
+    notes: `${payingOb.type === 'pay' ? 'Pago deuda' : 'Cobro'}: ${payingOb.title}${installmentText}`,
     rateSnapshot: payRateSnapshot,
     usdEquivalent: payUsdEquivalent,
     rateUsed: usedRate,
@@ -526,11 +547,6 @@ export function executePayObligation({ assets, transactions, obligations, rates 
     date: nowIso,
     updated_at: nowIso
   };
-
-  const nextPaidCount = (Number(payingOb.paidInstallments) || 0) + 1;
-  const totalInst = Number(payingOb.totalInstallments) || 0;
-  const isCompleted = totalInst > 0 && nextPaidCount >= totalInst;
-  const isStillPending = !isCompleted;
 
   let nextDueDate = payingOb.dueDate;
   if (isStillPending && payingOb.dueDate && payingOb.frequency !== 'one-time') {

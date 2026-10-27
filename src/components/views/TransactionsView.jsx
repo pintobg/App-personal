@@ -473,6 +473,35 @@ export default function TransactionsView({
           const usdVal = getTxUsdEquivalent(tx, rates);
           const rateStr = formatTxRate(tx.currency, rateSnapshot);
 
+          const defaultTypeLabel = tx.type === 'transfer'
+            ? (tx.currency !== tx.destCurrency ? 'Cambio de divisa' : 'Transferencia')
+            : (tx.type === 'income' ? 'Ingreso' : (tx.type === 'adjustment' ? 'Ajuste de saldo' : 'Gasto'));
+
+          let txTitle = defaultTypeLabel;
+          let categorySubtext = '';
+
+          if (tx.notes && tx.notes.trim()) {
+            txTitle = tx.notes.trim();
+            const cat = translateCategory(tx.category);
+            const subcat = translateSubcategory(tx.subcategory);
+            if (cat && subcat && cat !== subcat) {
+              categorySubtext = `${cat} • ${subcat}`;
+            } else if (cat) {
+              categorySubtext = cat;
+            } else if (subcat) {
+              categorySubtext = subcat;
+            }
+          } else if (tx.subcategory && tx.subcategory.trim()) {
+            txTitle = translateSubcategory(tx.subcategory.trim());
+            const cat = translateCategory(tx.category);
+            if (cat && cat !== txTitle) {
+              categorySubtext = cat;
+            }
+          } else if (tx.category && tx.category.trim()) {
+            txTitle = translateCategory(tx.category.trim());
+            categorySubtext = defaultTypeLabel;
+          }
+
           return (
             <div
               key={tx.id}
@@ -506,13 +535,16 @@ export default function TransactionsView({
                             <line x1="17" y1="16" x2="23" y2="16"></line>
                           </svg>
                         )}
-                        <span>
-                          {tx.type === 'transfer'
-                            ? (tx.currency !== tx.destCurrency ? 'Cambio de divisa' : 'Transferencia')
-                            : (tx.type === 'income' ? 'Ingreso' : (tx.type === 'adjustment' ? 'Ajuste de saldo' : 'Gasto'))}
+                        <span title={txTitle}>
+                          {txTitle}
                         </span>
                       </div>
                       <div style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+                        {Boolean(categorySubtext) && (
+                          <div style={{ color: '#cbd5e1', fontSize: '0.78rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {categorySubtext}
+                          </div>
+                        )}
                         <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tx.type === 'transfer' ? `${tx.origin} ➔ ${tx.destOrigin}` : tx.origin}</div>
                         <div style={{ opacity: 0.7 }}>{toLocalDateString(tx.date)}</div>
                         {tx.type === 'transfer' && tx.currency !== tx.destCurrency && (tx.effectiveRate || tx.effectiveRateData) && (
@@ -659,6 +691,7 @@ export default function TransactionsView({
                   ) : (
                     <>
                       <div style={{ fontWeight: 600, color: '#f1f5f9', marginBottom: '0.25rem' }}>Detalles de Transacción</div>
+                      {tx.notes && <div style={{ fontSize: '0.875rem', color: '#38bdf8', fontWeight: 600, marginBottom: '0.25rem' }}>Concepto: {tx.notes}</div>}
                       <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Categoría: {translateCategory(tx.category) || 'Sin categoría'}</div>
                       {tx.subcategory && <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Subcategoría: {translateSubcategory(tx.subcategory)}</div>}
                       <div style={{ fontSize: '0.8rem', color: '#10b981', marginTop: '0.35rem', fontWeight: 500 }}>

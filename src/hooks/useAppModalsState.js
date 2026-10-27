@@ -41,6 +41,7 @@ export function useAppModalsState(requestConfirm, showToast) {
     origin: '',
     category: '',
     subcategory: '',
+    notes: '',
     date: todayLocal(),
     includeIgtf: false,
     igtfAmount: '',
@@ -71,7 +72,19 @@ export function useAppModalsState(requestConfirm, showToast) {
   // Obligation Modal
   const [isObModalOpen, setIsObModalOpen] = useState(false);
   const [newOb, setNewOb] = useState({
-    id: '', type: 'pay', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: todayLocal(), totalInstallments: '', paidInstallments: 0, installmentsCount: String(DEFAULT_INSTALLMENTS)
+    id: '',
+    type: 'pay',
+    title: '',
+    amount: '',
+    currency: 'USD',
+    frequency: 'monthly',
+    category: 'Otros',
+    dueDate: todayLocal(),
+    totalInstallments: '',
+    paidInstallments: 0,
+    installmentsCount: String(DEFAULT_INSTALLMENTS),
+    payInBs: false,
+    indexRateType: ''
   });
   const [payingOb, setPayingOb] = useState(null);
   const [payData, setPayData] = useState({ assetId: '', actualAmount: '', rateType: 'BCV_USD', customRate: '' });
@@ -133,8 +146,9 @@ export function useAppModalsState(requestConfirm, showToast) {
         type: 'spent',
         amount: String(parsedDownPayment),
         assetId: obToSave.downPaymentAssetId,
-        category: obToSave.category,
+        category: obToSave.category || 'Deudas/Préstamos',
         subcategory: `Inicial ${obToSave.title}`,
+        notes: `Inicial: ${obToSave.title}`,
         date: todayLocal()
       });
     }
@@ -160,7 +174,19 @@ export function useAppModalsState(requestConfirm, showToast) {
 
     setIsObModalOpen(false);
     setNewOb({
-      id: '', type: 'pay', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: todayLocal(), totalInstallments: '', paidInstallments: 0, installmentsCount: String(DEFAULT_INSTALLMENTS)
+      id: '',
+      type: 'pay',
+      title: '',
+      amount: '',
+      currency: 'USD',
+      frequency: 'monthly',
+      category: 'Otros',
+      dueDate: todayLocal(),
+      totalInstallments: '',
+      paidInstallments: 0,
+      installmentsCount: String(DEFAULT_INSTALLMENTS),
+      payInBs: false,
+      indexRateType: ''
     });
   };
 
@@ -222,6 +248,11 @@ export function useAppModalsState(requestConfirm, showToast) {
       origin: tx.origin,
       category: tx.category || '',
       subcategory: tx.subcategory || '',
+      notes: tx.notes || '',
+      paymentMethod: tx.paymentMethod || '',
+      referenceNumber: tx.referenceNumber || '',
+      bank: tx.bank || '',
+      recipientId: tx.recipientId || '',
       date: tx.date ? toLocalDateString(tx.date) : todayLocal()
     });
     setTxValidationError('');
@@ -244,6 +275,7 @@ export function useAppModalsState(requestConfirm, showToast) {
         origin: '',
         category: '',
         subcategory: '',
+        notes: '',
         date: todayLocal(),
         includeIgtf: false,
         igtfAmount: '',

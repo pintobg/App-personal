@@ -269,6 +269,17 @@ export default function TransactionModal({
           </div>
 
           <div className="input-group">
+            <label>Descripción / Concepto (Opcional)</label>
+            <input
+              type="text"
+              className="input-field"
+              placeholder="ej. Almuerzo, Zapatos, Mercado, Salario quincenal..."
+              value={newTx.notes || ''}
+              onChange={e => setNewTx({ ...newTx, notes: e.target.value })}
+            />
+          </div>
+
+          <div className="input-group">
             <label>Monto</label>
             <input
               type="text"
@@ -343,24 +354,69 @@ export default function TransactionModal({
             )}
           </div>
 
-          {/* Comisiones e IGTF vinculados calculados */}
-          {newTx.type === 'spent' && selectedAsset && (selectedAsset.appliesIgtf || selectedAsset.hasTransferCommission || selectedAsset.commissionPercent > 0 || selectedAsset.commissionFixed > 0) && (
+          {/* Comisiones bancarias e IGTF vinculados opcionales para gastos */}
+          {newTx.type === 'spent' && (
             <div style={{ marginBottom: '1rem', padding: '0.85rem', background: '#151b26', borderRadius: '12px', border: '1px solid #2a3447' }}>
               <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f1f5f9', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 <span>🧾</span>
-                <span>Comisiones e IGTF vinculados (editables)</span>
+                <span>Comisión bancaria e impuestos (Opcional)</span>
               </div>
 
-              {/* IGTF */}
-              {selectedAsset.name !== 'VES' && selectedAsset.appliesIgtf && (
-                <div style={{ marginBottom: (selectedAsset.hasTransferCommission || selectedAsset.commissionPercent > 0 || selectedAsset.commissionFixed > 0) ? '0.75rem' : '0' }}>
+              {/* Comisión bancaria */}
+              <div style={{ marginBottom: (selectedAsset && selectedAsset.name !== 'VES' && selectedAsset.appliesIgtf) ? '0.75rem' : '0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.82rem', color: '#cbd5e1' }}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(newTx.includeCommission)}
+                      onChange={e => {
+                        const checked = e.target.checked;
+                        let autoComm = newTx.commissionAmount;
+                        if (checked && !autoComm && selectedAsset) {
+                          const pct = Number(selectedAsset.commissionPercent) || 0;
+                          const fix = Number(selectedAsset.commissionFixed) || 0;
+                          const parsedAmt = parseAmount(newTx.amount) || 0;
+                          if (pct > 0 || fix > 0) {
+                            autoComm = round((parsedAmt * (pct / 100)) + fix, selectedAsset.name).toString();
+                          }
+                        }
+                        setNewTx(prev => ({ ...prev, includeCommission: checked, commissionAmount: autoComm }));
+                      }}
+                      style={{ width: '16px', height: '16px', accentColor: '#10b981' }}
+                    />
+                    <span>Agregar comisión bancaria {newTx.currency ? `(${newTx.currency})` : ''}</span>
+                  </label>
+                  {newTx.includeCommission && (
+                    <div style={{ width: '110px' }}>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        className="input-field"
+                        placeholder="0,00"
+                        style={{ padding: '0.35rem 0.5rem', fontSize: '0.85rem', textAlign: 'right' }}
+                        value={newTx.commissionAmount || ''}
+                        onChange={e => setNewTx(prev => ({ ...prev, commissionAmount: e.target.value }))}
+                      />
+                    </div>
+                  )}
+                </div>
+                {newTx.includeCommission && (
+                  <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.3rem', marginLeft: '1.6rem' }}>
+                    Se deducirá del saldo de la cuenta y se registrará como gasto de comisión.
+                  </div>
+                )}
+              </div>
+
+              {/* IGTF (si aplica a divisas) */}
+              {selectedAsset && selectedAsset.name !== 'VES' && selectedAsset.appliesIgtf && (
+                <div style={{ paddingTop: '0.65rem', borderTop: '1px solid #232c3d', marginTop: '0.65rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: '#cbd5e1' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.82rem', color: '#cbd5e1' }}>
                       <input
                         type="checkbox"
                         checked={Boolean(newTx.includeIgtf)}
                         onChange={e => setNewTx(prev => ({ ...prev, includeIgtf: e.target.checked }))}
-                        style={{ width: '16px', height: '16px' }}
+                        style={{ width: '16px', height: '16px', accentColor: '#10b981' }}
                       />
                       <span>Cobrar IGTF ({selectedAsset.igtfPercent || 3}%)</span>
                     </label>
@@ -374,36 +430,6 @@ export default function TransactionModal({
                           style={{ padding: '0.35rem 0.5rem', fontSize: '0.85rem', textAlign: 'right' }}
                           value={newTx.igtfAmount || ''}
                           onChange={e => setNewTx(prev => ({ ...prev, igtfAmount: e.target.value }))}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Comisión bancaria */}
-              {(selectedAsset.hasTransferCommission || selectedAsset.commissionPercent > 0 || selectedAsset.commissionFixed > 0) && (
-                <div style={{ paddingTop: selectedAsset.name !== 'VES' && selectedAsset.appliesIgtf ? '0.65rem' : '0', borderTop: selectedAsset.name !== 'VES' && selectedAsset.appliesIgtf ? '1px solid #232c3d' : 'none' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: '#cbd5e1' }}>
-                      <input
-                        type="checkbox"
-                        checked={Boolean(newTx.includeCommission)}
-                        onChange={e => setNewTx(prev => ({ ...prev, includeCommission: e.target.checked }))}
-                        style={{ width: '16px', height: '16px' }}
-                      />
-                      <span>Comisión bancaria</span>
-                    </label>
-                    {newTx.includeCommission && (
-                      <div style={{ width: '110px' }}>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          className="input-field"
-                          placeholder="0,00"
-                          style={{ padding: '0.35rem 0.5rem', fontSize: '0.85rem', textAlign: 'right' }}
-                          value={newTx.commissionAmount || ''}
-                          onChange={e => setNewTx(prev => ({ ...prev, commissionAmount: e.target.value }))}
                         />
                       </div>
                     )}
@@ -513,7 +539,7 @@ export default function TransactionModal({
                 />
               </div>
 
-              {newTx.category && (
+              {newTx.category && SPENT_CATEGORIES[newTx.category] && (
                 <div className="input-group">
                   <label>Subcategoría</label>
                   <CustomSelect
@@ -521,7 +547,7 @@ export default function TransactionModal({
                     title={`Subcategoría de ${newTx.category}`}
                     value={newTx.subcategory}
                     onChange={e => setNewTx({ ...newTx, subcategory: e.target.value })}
-                    options={SPENT_CATEGORIES[newTx.category].map(sub => ({ value: sub, label: sub }))}
+                    options={(SPENT_CATEGORIES[newTx.category] || []).map(sub => ({ value: sub, label: sub }))}
                   />
                 </div>
               )}

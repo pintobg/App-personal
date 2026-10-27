@@ -158,6 +158,31 @@ export function mapDbToTx(row) {
 
 export function mapObToDb(ob, userId) {
   const cleanId = (ob.id && String(ob.id).trim() !== '') ? ob.id : crypto.randomUUID();
+
+  // Serializar metadata adicional de forma transparente en description (compatible con schema SQL)
+  let meta = {};
+  if (ob.description) {
+    try {
+      const parsed = JSON.parse(ob.description);
+      if (parsed && typeof parsed === 'object') {
+        meta = { ...parsed };
+      } else {
+        meta = { notes: ob.description };
+      }
+    } catch {
+      meta = { notes: ob.description };
+    }
+  }
+  if (ob.payInBs !== undefined) meta.payInBs = Boolean(ob.payInBs);
+  if (ob.indexRateType !== undefined) meta.indexRateType = ob.indexRateType || '';
+  if (ob.isInstallmentPurchase !== undefined) meta.isInstallmentPurchase = Boolean(ob.isInstallmentPurchase);
+  if (ob.reminderEnabled !== undefined) meta.reminderEnabled = ob.reminderEnabled !== false;
+  if (ob.installmentsCount !== undefined) meta.installmentsCount = ob.installmentsCount;
+  if (ob.totalPurchaseAmount !== undefined) meta.totalPurchaseAmount = ob.totalPurchaseAmount;
+  if (ob.downPayment !== undefined) meta.downPayment = ob.downPayment;
+
+  const descString = Object.keys(meta).length > 0 ? JSON.stringify(meta) : (ob.description || '');
+
   return {
     id: cleanId,
     user_id: userId,
@@ -165,7 +190,7 @@ export function mapObToDb(ob, userId) {
     title: ob.title || ob.person || '',
     person: ob.title || ob.person || '',
     category: ob.category || 'Otros',
-    description: ob.description || '',
+    description: descString,
     amount: toNullableNumber(ob.amount) ?? 0,
     currency: ob.currency,
     due_date: ob.dueDate || null,
@@ -182,12 +207,46 @@ export function mapObToDb(ob, userId) {
 
 export function mapDbToOb(row) {
   const total = row.total_installments ?? row.totalInstallments;
+
+  let meta = {};
+  if (row.description) {
+    try {
+      const parsed = JSON.parse(row.description);
+      if (parsed && typeof parsed === 'object') {
+        meta = parsed;
+      } else {
+        meta = { notes: row.description };
+      }
+    } catch {
+      meta = { notes: row.description };
+    }
+  }
+
+  const payInBs = row.pay_in_bs !== undefined
+    ? Boolean(row.pay_in_bs)
+    : (meta.payInBs !== undefined ? Boolean(meta.payInBs) : false);
+
+  const indexRateType = row.index_rate_type || meta.indexRateType || '';
+  const isInstallmentPurchase = row.is_installment_purchase !== undefined
+    ? Boolean(row.is_installment_purchase)
+    : Boolean(meta.isInstallmentPurchase);
+  const reminderEnabled = row.reminder_enabled !== undefined
+    ? Boolean(row.reminder_enabled)
+    : (meta.reminderEnabled !== undefined ? Boolean(meta.reminderEnabled) : true);
+
   return {
     id: row.id,
     type: row.type,
     title: row.title || row.person || '',
     category: row.category || 'Otros',
-    description: row.description,
+    description: meta.notes || (typeof row.description === 'string' && !row.description.startsWith('{') ? row.description : ''),
+    payInBs,
+    indexRateType,
+    isInstallmentPurchase,
+    reminderEnabled,
+    installmentsCount: meta.installmentsCount || undefined,
+    totalPurchaseAmount: meta.totalPurchaseAmount || undefined,
+    downPayment: meta.downPayment || undefined,
     amount: Number(row.amount),
     currency: row.currency,
     dueDate: row.due_date || row.dueDate || '',

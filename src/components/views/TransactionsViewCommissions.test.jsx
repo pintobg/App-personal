@@ -50,7 +50,7 @@ describe('Comisiones y Pago Móvil - Vistas', () => {
     );
 
     // Ambos movimientos visibles inicialmente
-    expect(screen.getByText(/Comida/i) || screen.getByText(/Gasto/i)).toBeDefined();
+    expect(screen.getAllByText(/Comida/i).length).toBeGreaterThanOrEqual(1);
 
     // Escribir los últimos 4 dígitos de la referencia "3210"
     const searchInput = screen.getByPlaceholderText(/Buscar por categoría, cuenta, referencia/i);

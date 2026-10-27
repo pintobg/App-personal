@@ -558,7 +558,7 @@ input[type=number] {
   background-color: var(--bg-primary);
   border: none;
   border-radius: 0;
-  padding: 0 1.25rem calc(1.25rem + env(safe-area-inset-bottom)) 1.25rem;
+  padding: 0 1.25rem max(5.5rem, calc(4rem + env(safe-area-inset-bottom, 0px))) 1.25rem;
   padding-top: max(env(safe-area-inset-top), 0.6rem);
   box-shadow: none;
   display: flex;
@@ -700,6 +700,8 @@ input[type=number] {
   display: flex;
   gap: 0.75rem;
   margin-top: 1.5rem;
+  margin-bottom: max(2.5rem, calc(1.5rem + env(safe-area-inset-bottom, 0px)));
+  padding-bottom: 1.5rem;
 }
 
 .modal-actions .btn {
