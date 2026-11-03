@@ -171,7 +171,6 @@ export default function PageRouter({
               onOpenBudgetModal={() => setIsBudgetModalOpen(true)}
               getCategoryName={getCategoryName}
               onOpenCategories={() => setCurrentPage('categories')}
-              obligations={obligations}
               flippedObId={flippedObId}
               setFlippedObId={setFlippedObId}
               onEditObligation={(ob) => {
