@@ -226,6 +226,7 @@ export default function PinLockModal({
               type="button"
               onClick={handleBiometricClick}
               title={biometryTitle}
+              aria-label={biometryTitle || "Desbloquear con biometría"}
               style={{
                 height: '60px',
                 borderRadius: '50%',
@@ -277,6 +278,7 @@ export default function PinLockModal({
             type="button"
             disabled={isVerifying || pin.length === 0}
             onClick={handleBackspace}
+            aria-label="Borrar dígito"
             style={{
               height: '60px',
               borderRadius: '50%',

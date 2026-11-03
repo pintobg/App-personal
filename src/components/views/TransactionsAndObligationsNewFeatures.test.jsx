@@ -4,7 +4,7 @@ import React from 'react';
 import TransactionsView from './TransactionsView';
 import ObligationsView from './ObligationsView';
 import TransactionModal from '../modals/TransactionModal';
-import { executeAddOrEditTransaction, executePayObligation } from '../../domain/operations';
+import { executeAddOrEditTransaction, executePayObligation, executeTransfer } from '../../domain/operations';
 import { mapObToDb, mapDbToOb } from '../../services/syncService';
 
 describe('Nuevas mejoras: Descripción de gastos, Comisiones, Deudas Cashea y Persistencia BCV', () => {
@@ -211,5 +211,53 @@ describe('Nuevas mejoras: Descripción de gastos, Comisiones, Deudas Cashea y Pe
     expect(addResult.nextTransactions.length).toBe(2);
     expect(addResult.nextTransactions[1].category).toBe('Comisiones');
     expect(addResult.nextTransactions[1].amount).toBe(0.30);
+  });
+
+  it('4. Criterio de aceptación: registrar hoy un cambio hecho el viernes lo deja con fecha del viernes en la lista y en el detalle', () => {
+    const assets = [
+      { id: 'ast-usd', name: 'USD', location: 'Efectivo', amount: 200 },
+      { id: 'ast-ves', name: 'VES', location: 'Banesco', amount: 5000 }
+    ];
+
+    // Viernes 16 de octubre a las 15:30
+    const viernesDate = '2026-10-16T15:30:00.000Z';
+
+    const res = executeTransfer(
+      { assets, transactions: [], rates: { USD: 1, VES: 50 } },
+      {
+        sourceAssetId: 'ast-usd',
+        destAssetId: 'ast-ves',
+        amountDeducted: '50',
+        amountReceived: '2500',
+        date: viernesDate
+      }
+    );
+
+    expect(res.success).toBe(true);
+    const transferTx = res.nextTransactions[0];
+    expect(transferTx.date).toBe(viernesDate);
+
+    // Renderizamos TransactionsView con la tarjeta volteada para ver el detalle
+    render(
+      <TransactionsView
+        transactions={res.nextTransactions}
+        assets={assets}
+        txFilter="all"
+        setTxFilter={vi.fn()}
+        deleteMode={false}
+        setDeleteMode={vi.fn()}
+        selectedTxs={[]}
+        toggleSelectTx={vi.fn()}
+        flippedTxId={transferTx.id}
+        setFlippedTxId={vi.fn()}
+        rates={{ USD: 1, VES: 50 }}
+        onEdit={vi.fn()}
+      />
+    );
+
+    // En la fila y en el detalle debe verse la fecha del viernes
+    expect(screen.getAllByText(/2026-10-16/i).length).toBeGreaterThanOrEqual(1);
+    // Y el botón para editar la transferencia
+    expect(screen.getAllByTitle(/Editar transferencia/i).length).toBeGreaterThanOrEqual(1);
   });
 });

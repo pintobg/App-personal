@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { todayLocal, addMonthsClamped, toLocalDateString, parseLocalDate, getNextDueDate, hasExplicitTime } from './dates';
+import { todayLocal, addMonthsClamped, toLocalDateString, parseLocalDate, getNextDueDate, hasExplicitTime, toLocalDateTimeString, formatTxDateTime } from './dates';
 
 describe('Utils: dates.js', () => {
   describe('todayLocal() en hora nocturna en Venezuela (America/Caracas)', () => {
@@ -112,6 +112,30 @@ describe('Utils: dates.js', () => {
       it('31 de enero pasa al 28 de febrero sin desbordar', () => {
         expect(getNextDueDate('2025-01-31', 'monthly')).toBe('2025-02-28');
       });
+    });
+  });
+
+  describe('toLocalDateTimeString()', () => {
+    it('formatea un objeto Date a YYYY-MM-DDTHH:mm local', () => {
+      const d = new Date(2026, 9, 21, 14, 35); // Octubre 21, 2026 14:35
+      expect(toLocalDateTimeString(d)).toBe('2026-10-21T14:35');
+    });
+
+    it('devuelve cadena vacía si el input no es válido', () => {
+      expect(toLocalDateTimeString(null)).toBe('');
+      expect(toLocalDateTimeString('invalido')).toBe('');
+    });
+  });
+
+  describe('formatTxDateTime()', () => {
+    it('muestra fecha y hora si la fecha tiene hora explícita', () => {
+      const d = new Date(2026, 9, 18, 10, 45);
+      const res = formatTxDateTime(d);
+      expect(res).toBe('2026-10-18 10:45');
+    });
+
+    it('muestra solo fecha si no tiene hora explícita (medianoche)', () => {
+      expect(formatTxDateTime('2026-10-18')).toBe('2026-10-18');
     });
   });
 });

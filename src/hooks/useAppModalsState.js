@@ -3,7 +3,7 @@ import { useFinance } from '../context/FinanceContext';
 import { parseAmount, round } from '../domain/money';
 import { DEFAULT_INSTALLMENTS } from '../domain/installmentPurchase';
 import { getCurrencySymbol } from '../utils/formatters';
-import { todayLocal, toLocalDateString } from '../utils/dates';
+import { todayLocal, toLocalDateString, toLocalDateTimeString } from '../utils/dates';
 
 export function useAppModalsState(requestConfirm, showToast) {
   const finance = useFinance();
@@ -59,6 +59,7 @@ export function useAppModalsState(requestConfirm, showToast) {
   // Transfer Modal
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [newTransfer, setNewTransfer] = useState({
+    id: '',
     sourceAssetId: '',
     amountDeducted: '',
     destAssetId: '',
@@ -66,7 +67,8 @@ export function useAppModalsState(requestConfirm, showToast) {
     hasCommission: false,
     commissionAmount: '',
     hasIgtf: false,
-    igtfAmount: ''
+    igtfAmount: '',
+    date: toLocalDateTimeString(new Date())
   });
 
   // Obligation Modal
@@ -237,6 +239,26 @@ export function useAppModalsState(requestConfirm, showToast) {
   };
 
   const handleEditTransaction = (tx) => {
+    if (tx.type === 'transfer') {
+      const linkedComm = (finance.transactions || []).find((t) => t.parentTransferId === tx.id && t.category === 'Comisiones');
+      const linkedIgtf = (finance.transactions || []).find((t) => t.parentTransferId === tx.id && t.category === 'Impuestos');
+      setNewTransfer({
+        id: tx.id,
+        sourceAssetId: tx.assetId || '',
+        destAssetId: tx.destAssetId || '',
+        amountDeducted: String(tx.amount || ''),
+        amountReceived: String(tx.destAmount || ''),
+        hasCommission: Boolean(linkedComm || Number(tx.commission) > 0),
+        commissionAmount: String(linkedComm?.amount || tx.commission || ''),
+        hasIgtf: Boolean(linkedIgtf),
+        igtfAmount: String(linkedIgtf?.amount || ''),
+        date: tx.date ? toLocalDateTimeString(tx.date) : toLocalDateTimeString(new Date())
+      });
+      setTxValidationError('');
+      setIsTransferModalOpen(true);
+      return;
+    }
+
     const targetAsset = (tx.assetId && assets.find(a => a.id === tx.assetId)) ||
                         assets.find(a => (a.name || '').toUpperCase() === (tx.currency || '').toUpperCase() && a.location === tx.origin);
     setNewTx({
@@ -299,6 +321,7 @@ export function useAppModalsState(requestConfirm, showToast) {
       setIsTransferModalOpen(false);
       setTxValidationError('');
       setNewTransfer({
+        id: '',
         sourceAssetId: '',
         amountDeducted: '',
         destAssetId: '',
@@ -306,7 +329,8 @@ export function useAppModalsState(requestConfirm, showToast) {
         hasCommission: false,
         commissionAmount: '',
         hasIgtf: false,
-        igtfAmount: ''
+        igtfAmount: '',
+        date: toLocalDateTimeString(new Date())
       });
     } else {
       setTxValidationError(res.error);

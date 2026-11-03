@@ -46,6 +46,7 @@ export default function AppModals({
   newTransfer,
   setNewTransfer,
   handleTransferSubmit,
+  rateHistory = [],
   // ObligationModal
   isObModalOpen,
   setIsObModalOpen,
@@ -152,6 +153,8 @@ export default function AppModals({
         newTransfer={newTransfer}
         setNewTransfer={setNewTransfer}
         assets={assets}
+        rates={rates}
+        rateHistory={rateHistory}
         validationError={txValidationError}
         setValidationError={setTxValidationError}
         onSubmit={handleTransferSubmit}

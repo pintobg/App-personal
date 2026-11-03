@@ -28,6 +28,7 @@ export default function FabOverlay({
       <div className="bulk-delete-bar">
         <button
           type="button"
+          aria-label="Confirmar eliminación múltiple"
           className="bulk-delete-btn confirm"
           onClick={handleBulkDelete}
         >
@@ -40,6 +41,7 @@ export default function FabOverlay({
         </button>
         <button
           type="button"
+          aria-label="Cancelar eliminación múltiple"
           className="bulk-delete-btn cancel"
           onClick={() => { setDeleteMode(false); setSelectedTxs([]); }}
         >

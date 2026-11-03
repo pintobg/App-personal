@@ -94,6 +94,7 @@ export default function ObligationsView({
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.25rem' }}>
                     <button
                       title="Editar"
+                      aria-label="Editar obligación"
                       style={{ background: '#f59e0b', border: 'none', color: '#fff', fontSize: '0.75rem', borderRadius: '8px', padding: '0.4rem', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       onClick={(e) => { e.stopPropagation(); onEdit(ob); }}
                     >
@@ -101,6 +102,7 @@ export default function ObligationsView({
                     </button>
                     <button
                       title="Pagar"
+                      aria-label="Registrar pago"
                       style={{ background: '#3b82f6', border: 'none', color: '#fff', fontSize: '0.75rem', borderRadius: '8px', padding: '0.4rem', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       onClick={(e) => { e.stopPropagation(); onPay(ob); }}
                     >
@@ -108,6 +110,7 @@ export default function ObligationsView({
                     </button>
                     <button
                       title="Eliminar"
+                      aria-label="Eliminar obligación"
                       style={{ background: '#311b22', border: '1px solid #4d2631', color: '#ef4444', fontSize: '0.75rem', borderRadius: '8px', padding: '0.4rem', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       onClick={(e) => { e.stopPropagation(); onDelete(ob.id, '¿Eliminar esta obligación?'); }}
                     >
@@ -191,6 +194,7 @@ export default function ObligationsView({
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.25rem' }}>
                     <button
                       title="Editar"
+                      aria-label="Editar obligación por cobrar"
                       style={{ background: '#f59e0b', border: 'none', color: '#fff', fontSize: '0.75rem', borderRadius: '8px', padding: '0.4rem', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       onClick={(e) => { e.stopPropagation(); onEdit(ob); }}
                     >
@@ -198,6 +202,7 @@ export default function ObligationsView({
                     </button>
                     <button
                       title="Recibir"
+                      aria-label="Registrar cobro"
                       style={{ background: '#3b82f6', border: 'none', color: '#fff', fontSize: '0.75rem', borderRadius: '8px', padding: '0.4rem', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       onClick={(e) => { e.stopPropagation(); onPay(ob); }}
                     >
@@ -205,6 +210,7 @@ export default function ObligationsView({
                     </button>
                     <button
                       title="Eliminar"
+                      aria-label="Eliminar obligación por cobrar"
                       style={{ background: '#311b22', border: '1px solid #4d2631', color: '#ef4444', fontSize: '0.75rem', borderRadius: '8px', padding: '0.4rem', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       onClick={(e) => { e.stopPropagation(); onDelete(ob.id, '¿Eliminar esta obligación?'); }}
                     >
@@ -280,6 +286,7 @@ export default function ObligationsView({
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                     <button
                       title="Editar"
+                      aria-label="Editar registro de historial"
                       style={{ background: '#f59e0b', border: 'none', color: '#fff', fontSize: '0.75rem', borderRadius: '8px', padding: '0.4rem', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       onClick={(e) => { e.stopPropagation(); onEdit(ob); }}
                     >
@@ -287,6 +294,7 @@ export default function ObligationsView({
                     </button>
                     <button
                       title="Eliminar"
+                      aria-label="Eliminar registro de historial"
                       style={{ background: '#311b22', border: '1px solid #4d2631', color: '#ef4444', fontSize: '0.75rem', borderRadius: '8px', padding: '0.4rem', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       onClick={(e) => { e.stopPropagation(); onDelete(ob.id, '¿Eliminar esto del historial?'); }}
                     >

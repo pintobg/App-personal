@@ -152,6 +152,7 @@ export default function SecuritySettingsModal({
           </div>
           <button
             type="button"
+            aria-label="Cerrar modal"
             onClick={handleClose}
             style={{
               background: 'transparent',

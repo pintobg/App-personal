@@ -137,6 +137,7 @@ export default function PwaInstallPrompt() {
         <button
           onClick={handleDismiss}
           title="Descartar"
+          aria-label="Descartar aviso de instalación"
           style={{
             background: 'transparent',
             border: 'none',

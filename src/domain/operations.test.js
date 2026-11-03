@@ -106,6 +106,142 @@ describe('Domain: operations.js (Funciones puras de negocio)', () => {
     expect(transferTx.effectiveRateData.paraleloDiffPct).toBe(-5.45);
   });
 
+  it('executeTransfer: registra transferencia entre cuentas con fecha pasada y mantiene created_at como ahora', () => {
+    const pastDate = '2026-10-15T14:30:00.000Z';
+    const state = { assets: initialAssets, transactions: [], rates: { USD: 1, USDT: 1 } };
+    const payload = {
+      sourceAssetId: 'ast-3',
+      destAssetId: 'ast-1',
+      amountDeducted: '50',
+      amountReceived: '50',
+      hasCommission: true,
+      commissionAmount: '1',
+      date: pastDate
+    };
+
+    const result = executeTransfer(state, payload);
+    expect(result.success).toBe(true);
+
+    const transferTx = result.nextTransactions.find((t) => t.type === 'transfer');
+    expect(transferTx.date).toBe(pastDate);
+    expect(new Date(transferTx.created_at).getTime()).toBeGreaterThan(new Date(pastDate).getTime());
+
+    const commTx = result.nextTransactions.find((t) => t.parentTransferId === transferTx.id);
+    expect(commTx.date).toBe(pastDate);
+  });
+
+  it('executeTransfer: registra cambio de divisas con fecha pasada y ordena cronológicamente la lista', () => {
+    const pastDate = '2026-10-12T10:00:00.000Z';
+    const recentTx = {
+      id: 'tx-recent',
+      type: 'spent',
+      amount: 10,
+      currency: 'USD',
+      date: '2026-10-20T12:00:00.000Z'
+    };
+
+    const state = {
+      assets: initialAssets,
+      transactions: [recentTx],
+      rates: { USDT: 1, VES: 50, bcvUsd: 50 }
+    };
+
+    const payload = {
+      sourceAssetId: 'ast-3',
+      destAssetId: 'ast-2',
+      amountDeducted: '20',
+      amountReceived: '1000',
+      date: pastDate
+    };
+
+    const result = executeTransfer(state, payload);
+    expect(result.success).toBe(true);
+
+    // Debe ordenarse descendente: primero recentTx (oct 20), luego el cambio (oct 12)
+    expect(result.nextTransactions[0].id).toBe('tx-recent');
+    expect(result.nextTransactions[1].date).toBe(pastDate);
+    expect(result.nextTransactions[1].type).toBe('transfer');
+  });
+
+  it('executeTransfer: edita una transferencia existente actualizando ambas patas, fecha y comisiones', () => {
+    // Escenario inicial: Transferencia existente de 100 USDT de ast-3 a ast-1 con 2 USDT de comisión
+    // ast-3 (USDT) tenía 300 -> quedó en 198
+    // ast-1 (USD) tenía 500 -> quedó en 600
+    const assetsBeforeEdit = [
+      { id: 'ast-1', name: 'USD', location: 'Efectivo', amount: 600 },
+      { id: 'ast-2', name: 'VES', location: 'Banesco', amount: 20000 },
+      { id: 'ast-3', name: 'USDT', location: 'Binance', amount: 198 }
+    ];
+
+    const initialTransferTx = {
+      id: 'tx-trans-1',
+      type: 'transfer',
+      assetId: 'ast-3',
+      destAssetId: 'ast-1',
+      amount: 100,
+      destAmount: 100,
+      currency: 'USDT',
+      destCurrency: 'USD',
+      origin: 'Binance',
+      destOrigin: 'Efectivo',
+      commission: 2,
+      date: '2026-10-10T12:00:00.000Z',
+      created_at: '2026-10-10T12:00:00.000Z'
+    };
+
+    const initialCommTx = {
+      id: 'tx-comm-1',
+      parentTransferId: 'tx-trans-1',
+      type: 'spent',
+      assetId: 'ast-3',
+      amount: 2,
+      currency: 'USDT',
+      origin: 'Binance',
+      category: 'Comisiones',
+      date: '2026-10-10T12:00:00.000Z',
+      created_at: '2026-10-10T12:00:00.000Z'
+    };
+
+    const state = {
+      assets: assetsBeforeEdit,
+      transactions: [initialTransferTx, initialCommTx],
+      rates: { USDT: 1, USD: 1 }
+    };
+
+    // Editamos la transferencia: ahora se transfieren 50 USDT (en vez de 100) y sin comisión,
+    // y con fecha modificada al 11 de octubre
+    const editPayload = {
+      id: 'tx-trans-1',
+      sourceAssetId: 'ast-3',
+      destAssetId: 'ast-1',
+      amountDeducted: '50',
+      amountReceived: '50',
+      hasCommission: false,
+      commissionAmount: '0',
+      date: '2026-10-11T16:00:00.000Z'
+    };
+
+    const result = executeTransfer(state, editPayload);
+    expect(result.success).toBe(true);
+
+    // Saldos esperados:
+    // Reversión: ast-3 recupera 100 + 2 = 300; ast-1 pierde 100 = 500
+    // Aplicación: ast-3 descuenta 50 = 250; ast-1 recibe 50 = 550
+    expect(result.nextAssets.find((a) => a.id === 'ast-3').amount).toBe(250);
+    expect(result.nextAssets.find((a) => a.id === 'ast-1').amount).toBe(550);
+
+    // Transacción actualizada
+    const updatedTx = result.nextTransactions.find((t) => t.id === 'tx-trans-1');
+    expect(updatedTx.amount).toBe(50);
+    expect(updatedTx.destAmount).toBe(50);
+    expect(updatedTx.date).toBe('2026-10-11T16:00:00.000Z');
+    expect(updatedTx.commission).toBe(0);
+
+    // La comisión vieja debe haberse eliminado
+    expect(result.nextTransactions.find((t) => t.id === 'tx-comm-1')).toBeUndefined();
+    expect(result.syncChanges.some((c) => c.type === 'delete' && c.record.id === 'tx-comm-1')).toBe(true);
+  });
+
   it('executePayObligation: registra pago de deuda, genera movimiento y avanza cuotas', () => {
     const obligations = [
       {

@@ -552,6 +552,7 @@ export default function CalculatorView({
                 flexShrink: 0
               }}
               title="Día anterior"
+              aria-label="Día anterior"
             >
               ‹
             </button>
@@ -578,6 +579,7 @@ export default function CalculatorView({
                 const next = getIsoDateOffset(1, selectedDate);
                 if (next <= maxHistoryDate) setSelectedDate(next);
               }}
+              aria-label="Día siguiente"
               style={{
                 width: '36px',
                 height: '38px',

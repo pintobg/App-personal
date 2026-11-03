@@ -199,6 +199,7 @@ export default function BudgetModal({
                         type="button"
                         onClick={() => handleClearCategory(cat)}
                         title="Quitar presupuesto"
+                        aria-label="Quitar presupuesto"
                         style={{
                           background: 'transparent',
                           border: 'none',

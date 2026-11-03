@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import ReferenceRateSelector from '../common/ReferenceRateSelector';
 import NotificationSettingsSection from '../common/NotificationSettingsSection';
 import { syncService } from '../../services/syncService';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 export default function AuthModal({
   isOpen,
@@ -26,6 +27,7 @@ export default function AuthModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showErrorPanel, setShowErrorPanel] = useState(false);
   const [queueItems, setQueueItems] = useState([]);
+  const [confirmDialog, setConfirmDialog] = useState(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -429,8 +431,17 @@ export default function AuthModal({
                                     variant: 'danger',
                                     onConfirm: doDiscard
                                   });
-                                } else if (window.confirm('¿Estás seguro de que quieres descartar este cambio?')) {
-                                  doDiscard();
+                                } else {
+                                  setConfirmDialog({
+                                    title: 'Descartar cambio pendiente',
+                                    message: '¿Estás seguro de que quieres descartar este cambio? No se sincronizará con la nube.',
+                                    confirmText: 'Descartar',
+                                    variant: 'danger',
+                                    onConfirm: () => {
+                                      doDiscard();
+                                      setConfirmDialog(null);
+                                    }
+                                  });
                                 }
                               }}
                               style={{
@@ -814,6 +825,17 @@ export default function AuthModal({
               </div>
             </form>
           </div>
+        )}
+        {confirmDialog && (
+          <ConfirmDialog
+            isOpen={Boolean(confirmDialog)}
+            title={confirmDialog.title}
+            message={confirmDialog.message}
+            confirmText={confirmDialog.confirmText}
+            variant={confirmDialog.variant}
+            onConfirm={confirmDialog.onConfirm}
+            onCancel={() => setConfirmDialog(null)}
+          />
         )}
       </div>
     </div>

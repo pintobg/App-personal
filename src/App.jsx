@@ -423,6 +423,7 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
         newTransfer={modalState.newTransfer}
         setNewTransfer={modalState.setNewTransfer}
         handleTransferSubmit={modalState.handleTransferSubmit}
+        rateHistory={rateHistory}
         isObModalOpen={modalState.isObModalOpen}
         setIsObModalOpen={modalState.setIsObModalOpen}
         newOb={modalState.newOb}

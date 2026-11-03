@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import EmptyState from '../common/EmptyState';
+import { Card, SectionHeader, Button, IconButton, Chip, Amount, EmptyState } from '../ui';
 import CustomSelect from '../common/CustomSelect';
 import {
   formatAmount,
@@ -9,7 +9,7 @@ import {
   getTxUsdEquivalent,
   formatTxRate
 } from '../../utils/formatters';
-import { toLocalDateString, parseLocalDate } from '../../utils/dates';
+import { toLocalDateString, parseLocalDate, formatTxDateTime } from '../../utils/dates';
 import { calculateEffectiveExchangeRate } from '../../domain/rates';
 
 export default function TransactionsView({
@@ -179,7 +179,7 @@ export default function TransactionsView({
       }
 
       return true;
-    });
+    }).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
   }, [transactions, txFilter, accountFilter, dateRangeFilter, customStartDate, customEndDate, searchQuery]);
 
   const hasActiveFilters = Boolean(
@@ -203,7 +203,7 @@ export default function TransactionsView({
   return (
     <div className="view-container" style={{ padding: '0 1rem', marginTop: '2rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '0.5rem', flexWrap: 'wrap' }}>
-        <h2 className="section-title" style={{ padding: 0, color: '#fff', fontSize: 'clamp(1rem, 4vw, 1.2rem)', margin: 0 }}>Historial de Transacciones</h2>
+        <h2 className="section-title" style={{ padding: 0, color: 'var(--text-primary)', fontSize: 'clamp(1rem, 4vw, 1.2rem)', margin: 0 }}>Historial de Transacciones</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           {onOpenReportsModal && (
             <button
@@ -215,9 +215,9 @@ export default function TransactionsView({
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '5px',
-                background: '#1e293b',
-                border: '1px solid #334155',
-                color: '#38bdf8',
+                background: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--color-info)',
                 borderRadius: '8px',
                 padding: '4px 10px',
                 fontSize: '0.78rem',
@@ -236,9 +236,9 @@ export default function TransactionsView({
           {!deleteMode && (
             <button
               className="btn"
-              style={{ padding: '0.25rem', display: 'flex', alignItems: 'center', background: 'transparent', color: '#ef4444', opacity: 0.9 }}
+              style={{ padding: '0.25rem', display: 'flex', alignItems: 'center', background: 'transparent', color: 'var(--color-danger)', opacity: 0.9 }}
               onClick={() => setDeleteMode(true)}
-              title="Borrado múltiple"
+              title="Borrado múltiple" aria-label="Borrado múltiple"
             >
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
             </button>
@@ -257,7 +257,7 @@ export default function TransactionsView({
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
-          style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: '#98989d', pointerEvents: 'none' }}
+          style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }}
         >
           <circle cx="11" cy="11" r="8"></circle>
           <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
@@ -281,14 +281,15 @@ export default function TransactionsView({
           <button
             type="button"
             onClick={() => setSearchQuery('')}
+            aria-label="Limpiar búsqueda"
             style={{
               position: 'absolute',
               right: '0.75rem',
               top: '50%',
               transform: 'translateY(-50%)',
-              background: '#1b2230',
-              border: '1px solid #2a3447',
-              color: '#94a3b8',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-secondary)',
               borderRadius: '50%',
               width: '20px',
               height: '20px',
@@ -308,7 +309,7 @@ export default function TransactionsView({
       {/* FILTER CONTROLS: PERIODO & CUENTA */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.875rem' }}>
         <div>
-          <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '0.35rem', fontWeight: 500 }}>
+          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.35rem', fontWeight: 500 }}>
             Periodo
           </label>
           <CustomSelect
@@ -320,7 +321,7 @@ export default function TransactionsView({
           />
         </div>
         <div>
-          <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '0.35rem', fontWeight: 500 }}>
+          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.35rem', fontWeight: 500 }}>
             Cuenta
           </label>
           <CustomSelect
@@ -335,9 +336,9 @@ export default function TransactionsView({
 
       {/* CUSTOM DATE RANGE PICKER */}
       {dateRangeFilter === 'custom' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.875rem', background: '#1b2230', padding: '0.75rem', borderRadius: '12px', border: '1px solid #2a3447' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.875rem', background: 'var(--bg-surface)', padding: '0.75rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
           <div>
-            <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '0.25rem' }}>Fecha inicio</label>
+            <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Fecha inicio</label>
             <input
               type="date"
               className="input-field"
@@ -347,7 +348,7 @@ export default function TransactionsView({
             />
           </div>
           <div>
-            <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '0.25rem' }}>Fecha fin</label>
+            <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Fecha fin</label>
             <input
               type="date"
               className="input-field"
@@ -363,7 +364,7 @@ export default function TransactionsView({
       <div style={{
         display: 'flex',
         gap: '1.25rem',
-        borderBottom: '1px solid #2a3447',
+        borderBottom: '1px solid var(--border-color)',
         marginBottom: '1rem',
         overflowX: 'auto',
         WebkitOverflowScrolling: 'touch',
@@ -373,37 +374,37 @@ export default function TransactionsView({
       }}>
         <button
           onClick={() => setTxFilter('all')}
-          style={{ background: 'transparent', border: 'none', padding: '0.5rem 0', color: txFilter === 'all' ? '#10b981' : '#94a3b8', borderBottom: txFilter === 'all' ? '2px solid #10b981' : '2px solid transparent', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+          style={{ background: 'transparent', border: 'none', padding: '0.5rem 0', color: txFilter === 'all' ? 'var(--color-accent)' : 'var(--text-secondary)', borderBottom: txFilter === 'all' ? '2px solid var(--color-accent)' : '2px solid transparent', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           Todas
         </button>
         <button
           onClick={() => setTxFilter('income')}
-          style={{ background: 'transparent', border: 'none', padding: '0.5rem 0', color: txFilter === 'income' ? '#10b981' : '#94a3b8', borderBottom: txFilter === 'income' ? '2px solid #10b981' : '2px solid transparent', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+          style={{ background: 'transparent', border: 'none', padding: '0.5rem 0', color: txFilter === 'income' ? 'var(--color-accent)' : 'var(--text-secondary)', borderBottom: txFilter === 'income' ? '2px solid var(--color-accent)' : '2px solid transparent', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           Ingresos
         </button>
         <button
           onClick={() => setTxFilter('spent')}
-          style={{ background: 'transparent', border: 'none', padding: '0.5rem 0', color: txFilter === 'spent' ? '#10b981' : '#94a3b8', borderBottom: txFilter === 'spent' ? '2px solid #10b981' : '2px solid transparent', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+          style={{ background: 'transparent', border: 'none', padding: '0.5rem 0', color: txFilter === 'spent' ? 'var(--color-accent)' : 'var(--text-secondary)', borderBottom: txFilter === 'spent' ? '2px solid var(--color-accent)' : '2px solid transparent', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           Gastos
         </button>
         <button
           onClick={() => setTxFilter('transfer')}
-          style={{ background: 'transparent', border: 'none', padding: '0.5rem 0', color: txFilter === 'transfer' ? '#10b981' : '#94a3b8', borderBottom: txFilter === 'transfer' ? '2px solid #10b981' : '2px solid transparent', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+          style={{ background: 'transparent', border: 'none', padding: '0.5rem 0', color: txFilter === 'transfer' ? 'var(--color-accent)' : 'var(--text-secondary)', borderBottom: txFilter === 'transfer' ? '2px solid var(--color-accent)' : '2px solid transparent', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           Transferencias
         </button>
         <button
           onClick={() => setTxFilter('exchanges')}
-          style={{ background: 'transparent', border: 'none', padding: '0.5rem 0', color: txFilter === 'exchanges' ? '#10b981' : '#94a3b8', borderBottom: txFilter === 'exchanges' ? '2px solid #10b981' : '2px solid transparent', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+          style={{ background: 'transparent', border: 'none', padding: '0.5rem 0', color: txFilter === 'exchanges' ? 'var(--color-accent)' : 'var(--text-secondary)', borderBottom: txFilter === 'exchanges' ? '2px solid var(--color-accent)' : '2px solid transparent', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           Mis cambios
         </button>
         <button
           onClick={() => setTxFilter('adjustment')}
-          style={{ background: 'transparent', border: 'none', padding: '0.5rem 0', color: txFilter === 'adjustment' ? '#10b981' : '#94a3b8', borderBottom: txFilter === 'adjustment' ? '2px solid #10b981' : '2px solid transparent', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
+          style={{ background: 'transparent', border: 'none', padding: '0.5rem 0', color: txFilter === 'adjustment' ? 'var(--color-accent)' : 'var(--text-secondary)', borderBottom: txFilter === 'adjustment' ? '2px solid var(--color-accent)' : '2px solid transparent', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           Ajustes
         </button>
@@ -427,20 +428,20 @@ export default function TransactionsView({
           }}
         >
           <div>
-            <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
               Mis cambios • Mes en curso
             </div>
-            <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#f1f5f9', marginTop: '2px' }}>
+            <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
               {exchangeMonthStats.hasData ? (
                 <>
-                  Tasa promedio: <span style={{ color: '#10b981' }}>{formatAmount(exchangeMonthStats.averageRate, 'VES')} Bs./$</span>
+                  Tasa promedio: <span style={{ color: 'var(--color-accent)' }}>{formatAmount(exchangeMonthStats.averageRate, 'VES')} Bs./$</span>
                 </>
               ) : (
-                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Sin operaciones de cambio este mes</span>
+                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Sin operaciones de cambio este mes</span>
               )}
             </div>
           </div>
-          <div style={{ fontSize: '0.78rem', color: '#94a3b8', background: '#1b2230', padding: '4px 10px', borderRadius: '8px', border: '1px solid #2a3447' }}>
+          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', background: 'var(--bg-surface)', padding: '4px 10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
             {exchangeMonthStats.count} {exchangeMonthStats.count === 1 ? 'operación' : 'operaciones'}
           </div>
         </div>
@@ -448,12 +449,12 @@ export default function TransactionsView({
 
       {/* FILTER SUMMARY & RESET ACTION */}
       {hasActiveFilters && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', fontSize: '0.8rem', color: '#94a3b8' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
           <span>{filteredTransactions.length} movimiento{filteredTransactions.length === 1 ? '' : 's'} encontrado{filteredTransactions.length === 1 ? '' : 's'}</span>
           <button
             type="button"
             onClick={handleClearFilters}
-            style={{ background: 'transparent', border: 'none', color: '#10b981', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, padding: 0 }}
+            style={{ background: 'transparent', border: 'none', color: 'var(--color-accent)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, padding: 0 }}
           >
             Limpiar filtros
           </button>
@@ -521,9 +522,9 @@ export default function TransactionsView({
                       <input type="checkbox" checked={selectedTxs.some(t => t.id === tx.id)} readOnly style={{ transform: 'scale(1.2)', flexShrink: 0 }} />
                     )}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: 0, flex: 1 }}>
-                      <div style={{ fontSize: '1rem', fontWeight: 600, color: '#f1f5f9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                      <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                         {tx.type === 'adjustment' && (
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                             <line x1="4" y1="21" x2="4" y2="14"></line>
                             <line x1="4" y1="10" x2="4" y2="3"></line>
                             <line x1="12" y1="21" x2="12" y2="12"></line>
@@ -539,27 +540,27 @@ export default function TransactionsView({
                           {txTitle}
                         </span>
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
                         {Boolean(categorySubtext) && (
-                          <div style={{ color: '#cbd5e1', fontSize: '0.78rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <div style={{ color: 'var(--text-primary)', fontSize: '0.78rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {categorySubtext}
                           </div>
                         )}
                         <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tx.type === 'transfer' ? `${tx.origin} ➔ ${tx.destOrigin}` : tx.origin}</div>
-                        <div style={{ opacity: 0.7 }}>{toLocalDateString(tx.date)}</div>
+                        <div style={{ opacity: 0.7 }}>{tx.type === 'transfer' ? formatTxDateTime(tx.date) : toLocalDateString(tx.date)}</div>
                         {tx.type === 'transfer' && tx.currency !== tx.destCurrency && (tx.effectiveRate || tx.effectiveRateData) && (
-                          <div style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 600 }}>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--color-accent)', fontWeight: 600 }}>
                             Tasa: {formatAmount(tx.effectiveRate || tx.effectiveRateData?.rate, 'VES')} Bs./$
                           </div>
                         )}
                         {Boolean(tx.paymentMethod || tx.referenceNumber) && (
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.7rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.1)', padding: '1px 6px', borderRadius: '4px', width: 'fit-content', marginTop: '2px' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.7rem', color: 'var(--color-info)', background: 'rgba(56, 189, 248, 0.1)', padding: '1px 6px', borderRadius: '4px', width: 'fit-content', marginTop: '2px' }}>
                             <span>📱</span>
                             <span>{tx.paymentMethod || 'Pago Móvil'}{tx.referenceNumber ? ` • Ref: ${tx.referenceNumber}` : ''}</span>
                           </div>
                         )}
                         {Boolean(tx.parentTransactionId) && (
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.68rem', color: '#f59e0b', background: 'rgba(245, 158, 11, 0.1)', padding: '1px 6px', borderRadius: '4px', width: 'fit-content', marginTop: '2px' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.68rem', color: 'var(--color-warning)', background: 'rgba(245, 158, 11, 0.1)', padding: '1px 6px', borderRadius: '4px', width: 'fit-content', marginTop: '2px' }}>
                             <span>🔗</span>
                             <span>Vinculado a gasto</span>
                           </div>
@@ -569,37 +570,64 @@ export default function TransactionsView({
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem', whiteSpace: 'nowrap', flexShrink: 0 }}>
                     {tx.type === 'transfer' ? (
-                      <>
-                        <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#3b82f6' }}>
-                          -{formatAmount(tx.amount, tx.currency)} {tx.currency.toUpperCase()}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
+                          <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-info)' }}>
+                            -{formatAmount(tx.amount, tx.currency)} {tx.currency.toUpperCase()}
+                          </div>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-accent)' }}>
+                            +{formatAmount(tx.destAmount, tx.destCurrency)} {tx.destCurrency?.toUpperCase()}
+                          </div>
                         </div>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#10b981' }}>
-                          +{formatAmount(tx.destAmount, tx.destCurrency)} {tx.destCurrency?.toUpperCase()}
-                        </div>
-                      </>
+                        {!deleteMode && (
+                          <button
+                            type="button"
+                            title="Editar transferencia"
+                            aria-label="Editar transferencia"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (onEdit) onEdit(tx);
+                            }}
+                            style={{
+                              background: 'var(--color-warning-soft)',
+                              border: '1px solid var(--color-warning-border)',
+                              color: 'var(--color-warning)',
+                              borderRadius: '6px',
+                              padding: '0.25rem',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                          </button>
+                        )}
+                      </div>
                     ) : tx.type === 'adjustment' ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <div style={{ fontSize: '1rem', fontWeight: 700, color: '#94a3b8' }}>
+                        <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
                           {(tx.delta != null ? tx.delta >= 0 : true) ? '+' : '-'}{formatAmount(tx.amount, tx.currency)} {tx.currency.toUpperCase()}
                         </div>
                       </div>
                     ) : (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <div style={{ fontSize: '1rem', fontWeight: 700, color: tx.type === 'income' ? '#10b981' : '#ef4444' }}>
+                        <div style={{ fontSize: '1rem', fontWeight: 700, color: tx.type === 'income' ? 'var(--color-accent)' : 'var(--color-danger)' }}>
                           {tx.type === 'income' ? '+' : '-'}{formatAmount(tx.amount, tx.currency)} {tx.currency.toUpperCase()}
                         </div>
                         {!deleteMode && (
                           <button
                             type="button"
                             title="Editar transacción"
+                            aria-label="Editar transacción"
                             onClick={(e) => {
                               e.stopPropagation();
                               if (onEdit) onEdit(tx);
                             }}
                             style={{
-                              background: '#312615',
-                              border: '1px solid #4d391b',
-                              color: '#f59e0b',
+                              background: 'var(--color-warning-soft)',
+                              border: '1px solid var(--color-warning-border)',
+                              color: 'var(--color-warning)',
                               borderRadius: '6px',
                               padding: '0.25rem',
                               cursor: 'pointer',
@@ -618,7 +646,7 @@ export default function TransactionsView({
                 <div className="tx-flip-back glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '1rem 1.15rem', borderRadius: '16px', gap: '0.25rem' }}>
                   {tx.type === 'transfer' ? (
                     <>
-                      <div style={{ fontWeight: 600, color: '#f1f5f9', marginBottom: '0.25rem' }}>Detalles de Cambio</div>
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Detalles de Cambio</div>
                       {tx.currency !== tx.destCurrency && Number(tx.amount) > 0 && Number(tx.destAmount) > 0 ? (() => {
                         const effectiveInfo = tx.effectiveRateData || calculateEffectiveExchangeRate({
                           fromCurrency: tx.currency,
@@ -651,57 +679,89 @@ export default function TransactionsView({
 
                         return (
                           <>
-                            <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#10b981', textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--color-accent)', textAlign: 'center' }}>
                               Cambiaste a {formatAmount(effRate, 'VES')} {unitText}{bcvDiffText ? `: ${bcvDiffText}` : ''}
                             </div>
                             {parDiffText && (
-                              <div style={{ fontSize: '0.75rem', color: '#94a3b8', textAlign: 'center' }}>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
                                 ({parDiffText})
                               </div>
                             )}
-                            <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: '0.2rem' }}>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
                               1 {tx.currency.toUpperCase()} = {(Number(tx.destAmount) / Number(tx.amount)).toLocaleString(undefined, { maximumFractionDigits: 4 })} {tx.destCurrency?.toUpperCase()}
                             </div>
                           </>
                         );
                       })() : (
-                        <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Transferencia del mismo activo ({tx.currency.toUpperCase()}).</div>
+                        <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Transferencia del mismo activo ({tx.currency.toUpperCase()}).</div>
                       )}
                       {Number(tx.commission) > 0 && (
-                        <div style={{ fontSize: '0.75rem', color: '#f59e0b', marginTop: '0.15rem' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-warning)', marginTop: '0.15rem' }}>
                           Comisión bancaria: {formatAmount(tx.commission, tx.currency)} {tx.currency.toUpperCase()}
                         </div>
                       )}
-                      <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '0.25rem', fontWeight: 500 }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                        Fecha y hora: {formatTxDateTime(tx.date)}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-accent)', marginTop: '0.25rem', fontWeight: 500 }}>
                         Valor estimado: ~${formatAmount(usdVal, 'USD')} USD
                       </div>
+                      <button
+                        type="button"
+                        title="Editar transferencia"
+                        aria-label="Editar transferencia"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (onEdit) onEdit(tx);
+                        }}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          background: 'var(--color-warning-soft)',
+                          border: '1px solid var(--color-warning)',
+                          color: 'var(--color-warning)',
+                          borderRadius: '8px',
+                          padding: '0.35rem 0.75rem',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          marginTop: '0.5rem'
+                        }}
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                        Editar
+                      </button>
                     </>
                   ) : tx.type === 'adjustment' ? (
                     <>
-                      <div style={{ fontWeight: 600, color: '#f1f5f9', marginBottom: '0.25rem' }}>Detalles de Ajuste</div>
-                      <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Motivo: {tx.notes || tx.category || 'Ajuste manual de saldo'}</div>
-                      {tx.subcategory && <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Tipo: {translateSubcategory(tx.subcategory)}</div>}
-                      <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.35rem', fontWeight: 500 }}>
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Detalles de Ajuste</div>
+                      <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Motivo: {tx.notes || tx.category || 'Ajuste manual de saldo'}</div>
+                      {tx.subcategory && <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Tipo: {translateSubcategory(tx.subcategory)}</div>}
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.35rem', fontWeight: 500 }}>
                         Tasa de registro: {rateStr}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                         Impacto estimado: ~${formatAmount(usdVal, 'USD')} USD
                       </div>
                     </>
                   ) : (
                     <>
-                      <div style={{ fontWeight: 600, color: '#f1f5f9', marginBottom: '0.25rem' }}>Detalles de Transacción</div>
-                      {tx.notes && <div style={{ fontSize: '0.875rem', color: '#38bdf8', fontWeight: 600, marginBottom: '0.25rem' }}>Concepto: {tx.notes}</div>}
-                      <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Categoría: {translateCategory(tx.category) || 'Sin categoría'}</div>
-                      {tx.subcategory && <div style={{ fontSize: '0.875rem', color: '#94a3b8' }}>Subcategoría: {translateSubcategory(tx.subcategory)}</div>}
-                      <div style={{ fontSize: '0.8rem', color: '#10b981', marginTop: '0.35rem', fontWeight: 500 }}>
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Detalles de Transacción</div>
+                      {tx.notes && <div style={{ fontSize: '0.875rem', color: 'var(--color-info)', fontWeight: 600, marginBottom: '0.25rem' }}>Concepto: {tx.notes}</div>}
+                      <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Categoría: {translateCategory(tx.category) || 'Sin categoría'}</div>
+                      {tx.subcategory && <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Subcategoría: {translateSubcategory(tx.subcategory)}</div>}
+                      <div style={{ fontSize: '0.8rem', color: 'var(--color-accent)', marginTop: '0.35rem', fontWeight: 500 }}>
                         Tasa de registro: {rateStr}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                         Valor original: ~${formatAmount(usdVal, 'USD')} USD
                       </div>
                       {Boolean(tx.paymentMethod || tx.referenceNumber || tx.bank || tx.recipientId) && (
-                        <div style={{ fontSize: '0.75rem', color: '#cbd5e1', marginTop: '0.35rem', textAlign: 'center', background: '#172033', padding: '0.4rem 0.65rem', borderRadius: '8px', border: '1px solid #1e293b', width: '100%' }}>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-primary)', marginTop: '0.35rem', textAlign: 'center', background: 'var(--bg-surface)', padding: '0.4rem 0.65rem', borderRadius: '8px', border: '1px solid var(--bg-surface-elevated)', width: '100%' }}>
                           {tx.paymentMethod && <div><strong>Tipo:</strong> {tx.paymentMethod}</div>}
                           {tx.referenceNumber && <div><strong>Referencia:</strong> {tx.referenceNumber}</div>}
                           {tx.bank && <div><strong>Banco:</strong> {tx.bank}</div>}
@@ -711,6 +771,7 @@ export default function TransactionsView({
                       <button
                         type="button"
                         title="Editar transacción"
+                        aria-label="Editar transacción"
                         onClick={(e) => {
                           e.stopPropagation();
                           if (onEdit) onEdit(tx);
@@ -719,9 +780,9 @@ export default function TransactionsView({
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '0.35rem',
-                          background: '#312615',
-                          border: '1px solid #f59e0b',
-                          color: '#f59e0b',
+                          background: 'var(--color-warning-soft)',
+                          border: '1px solid var(--color-warning)',
+                          color: 'var(--color-warning)',
                           borderRadius: '8px',
                           padding: '0.35rem 0.75rem',
                           fontSize: '0.8rem',

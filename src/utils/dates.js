@@ -15,6 +15,9 @@ export function todayLocal() {
  */
 export function toLocalDateString(dateInput) {
   if (!dateInput) return '';
+  if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput.trim())) {
+    return dateInput.trim();
+  }
   const d = dateInput instanceof Date ? dateInput : new Date(dateInput);
   if (isNaN(d.getTime())) return '';
   const year = d.getFullYear();
@@ -128,4 +131,38 @@ export function getNextDueDate(currentDueDate, frequency) {
   }
 
   return currentDueDate;
+}
+
+/**
+ * Convierte un objeto Date (o timestamp/string válido) a 'YYYY-MM-DDTHH:mm' según la hora local del dispositivo.
+ * Ideal para el valor de un <input type="datetime-local" />.
+ */
+export function toLocalDateTimeString(dateInput) {
+  if (!dateInput) return '';
+  const d = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  if (isNaN(d.getTime())) return '';
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+}
+
+/**
+ * Formatea una fecha y hora para visualización en las listas y detalles de transacciones/transferencias.
+ * Si la fecha contiene hora real, la incluye (ej. 'YYYY-MM-DD HH:mm').
+ * Si no contiene hora real (o es medianoche exacta / sin hora), muestra solo 'YYYY-MM-DD'.
+ */
+export function formatTxDateTime(dateInput) {
+  if (!dateInput) return '';
+  if (!hasExplicitTime(dateInput)) {
+    return toLocalDateString(dateInput);
+  }
+  const d = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  if (isNaN(d.getTime())) return String(dateInput);
+  const datePart = toLocalDateString(d);
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  return `${datePart} ${hours}:${minutes}`;
 }

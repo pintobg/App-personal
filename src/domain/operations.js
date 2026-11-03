@@ -303,6 +303,7 @@ export function executeAddOrEditTransaction({ assets, transactions, rates = {} }
  */
 export function executeTransfer({ assets, transactions, rates = {} }, transferPayload) {
   const {
+    id,
     sourceAssetId,
     destAssetId,
     amountDeducted,
@@ -310,13 +311,242 @@ export function executeTransfer({ assets, transactions, rates = {} }, transferPa
     hasCommission,
     commissionAmount,
     hasIgtf,
-    igtfAmount
+    igtfAmount,
+    date
   } = transferPayload;
 
   if (!sourceAssetId || !destAssetId || !amountDeducted || !amountReceived) {
     return { success: false, error: 'Completa todos los campos obligatorios de la transferencia' };
   }
 
+  const nowIso = new Date().toISOString();
+  let txDate = nowIso;
+  if (date) {
+    const parsedDate = new Date(date);
+    if (isNaN(parsedDate.getTime())) {
+      return { success: false, error: 'Fecha no válida' };
+    }
+    if (parsedDate.getTime() > Date.now()) {
+      return { success: false, error: 'No se permiten transferencias con fechas futuras' };
+    }
+    txDate = parsedDate.toISOString();
+  }
+
+  // CASO: EDITAR TRANSFERENCIA EXISTENTE
+  if (id) {
+    const oldTransfer = transactions.find((t) => t.id === id);
+    if (!oldTransfer) {
+      return { success: false, error: 'Transferencia no encontrada' };
+    }
+
+    const oldLinkedTxs = transactions.filter((t) => t.parentTransferId === oldTransfer.id);
+    const oldCommTx = oldLinkedTxs.find((t) => t.category === 'Comisiones');
+    const oldIgtfTx = oldLinkedTxs.find((t) => t.category === 'Impuestos');
+
+    // Revertir temporalmente saldos anteriores
+    let tempAssets = [...assets];
+    const oldSrc = findAsset(tempAssets, oldTransfer.assetId, oldTransfer.currency, oldTransfer.origin);
+    const oldDst = findAsset(tempAssets, oldTransfer.destAssetId, oldTransfer.destCurrency, oldTransfer.destOrigin);
+
+    if (oldSrc) {
+      const oldCommTotal = add(Number(oldCommTx?.amount) || 0, Number(oldIgtfTx?.amount) || 0);
+      const resSrcRev = applyBalanceDelta(tempAssets, oldSrc.id, add(Number(oldTransfer.amount) || 0, oldCommTotal));
+      if (resSrcRev) tempAssets = resSrcRev.nextAssets;
+    }
+    if (oldDst && oldTransfer.destAmount) {
+      const resDstRev = applyBalanceDelta(tempAssets, oldDst.id, sub(0, Number(oldTransfer.destAmount) || 0));
+      if (resDstRev) tempAssets = resDstRev.nextAssets;
+    }
+
+    const newSourceAsset = tempAssets.find((a) => a.id === sourceAssetId);
+    const newDestAsset = tempAssets.find((a) => a.id === destAssetId);
+
+    if (!newSourceAsset || !newDestAsset) {
+      return { success: false, error: 'Una de las cuentas seleccionadas no existe' };
+    }
+
+    if (newSourceAsset.id === newDestAsset.id) {
+      return { success: false, error: 'Las cuentas de origen y destino deben ser distintas.' };
+    }
+
+    const amountDeductedNum = parseAmount(amountDeducted);
+    const amountReceivedNum = parseAmount(amountReceived);
+    const commNum = hasCommission ? (parseAmount(commissionAmount) || 0) : 0;
+    const igtfNum = hasIgtf ? (parseAmount(igtfAmount) || 0) : 0;
+
+    if (isNaN(amountDeductedNum) || amountDeductedNum <= 0) {
+      return { success: false, error: 'Ingresa un monto a debitar válido mayor a 0' };
+    }
+    if (isNaN(amountReceivedNum) || amountReceivedNum <= 0) {
+      return { success: false, error: 'El monto a recibir debe ser mayor a 0' };
+    }
+
+    const roundedDeducted = round(amountDeductedNum, newSourceAsset.name);
+    const roundedReceived = round(amountReceivedNum, newDestAsset.name);
+    const roundedCommission = round(commNum, newSourceAsset.name);
+    const roundedIgtf = round(igtfNum, newSourceAsset.name);
+    const totalExtraFees = add(roundedCommission, roundedIgtf);
+    const totalDeduction = add(roundedDeducted, totalExtraFees);
+
+    if (totalDeduction > Number(newSourceAsset.amount)) {
+      return {
+        success: false,
+        error: `Saldo insuficiente. Tienes ${newSourceAsset.amount} ${newSourceAsset.name} en ${newSourceAsset.location}, pero requieres ${totalDeduction} (incluyendo comisión/IGTF).`
+      };
+    }
+
+    const transferDeltas = calculateTransferDeltas({
+      amountDeducted: roundedDeducted,
+      amountReceived: roundedReceived,
+      commission: totalExtraFees
+    });
+
+    let nextAssets = [...tempAssets];
+    const syncChanges = [];
+
+    const resSource = applyBalanceDelta(nextAssets, newSourceAsset.id, transferDeltas.sourceDelta);
+    if (!resSource) return { success: false, error: 'Error al actualizar cuenta de origen' };
+    nextAssets = resSource.nextAssets;
+    syncChanges.push({ table: 'assets', type: 'upsert', record: resSource.updatedAsset });
+
+    const resDest = applyBalanceDelta(nextAssets, newDestAsset.id, transferDeltas.destDelta);
+    if (!resDest) return { success: false, error: 'Error al actualizar cuenta de destino' };
+    nextAssets = resDest.nextAssets;
+    syncChanges.push({ table: 'assets', type: 'upsert', record: resDest.updatedAsset });
+
+    // Si la cuenta vieja de origen o destino era distinta a las nuevas, persistir su balance revertido
+    if (oldSrc && oldSrc.id !== newSourceAsset.id && oldSrc.id !== newDestAsset.id) {
+      const revertedAsset = nextAssets.find((a) => a.id === oldSrc.id);
+      if (revertedAsset) syncChanges.push({ table: 'assets', type: 'upsert', record: revertedAsset });
+    }
+    if (oldDst && oldDst.id !== newSourceAsset.id && oldDst.id !== newDestAsset.id) {
+      const revertedAsset = nextAssets.find((a) => a.id === oldDst.id);
+      if (revertedAsset) syncChanges.push({ table: 'assets', type: 'upsert', record: revertedAsset });
+    }
+
+    const srcCurr = newSourceAsset.name.toUpperCase();
+    const destCurr = newDestAsset.name.toUpperCase();
+    const srcRateSnapshot = rates[srcCurr] ?? (['USD', 'USDT', 'USDC'].includes(srcCurr) ? 1 : 0);
+    const transferUsdEquivalent = convert(roundedDeducted, srcCurr, 'USD', rates);
+
+    let effectiveRateData = null;
+    if (srcCurr !== destCurr) {
+      effectiveRateData = calculateEffectiveExchangeRate({
+        fromCurrency: newSourceAsset.name,
+        fromAmount: roundedDeducted,
+        toCurrency: newDestAsset.name,
+        toAmount: roundedReceived,
+        commission: totalExtraFees,
+        ratesSnapshot: {
+          bcvUsd: rates.bcvUsd || rates.VES,
+          paralelo: rates.paralelo || rates.VES_PARALELO
+        }
+      });
+    }
+
+    const finalTxDate = date ? txDate : (oldTransfer.date || nowIso);
+
+    const updatedTransferTx = {
+      ...oldTransfer,
+      assetId: newSourceAsset.id,
+      destAssetId: newDestAsset.id,
+      type: 'transfer',
+      currency: newSourceAsset.name,
+      amount: roundedDeducted,
+      origin: newSourceAsset.location,
+      destCurrency: newDestAsset.name,
+      destAmount: roundedReceived,
+      destOrigin: newDestAsset.location,
+      commission: roundedCommission,
+      category: 'Transfer',
+      subcategory: `Hacia ${newDestAsset.location}`,
+      rateSnapshot: srcRateSnapshot,
+      usdEquivalent: transferUsdEquivalent,
+      effectiveRate: effectiveRateData?.rate ?? null,
+      effectiveRateData: effectiveRateData ?? null,
+      date: finalTxDate,
+      created_at: oldTransfer.created_at || oldTransfer.date || nowIso,
+      updated_at: nowIso
+    };
+
+    syncChanges.push({ table: 'transactions', type: 'upsert', record: updatedTransferTx });
+
+    const updatedLinkedTxs = [];
+    const removedLinkedIds = new Set();
+
+    if (roundedCommission > 0) {
+      const commTx = {
+        id: oldCommTx ? oldCommTx.id : crypto.randomUUID(),
+        parentTransferId: oldTransfer.id,
+        assetId: newSourceAsset.id,
+        type: 'spent',
+        currency: newSourceAsset.name,
+        amount: roundedCommission,
+        origin: newSourceAsset.location,
+        category: 'Comisiones',
+        subcategory: 'Comisión por transferencia',
+        rateSnapshot: srcRateSnapshot,
+        usdEquivalent: convert(roundedCommission, srcCurr, 'USD', rates),
+        date: finalTxDate,
+        created_at: oldCommTx?.created_at || oldCommTx?.date || nowIso,
+        updated_at: nowIso
+      };
+      updatedLinkedTxs.push(commTx);
+      syncChanges.push({ table: 'transactions', type: 'upsert', record: commTx });
+    } else if (oldCommTx) {
+      removedLinkedIds.add(oldCommTx.id);
+      syncChanges.push({ table: 'transactions', type: 'delete', record: { id: oldCommTx.id, deleted_at: nowIso, updated_at: nowIso } });
+    }
+
+    if (roundedIgtf > 0) {
+      const igtfTx = {
+        id: oldIgtfTx ? oldIgtfTx.id : crypto.randomUUID(),
+        parentTransferId: oldTransfer.id,
+        assetId: newSourceAsset.id,
+        type: 'spent',
+        currency: newSourceAsset.name,
+        amount: roundedIgtf,
+        origin: newSourceAsset.location,
+        category: 'Impuestos',
+        subcategory: `IGTF (${newSourceAsset.igtfPercent || 3}%)`,
+        rateSnapshot: srcRateSnapshot,
+        usdEquivalent: convert(roundedIgtf, srcCurr, 'USD', rates),
+        date: finalTxDate,
+        created_at: oldIgtfTx?.created_at || oldIgtfTx?.date || nowIso,
+        updated_at: nowIso
+      };
+      updatedLinkedTxs.push(igtfTx);
+      syncChanges.push({ table: 'transactions', type: 'upsert', record: igtfTx });
+    } else if (oldIgtfTx) {
+      removedLinkedIds.add(oldIgtfTx.id);
+      syncChanges.push({ table: 'transactions', type: 'delete', record: { id: oldIgtfTx.id, deleted_at: nowIso, updated_at: nowIso } });
+    }
+
+    const nextTransactions = transactions
+      .filter((t) => !removedLinkedIds.has(t.id) && !updatedLinkedTxs.some((u) => u.id === t.id))
+      .map((t) => (t.id === updatedTransferTx.id ? updatedTransferTx : t));
+
+    updatedLinkedTxs.forEach((child) => {
+      const idx = nextTransactions.findIndex((t) => t.id === child.id);
+      if (idx !== -1) {
+        nextTransactions[idx] = child;
+      } else {
+        nextTransactions.push(child);
+      }
+    });
+
+    nextTransactions.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+
+    return {
+      success: true,
+      nextAssets,
+      nextTransactions,
+      syncChanges,
+      toastMessage: 'Transferencia actualizada'
+    };
+  }
+
+  // CASO: CREAR NUEVA TRANSFERENCIA
   const sourceAsset = assets.find((a) => a.id === sourceAssetId);
   const destAsset = assets.find((a) => a.id === destAssetId);
 
@@ -373,7 +603,6 @@ export function executeTransfer({ assets, transactions, rates = {} }, transferPa
   nextAssets = resDest.nextAssets;
   syncChanges.push({ table: 'assets', type: 'upsert', record: resDest.updatedAsset });
 
-  const nowIso = new Date().toISOString();
   const srcCurr = sourceAsset.name.toUpperCase();
   const destCurr = destAsset.name.toUpperCase();
   const srcRateSnapshot = rates[srcCurr] ?? (['USD', 'USDT', 'USDC'].includes(srcCurr) ? 1 : 0);
@@ -413,7 +642,8 @@ export function executeTransfer({ assets, transactions, rates = {} }, transferPa
     usdEquivalent: transferUsdEquivalent,
     effectiveRate: effectiveRateData?.rate ?? null,
     effectiveRateData: effectiveRateData ?? null,
-    date: nowIso,
+    date: txDate,
+    created_at: nowIso,
     updated_at: nowIso
   };
 
@@ -433,7 +663,8 @@ export function executeTransfer({ assets, transactions, rates = {} }, transferPa
       subcategory: 'Comisión por transferencia',
       rateSnapshot: srcRateSnapshot,
       usdEquivalent: convert(roundedCommission, srcCurr, 'USD', rates),
-      date: nowIso,
+      date: txDate,
+      created_at: nowIso,
       updated_at: nowIso
     };
     newTxs.push(commissionTx);
@@ -453,14 +684,15 @@ export function executeTransfer({ assets, transactions, rates = {} }, transferPa
       subcategory: `IGTF (${sourceAsset.igtfPercent || 3}%)`,
       rateSnapshot: srcRateSnapshot,
       usdEquivalent: convert(roundedIgtf, srcCurr, 'USD', rates),
-      date: nowIso,
+      date: txDate,
+      created_at: nowIso,
       updated_at: nowIso
     };
     newTxs.push(igtfTx);
     syncChanges.push({ table: 'transactions', type: 'upsert', record: igtfTx });
   }
 
-  const nextTransactions = [...newTxs, ...transactions];
+  const nextTransactions = [...newTxs, ...transactions].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
   return {
     success: true,

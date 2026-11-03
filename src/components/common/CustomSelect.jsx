@@ -224,6 +224,7 @@ export default function CustomSelect({ value, onChange, options = [], placeholde
                 {searchQuery && (
                   <button
                     type="button"
+                    aria-label="Limpiar búsqueda"
                     onClick={() => setSearchQuery('')}
                     style={{
                       position: 'absolute',

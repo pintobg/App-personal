@@ -1,5 +1,4 @@
 import { add, sub, convert, round } from './money';
-import { parseLocalDate, toLocalDateString } from '../utils/dates';
 
 /**
  * Calcula el progreso de una meta de ahorro sumando los balances
@@ -75,85 +74,5 @@ export function calculateGoalProgress(goal, assets = [], rates = {}, currentDate
     remainingAmount,
     monthsRemaining,
     monthlySavingsNeeded
-  };
-}
-
-/**
- * Calcula el impacto de la inflación y pérdida de poder adquisitivo
- * en los ingresos recibidos en Bolívares (VES) durante el mes en curso.
- * Compara lo que valían en USD cuando se recibieron (con su rateSnapshot)
- * frente a lo que valen hoy a la tasa actual.
- *
- * @param {Array} transactions - Historial de transacciones
- * @param {Object} rates - Tasas de cambio actuales
- * @param {Date} [currentDate] - Fecha de referencia (por defecto hoy)
- * @returns {Object}
- */
-export function calculatePurchasingPower(transactions = [], rates = {}, currentDate = new Date()) {
-  const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1, 0, 0, 0, 0);
-  const endOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0, 23, 59, 59, 999);
-
-  // Filtrar ingresos en VES del mes
-  const vesIncomes = transactions.filter(tx => {
-    if (tx.type !== 'income') return false;
-    if ((tx.currency || '').toUpperCase() !== 'VES') return false;
-    const d = parseLocalDate(toLocalDateString(tx.date));
-    return d >= startOfMonth && d <= endOfMonth;
-  });
-
-  if (vesIncomes.length === 0) {
-    return {
-      hasData: false,
-      count: 0,
-      totalBs: 0,
-      totalUsdWhenReceived: 0,
-      usdToday: 0,
-      diffUsd: 0,
-      percentChange: 0,
-      lossPercent: 0
-    };
-  }
-
-  let totalBs = 0;
-  let totalUsdWhenReceived = 0;
-
-  vesIncomes.forEach(tx => {
-    const amountBs = Number(tx.amount) || 0;
-    totalBs = add(totalBs, amountBs);
-
-    let usdVal = 0;
-    if (tx.usdEquivalent != null && Number(tx.usdEquivalent) > 0) {
-      usdVal = Number(tx.usdEquivalent);
-    } else if (tx.rateSnapshot != null && Number(tx.rateSnapshot) > 0) {
-      usdVal = convert(amountBs, 'VES', 'USD', { VES: Number(tx.rateSnapshot) });
-    } else {
-      usdVal = convert(amountBs, 'VES', 'USD', rates);
-    }
-    totalUsdWhenReceived = add(totalUsdWhenReceived, usdVal);
-  });
-
-  totalBs = round(totalBs, 'VES');
-  totalUsdWhenReceived = round(totalUsdWhenReceived, 'USD');
-
-  // Lo que valen hoy esos mismos Bs.
-  const usdToday = round(convert(totalBs, 'VES', 'USD', rates), 'USD');
-
-  // Diferencia
-  const diffUsd = round(sub(usdToday, totalUsdWhenReceived), 'USD');
-  const percentChange = totalUsdWhenReceived > 0
-    ? Number((((usdToday - totalUsdWhenReceived) / totalUsdWhenReceived) * 100).toFixed(2))
-    : 0;
-
-  const lossPercent = percentChange < 0 ? Math.abs(percentChange) : 0;
-
-  return {
-    hasData: true,
-    count: vesIncomes.length,
-    totalBs,
-    totalUsdWhenReceived,
-    usdToday,
-    diffUsd,
-    percentChange,
-    lossPercent
   };
 }

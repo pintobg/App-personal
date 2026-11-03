@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { calculateGoalProgress, calculatePurchasingPower } from './goals';
+import { calculateGoalProgress } from './goals';
 
-describe('Domain: goals.js (Metas de Ahorro y Poder Adquisitivo)', () => {
+describe('Domain: goals.js (Metas de Ahorro)', () => {
   describe('calculateGoalProgress', () => {
     it('calcula correctamente el progreso de una meta de $500 con cuentas USD y USDT', () => {
       const goal = {
@@ -57,57 +57,6 @@ describe('Domain: goals.js (Metas de Ahorro y Poder Adquisitivo)', () => {
       expect(result.currentSaved).toBe(100);
       expect(result.progressPercent).toBe(10);
       expect(result.remainingAmount).toBe(900);
-    });
-  });
-
-  describe('calculatePurchasingPower', () => {
-    it('compara el valor original en $ usando rateSnapshot frente al valor actual en $', () => {
-      const now = new Date(2026, 9, 21); // Octubre 2026
-      const transactions = [
-        {
-          id: 'tx-1',
-          type: 'income',
-          amount: 5000, // 5000 Bs recibidos a tasa 50 Bs/$ = $100
-          currency: 'VES',
-          rateSnapshot: 50,
-          usdEquivalent: 100,
-          date: '2026-10-05T12:00:00.000Z'
-        }
-      ];
-
-      // Hoy la tasa BCV subió a 55 Bs/$ (el bolívar se devaluó)
-      const rates = {
-        VES: 55,
-        bcvUsd: 55
-      };
-
-      const result = calculatePurchasingPower(transactions, rates, now);
-
-      expect(result.hasData).toBe(true);
-      expect(result.totalBs).toBe(5000);
-      expect(result.totalUsdWhenReceived).toBe(100);
-      // 5000 Bs hoy a 55 Bs/$ = $90.91 USD
-      expect(result.usdToday).toBe(90.91);
-      // Pérdida: 90.91 - 100 = -$9.09 USD (-9.09%)
-      expect(result.diffUsd).toBe(-9.09);
-      expect(result.lossPercent).toBe(9.09);
-    });
-
-    it('retorna hasData: false si no hubo ingresos en VES en el mes', () => {
-      const now = new Date(2026, 9, 21);
-      const transactions = [
-        {
-          id: 'tx-2',
-          type: 'income',
-          amount: 100,
-          currency: 'USD',
-          date: '2026-10-10T12:00:00.000Z'
-        }
-      ];
-
-      const result = calculatePurchasingPower(transactions, { VES: 50 }, now);
-      expect(result.hasData).toBe(false);
-      expect(result.lossPercent).toBe(0);
     });
   });
 });

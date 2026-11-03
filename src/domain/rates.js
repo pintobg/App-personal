@@ -1,4 +1,6 @@
 import Big from 'big.js';
+import { toLocalDateString, todayLocal } from '../utils/dates';
+import { formatAmount } from '../utils/formatters';
 
 /**
  * Calcula la brecha cambiaria porcentual entre la tasa paralela y la oficial (BCV):
@@ -120,5 +122,108 @@ export function calculateEffectiveExchangeRate({
     bcvDiffPct: null,
     paraleloDiffPct: null,
     type: 'cross_currency'
+  };
+}
+
+/**
+ * Resuelve la tasa de cambio histórica sugerida para una fecha dada.
+ * Si existe tasa para ese día en el historial, la utiliza.
+ * Si no, busca la tasa más cercana anterior.
+ * Si no hay fecha anterior en el historial, recurre a la más antigua disponible o a rates actuales.
+ *
+ * @param {Object} params
+ * @param {string|Date} params.date - Fecha elegida
+ * @param {string} params.fromCurrency - Moneda origen (ej. 'USD', 'VES')
+ * @param {string} params.toCurrency - Moneda destino (ej. 'VES', 'USD')
+ * @param {Object} [params.rates={}] - Tasas actuales de fallback
+ * @param {Array} [params.rateHistory=[]] - Historial de tasas [{ date, bcvUsd, bcvEur, paralelo }]
+ * @returns {Object|null} { rate, dateUsed, isExact, message, fromCurrency, toCurrency }
+ */
+export function resolveHistoricalRate({
+  date,
+  fromCurrency,
+  toCurrency,
+  rates = {},
+  rateHistory = []
+}) {
+  const from = (fromCurrency || '').trim().toUpperCase();
+  const to = (toCurrency || '').trim().toUpperCase();
+
+  if (!from || !to || from === to) return null;
+
+  const targetDateStr = date
+    ? (typeof date === 'string' ? date.split('T')[0] : toLocalDateString(date))
+    : todayLocal();
+
+  // Buscar en rateHistory (ordenado cronológicamente por date)
+  let matchedEntry = null;
+  let isExact = false;
+
+  if (Array.isArray(rateHistory) && rateHistory.length > 0) {
+    for (let i = 0; i < rateHistory.length; i++) {
+      const entry = rateHistory[i];
+      const entryDate = (entry.date || '').split('T')[0];
+      if (entryDate === targetDateStr) {
+        matchedEntry = entry;
+        isExact = true;
+        break;
+      }
+      if (entryDate < targetDateStr) {
+        matchedEntry = entry;
+      } else {
+        break;
+      }
+    }
+
+    if (!matchedEntry && rateHistory.length > 0) {
+      matchedEntry = rateHistory[0];
+      isExact = false;
+    }
+  }
+
+  const foreignCurr = from === 'VES' ? to : from;
+  let baseRate = null;
+  let dateUsed = matchedEntry ? (matchedEntry.date || '').split('T')[0] : 'actual';
+
+  if (matchedEntry) {
+    if (foreignCurr === 'EUR') {
+      baseRate = matchedEntry.bcvEur || (matchedEntry.bcvUsd ? matchedEntry.bcvUsd * 1.08 : null);
+    } else {
+      baseRate = matchedEntry.bcvUsd || matchedEntry.paralelo;
+    }
+  }
+
+  if (!baseRate || isNaN(baseRate) || baseRate <= 0) {
+    dateUsed = 'actual';
+    isExact = false;
+    if (foreignCurr === 'EUR') {
+      baseRate = rates.EUR_VES || rates.bcvEur || (rates.VES ? (rates.EUR ? rates.VES / rates.EUR : rates.VES) : null);
+    } else {
+      baseRate = rates.bcvUsd || rates.VES || rates.USD;
+    }
+  }
+
+  if (!baseRate || isNaN(baseRate) || baseRate <= 0) {
+    return null;
+  }
+
+  baseRate = Number(baseRate);
+
+  let message = '';
+  if (dateUsed === 'actual') {
+    message = `Tasa sugerida actual (no hay historial para ${targetDateStr}): ${formatAmount(baseRate, 'VES')} Bs./$`;
+  } else if (isExact) {
+    message = `Tasa del día (${dateUsed}): ${formatAmount(baseRate, 'VES')} Bs./$`;
+  } else {
+    message = `Tasa del ${dateUsed} (más cercana anterior a ${targetDateStr}): ${formatAmount(baseRate, 'VES')} Bs./$`;
+  }
+
+  return {
+    rate: baseRate,
+    dateUsed,
+    isExact,
+    message,
+    fromCurrency: from,
+    toCurrency: to
   };
 }

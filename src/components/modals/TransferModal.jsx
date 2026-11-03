@@ -1,6 +1,9 @@
+import { useRef, useMemo } from 'react';
 import CustomSelect from '../common/CustomSelect';
 import { formatAmount } from '../../utils/formatters';
-import { parseAmount } from '../../domain/money';
+import { parseAmount, round } from '../../domain/money';
+import { toLocalDateString, toLocalDateTimeString } from '../../utils/dates';
+import { resolveHistoricalRate } from '../../domain/rates';
 
 export default function TransferModal({
   isOpen,
@@ -8,27 +11,114 @@ export default function TransferModal({
   newTransfer,
   setNewTransfer,
   assets,
+  rates = {},
+  rateHistory = [],
   validationError,
   setValidationError,
   onSubmit
 }) {
+  const userEditedReceivedRef = useRef(false);
+
+  const src = (assets || []).find(a => a.id === newTransfer.sourceAssetId);
+  const dest = (assets || []).find(a => a.id === newTransfer.destAssetId);
+  const isSameCurrency = Boolean(src && dest && src.name === dest.name);
+
+  const now = new Date();
+  const maxDateTime = toLocalDateTimeString(now);
+  const currentTransferDate = newTransfer.date || maxDateTime;
+
+  const isToday = toLocalDateString(currentTransferDate) === toLocalDateString(now);
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday = toLocalDateString(currentTransferDate) === toLocalDateString(yesterday);
+
+  // Sugerencia de tasa histórica
+  const suggestedRateInfo = useMemo(() => {
+    if (isSameCurrency || !src || !dest) return null;
+    return resolveHistoricalRate({
+      date: currentTransferDate,
+      fromCurrency: src.name,
+      toCurrency: dest.name,
+      rates,
+      rateHistory
+    });
+  }, [isSameCurrency, src, dest, currentTransferDate, rates, rateHistory]);
+
   if (!isOpen) return null;
 
   const handleClose = () => {
+    userEditedReceivedRef.current = false;
     onClose();
     if (setValidationError) setValidationError('');
   };
 
-  const src = assets.find(a => a.id === newTransfer.sourceAssetId);
-  const dest = assets.find(a => a.id === newTransfer.destAssetId);
-  const isSameCurrency = src && dest && src.name === dest.name;
+  const calcSuggestedReceived = (deductedVal, dateVal, currentSrc, currentDest) => {
+    const parsedDed = parseAmount(deductedVal);
+    if (!parsedDed || parsedDed <= 0 || !currentSrc || !currentDest || currentSrc.name === currentDest.name) return '';
+    const rateInfo = resolveHistoricalRate({
+      date: dateVal || new Date(),
+      fromCurrency: currentSrc.name,
+      toCurrency: currentDest.name,
+      rates,
+      rateHistory
+    });
+    if (!rateInfo || !rateInfo.rate) return '';
+
+    const fromCurr = currentSrc.name.toUpperCase();
+    const toCurr = currentDest.name.toUpperCase();
+    let receivedNum = 0;
+    if (toCurr === 'VES') {
+      receivedNum = round(parsedDed * rateInfo.rate, toCurr);
+    } else if (fromCurr === 'VES') {
+      receivedNum = round(parsedDed / rateInfo.rate, toCurr);
+    } else {
+      receivedNum = round(parsedDed * rateInfo.rate, toCurr);
+    }
+    return receivedNum > 0 ? String(receivedNum) : '';
+  };
+
+  const handleDateChange = (val) => {
+    let finalVal = val;
+    if (finalVal && finalVal > maxDateTime) {
+      finalVal = maxDateTime;
+    }
+    let autoFill = newTransfer.amountReceived;
+    if (!isSameCurrency && (!autoFill || !userEditedReceivedRef.current)) {
+      const suggested = calcSuggestedReceived(newTransfer.amountDeducted, finalVal, src, dest);
+      if (suggested) autoFill = suggested;
+    }
+    setNewTransfer({
+      ...newTransfer,
+      date: finalVal,
+      amountReceived: autoFill
+    });
+  };
+
+  const handleSetToday = () => {
+    const timePart = currentTransferDate.includes('T')
+      ? currentTransferDate.split('T')[1]
+      : `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const target = `${toLocalDateString(now)}T${timePart}`;
+    handleDateChange(target > maxDateTime ? maxDateTime : target);
+  };
+
+  const handleSetYesterday = () => {
+    const timePart = currentTransferDate.includes('T')
+      ? currentTransferDate.split('T')[1]
+      : `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    handleDateChange(`${toLocalDateString(yesterday)}T${timePart}`);
+  };
 
   const handleSourceChange = (srcId) => {
     const selectedSrc = assets.find(a => a.id === srcId);
     const currentDest = assets.find(a => a.id === newTransfer.destAssetId);
     let autoFill = newTransfer.amountReceived;
+
     if (selectedSrc && currentDest && selectedSrc.name === currentDest.name && newTransfer.amountDeducted) {
       autoFill = newTransfer.amountDeducted;
+    } else if (selectedSrc && currentDest && selectedSrc.name !== currentDest.name && (!autoFill || !userEditedReceivedRef.current)) {
+      const suggested = calcSuggestedReceived(newTransfer.amountDeducted, currentTransferDate, selectedSrc, currentDest);
+      if (suggested) autoFill = suggested;
     }
 
     const parsedDed = parseAmount(newTransfer.amountDeducted);
@@ -69,10 +159,32 @@ export default function TransferModal({
     });
   };
 
+  const handleDestChange = (destId) => {
+    const selectedDest = assets.find(a => a.id === destId);
+    const currentSrc = assets.find(a => a.id === newTransfer.sourceAssetId);
+    let autoFill = newTransfer.amountReceived;
+
+    if (currentSrc && selectedDest && currentSrc.name === selectedDest.name && newTransfer.amountDeducted) {
+      autoFill = newTransfer.amountDeducted;
+    } else if (currentSrc && selectedDest && currentSrc.name !== selectedDest.name && (!autoFill || !userEditedReceivedRef.current)) {
+      const suggested = calcSuggestedReceived(newTransfer.amountDeducted, currentTransferDate, currentSrc, selectedDest);
+      if (suggested) autoFill = suggested;
+    }
+
+    setNewTransfer({
+      ...newTransfer,
+      destAssetId: destId,
+      amountReceived: autoFill
+    });
+  };
+
   const handleAmountDeductedChange = (val) => {
     let autoFill = newTransfer.amountReceived;
     if (isSameCurrency) {
       autoFill = val;
+    } else if (!autoFill || !userEditedReceivedRef.current) {
+      const suggested = calcSuggestedReceived(val, currentTransferDate, src, dest);
+      if (suggested) autoFill = suggested;
     }
 
     const parsedDed = parseAmount(val);
@@ -125,7 +237,7 @@ export default function TransferModal({
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
             <span>Atrás</span>
           </button>
-          <h2>Transferencia / Cambio</h2>
+          <h2>{newTransfer.id ? 'Editar Transferencia / Cambio' : 'Transferencia / Cambio'}</h2>
           <div style={{ width: '64px' }} />
         </div>
         <form onSubmit={onSubmit}>
@@ -149,19 +261,60 @@ export default function TransferModal({
               placeholder="Seleccionar Destino"
               title="Seleccionar Cuenta de Destino"
               value={newTransfer.destAssetId}
-              onChange={e => {
-                const selectedDest = assets.find(a => a.id === e.target.value);
-                const currentSrc = assets.find(a => a.id === newTransfer.sourceAssetId);
-                let autoFill = newTransfer.amountReceived;
-                if (currentSrc && selectedDest && currentSrc.name === selectedDest.name && newTransfer.amountDeducted) {
-                  autoFill = newTransfer.amountDeducted;
-                }
-                setNewTransfer({ ...newTransfer, destAssetId: e.target.value, amountReceived: autoFill });
-              }}
+              onChange={e => handleDestChange(e.target.value)}
               options={assets.filter(a => a.id !== newTransfer.sourceAssetId).map(a => ({
                 value: a.id,
                 label: `${a.location} (${a.name})`
               }))}
+            />
+          </div>
+
+          {/* Fecha y hora con valor por defecto ahora, chips Hoy / Ayer y selector datetime-local sin fechas futuras */}
+          <div className="input-group">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+              <label style={{ margin: 0 }}>Fecha y hora</label>
+              <div style={{ display: 'flex', gap: '0.35rem' }}>
+                <button
+                  type="button"
+                  onClick={handleSetToday}
+                  style={{
+                    background: isToday ? '#0284c7' : '#1e293b',
+                    border: '1px solid ' + (isToday ? '#0284c7' : '#334155'),
+                    color: isToday ? '#fff' : '#cbd5e1',
+                    fontSize: '0.72rem',
+                    fontWeight: 600,
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Hoy
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSetYesterday}
+                  style={{
+                    background: isYesterday ? '#0284c7' : '#1e293b',
+                    border: '1px solid ' + (isYesterday ? '#0284c7' : '#334155'),
+                    color: isYesterday ? '#fff' : '#cbd5e1',
+                    fontSize: '0.72rem',
+                    fontWeight: 600,
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Ayer
+                </button>
+              </div>
+            </div>
+            <input
+              type="datetime-local"
+              className="input-field"
+              value={currentTransferDate}
+              max={maxDateTime}
+              onChange={e => handleDateChange(e.target.value)}
+              required
             />
           </div>
 
@@ -185,11 +338,20 @@ export default function TransferModal({
                 type="text"
                 inputMode="decimal"
                 className="input-field"
-                value={newTransfer.amountReceived}
-                onChange={e => setNewTransfer({ ...newTransfer, amountReceived: e.target.value })}
+                value={newTransfer.amountReceived || ''}
+                onChange={e => {
+                  userEditedReceivedRef.current = true;
+                  setNewTransfer({ ...newTransfer, amountReceived: e.target.value });
+                }}
                 placeholder="0,00"
                 required
               />
+              {suggestedRateInfo && (
+                <div style={{ fontSize: '0.75rem', color: '#38bdf8', marginTop: '0.35rem', display: 'flex', alignItems: 'flex-start', gap: '0.3rem' }}>
+                  <span>💡</span>
+                  <span>{suggestedRateInfo.message}</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -301,7 +463,7 @@ export default function TransferModal({
               Cancelar
             </button>
             <button type="submit" className="btn btn-primary">
-              Completar Transferencia
+              {newTransfer.id ? 'Guardar Cambios' : 'Completar Transferencia'}
             </button>
           </div>
         </form>
