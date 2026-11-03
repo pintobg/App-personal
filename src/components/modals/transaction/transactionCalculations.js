@@ -31,3 +31,38 @@ export function calculateAssetFees(amountStr, asset, isSpent) {
 
   return { igtfAmount, includeIgtf, commissionAmount, includeCommission };
 }
+
+export function getCurrencyOptions(assets = []) {
+  const list = ['USD', 'VES', 'EUR', 'USDT'];
+  if (Array.isArray(assets)) {
+    assets.forEach(a => {
+      const c = (a.name || '').toUpperCase().trim();
+      if (c && !list.includes(c)) list.push(c);
+    });
+  }
+  return list.map(c => ({ value: c, label: c }));
+}
+
+export function sortAssetsByCurrency(assets = [], currentCurrency = '') {
+  if (!Array.isArray(assets) || assets.length === 0) return [];
+  const cur = (currentCurrency || '').toUpperCase();
+  return [...assets].sort((a, b) => {
+    const aMatches = (a.name || '').toUpperCase() === cur ? 0 : 1;
+    const bMatches = (b.name || '').toUpperCase() === cur ? 0 : 1;
+    if (aMatches !== bMatches) return aMatches - bMatches;
+    return (a.location || '').localeCompare(b.location || '');
+  });
+}
+
+export function findMatchingAssetForCurrency(assets = [], transactions = [], targetCurrency = '') {
+  if (!Array.isArray(assets) || assets.length === 0) return null;
+  const clean = (targetCurrency || '').toUpperCase();
+  const lastMatchedTx = Array.isArray(transactions)
+    ? transactions.slice().reverse().find(t => (t.currency || '').toUpperCase() === clean && t.assetId && assets.some(a => a.id === t.assetId))
+    : null;
+  if (lastMatchedTx) {
+    const found = assets.find(a => a.id === lastMatchedTx.assetId);
+    if (found) return found;
+  }
+  return assets.find(a => (a.name || '').toUpperCase() === clean) || null;
+}

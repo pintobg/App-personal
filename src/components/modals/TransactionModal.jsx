@@ -1,24 +1,18 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import CustomSelect from '../common/CustomSelect';
 import CategoryPicker from '../common/CategoryPicker';
 import { todayLocal, toLocalDateString } from '../../utils/dates';
-import { calculateAssetFees } from './transaction/transactionCalculations';
+import { calculateAssetFees, getCurrencyOptions, sortAssetsByCurrency, findMatchingAssetForCurrency } from './transaction/transactionCalculations';
 import TransactionTypeSelector from './transaction/TransactionTypeSelector';
 import TransactionVesDetails from './transaction/TransactionVesDetails';
 import TransactionAccountSection from './transaction/TransactionAccountSection';
 import TransactionFormFooter from './transaction/TransactionFormFooter';
 
 export default function TransactionModal({
-  mode, // 'select' | 'form' | null
-  onClose,
-  newTx,
-  setNewTx,
-  setMode,
-  assets = [],
-  transactions = [],
-  validationError,
-  setValidationError,
-  onSubmit,
-  onSaveAndAddAnother
+  mode, onClose, newTx, setNewTx, setMode,
+  assets = [], transactions = [],
+  validationError, setValidationError,
+  onSubmit, onSaveAndAddAnother
 }) {
   const amountInputRef = useRef(null);
 
@@ -36,12 +30,27 @@ export default function TransactionModal({
   const isEditing = Boolean(newTx?.id);
   const oldTx = isEditing ? transactions.find(t => t.id === newTx.id) : null;
 
-  const availableAssetsForTx = newTx?.currency
-    ? assets.filter(a => (a.name || '').toUpperCase() === newTx.currency.toUpperCase())
-    : assets;
+  const currencyOptions = useMemo(() => getCurrencyOptions(assets), [assets]);
+  const availableAssetsForTx = useMemo(() => sortAssetsByCurrency(assets, newTx?.currency), [assets, newTx?.currency]);
 
   const selectedAsset = assets.find(a => a.id === newTx?.assetId) ||
     assets.find(a => (a.name || '').toUpperCase() === (newTx?.currency || '').toUpperCase() && a.location === newTx?.origin) || null;
+
+  const handleCurrencyChange = (e) => {
+    const nextCurrency = (e.target.value || '').toUpperCase();
+    if (!nextCurrency) return;
+    const currentAsset = assets.find(a => a.id === newTx?.assetId);
+    if (currentAsset && (currentAsset.name || '').toUpperCase() === nextCurrency) {
+      setNewTx(prev => ({ ...prev, currency: nextCurrency }));
+      return;
+    }
+    const matchingAsset = findMatchingAssetForCurrency(assets, transactions, nextCurrency);
+    if (matchingAsset) {
+      handleAssetSelect(matchingAsset.id);
+    } else {
+      setNewTx(prev => ({ ...prev, currency: nextCurrency, assetId: '', origin: '' }));
+    }
+  };
 
   useEffect(() => {
     if (mode === 'form') {
@@ -96,7 +105,6 @@ export default function TransactionModal({
       return;
     }
     const fees = calculateAssetFees(newTx?.amount, target, newTx?.type === 'spent');
-
     setNewTx(prev => ({
       ...prev,
       assetId: target.id,
@@ -193,21 +201,33 @@ export default function TransactionModal({
             </div>
           </div>
 
-          {/* 2. Monto con autofocus */}
-          <div className="input-group">
-            <label>Monto</label>
-            <input
-              ref={amountInputRef}
-              type="text"
-              inputMode="decimal"
-              className="input-field"
-              placeholder="0,00"
-              value={newTx.amount}
-              onChange={e => handleAmountChange(e.target.value)}
-              required
-              autoFocus
-              style={{ fontSize: '1.2rem', fontWeight: 700 }}
-            />
+          {/* 2. Monto con autofocus y Moneda */}
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', marginBottom: '1rem' }}>
+            <div className="input-group" style={{ flex: 1.6, marginBottom: 0 }}>
+              <label>Monto</label>
+              <input
+                ref={amountInputRef}
+                type="text"
+                inputMode="decimal"
+                className="input-field"
+                placeholder="0,00"
+                value={newTx.amount}
+                onChange={e => handleAmountChange(e.target.value)}
+                required
+                autoFocus
+                style={{ fontSize: '1.2rem', fontWeight: 700 }}
+              />
+            </div>
+            <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
+              <label>Moneda</label>
+              <CustomSelect
+                placeholder="Moneda"
+                title="Seleccionar Moneda"
+                value={newTx.currency || ''}
+                onChange={handleCurrencyChange}
+                options={currencyOptions}
+              />
+            </div>
           </div>
 
           {/* 3. CategoryPicker */}

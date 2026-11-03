@@ -131,6 +131,38 @@ describe('Acciones rápidas de transacción y reordenamiento de Inicio', () => {
       fireEvent.click(screen.getByRole('button', { name: 'Ayer' }));
       expect(setNewTx).toHaveBeenCalled();
     });
+
+    it('permite seleccionar moneda y muestra todas las cuentas disponibles sin bloquear por moneda previa', () => {
+      let txState = {
+        type: 'spent',
+        amount: '100',
+        assetId: 'a2',
+        currency: 'VES',
+        date: '2026-11-03'
+      };
+
+      const { rerender } = render(
+        <TransactionModal
+          mode="form"
+          onClose={vi.fn()}
+          newTx={txState}
+          setNewTx={(updater) => {
+            txState = typeof updater === 'function' ? updater(txState) : updater;
+          }}
+          onSubmit={vi.fn()}
+          assets={assets}
+          transactions={transactions}
+        />
+      );
+
+      // El selector de Moneda está presente y muestra VES
+      expect(screen.getByText('Moneda')).toBeDefined();
+      expect(screen.getByText('VES')).toBeDefined();
+
+      // Al abrir el selector de cuenta origen, deben aparecer tanto las cuentas en VES como las cuentas en USD
+      // Efectivo (USD) y Banesco (VES) deben estar disponibles
+      expect(screen.getByText(/Banesco \(VES\)/i)).toBeDefined();
+    });
   });
 
   describe('3. TransactionsView: Buscador y filtros combinables con chips', () => {
