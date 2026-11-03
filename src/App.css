@@ -177,7 +177,7 @@
 }
 
 .capsule-icon.crypto {
-  background-color: #f59e0b;
+  background-color: var(--color-warning-strong);
   color: white;
 }
 
@@ -207,7 +207,7 @@
   border-radius: 14px 14px 0 0;
   z-index: 50;
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
-  background-color: #171d29;
+  background-color: var(--plomo-800);
   border-top: 1px solid var(--border-color);
 }
 
@@ -307,7 +307,7 @@
   height: 56px;
   border-radius: 50%;
   border: none;
-  background: var(--primary-color, #0284c7);
+  background: var(--primary-color);
   color: #ffffff;
   display: flex;
   align-items: center;
@@ -349,12 +349,12 @@
 }
 
 .fab-action-pill {
-  background-color: #1b2230;
-  border: 1px solid #2a3447;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
   border-radius: 9999px;
   padding: 0.75rem 1.25rem;
   font-weight: 600;
-  color: #f1f5f9;
+  color: var(--text-primary);
   display: flex;
   align-items: center;
   gap: 0.6rem;
@@ -365,7 +365,7 @@
 
 .fab-action-pill:active {
   transform: scale(0.96);
-  background-color: #242e40;
+  background-color: var(--bg-surface-hover);
 }
 
 .fab-action-icon {
@@ -379,22 +379,32 @@
 }
 
 .fab-action-icon.success {
-  background-color: #14332b;
-  color: #10b981;
+  background-color: var(--color-success-soft);
+  color: var(--color-success);
 }
 
 .fab-action-icon.danger {
-  background-color: #311b22;
-  color: #ef4444;
+  background-color: var(--color-danger-soft);
+  color: var(--color-danger);
 }
 
 .fab-action-icon.info {
-  background-color: #172742;
-  color: #3b82f6;
+  background-color: var(--color-info-soft);
+  color: var(--color-info);
+}
+
+.fab-action-icon.accent {
+  background-color: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.fab-action-icon.warning {
+  background-color: var(--color-warning-soft);
+  color: var(--color-warning);
 }
 
 .fab-action-label {
-  color: #f1f5f9;
+  color: var(--text-primary);
   font-size: 0.88rem;
   white-space: nowrap;
 }
@@ -424,11 +434,11 @@
 }
 
 .bulk-delete-btn.confirm {
-  background: var(--success-color, #10b981);
+  background: var(--color-success-strong);
 }
 
 .bulk-delete-btn.cancel {
-  background: var(--danger-color, #ef4444);
+  background: var(--color-danger-strong);
 }
 
 .bulk-delete-badge {
@@ -436,7 +446,7 @@
   top: -4px;
   right: -4px;
   background: #fff;
-  color: var(--success-color, #10b981);
+  color: var(--success-color);
   border-radius: 50%;
   width: 20px;
   height: 20px;

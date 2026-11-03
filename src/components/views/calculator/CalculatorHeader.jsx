@@ -25,7 +25,7 @@ export default function CalculatorHeader({
           <h2 className="section-title" style={{ padding: 0, color: '#fff', fontSize: 'clamp(1rem, 4vw, 1.2rem)', margin: 0 }}>
             Tasas y Calculadora
           </h2>
-          <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '0.15rem' }}>
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
             {isFetchingRates
               ? 'Actualizando tasas...'
               : ((veRates?.fechaConsulta || veRates?.lastUpdated)
@@ -34,14 +34,14 @@ export default function CalculatorHeader({
                       const msDiff = Date.now() - new Date(checkDate).getTime();
                       if (msDiff > 24 * 60 * 60 * 1000) {
                         return (
-                          <span style={{ color: '#f59e0b', fontWeight: 600 }}>
+                          <span style={{ color: 'var(--color-warning)', fontWeight: 600 }}>
                             Consultado: {new Date(checkDate).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
                           </span>
                         );
                       }
                       return `Consultado: ${new Date(checkDate).toLocaleTimeString('es-VE', { hour: '2-digit', minute: '2-digit' })}`;
                     })()
-                  : (!activeRates.bcvUsd ? <span style={{ color: '#f59e0b', fontWeight: 600 }}>Sin conexión a tasas</span> : 'Tasas listas'))}
+                  : (!activeRates.bcvUsd ? <span style={{ color: 'var(--color-warning)', fontWeight: 600 }}>Sin conexión a tasas</span> : 'Tasas listas'))}
           </div>
         </div>
 
@@ -60,9 +60,9 @@ export default function CalculatorHeader({
               gap: '0.45rem',
               padding: '0.42rem 0.85rem',
               borderRadius: '12px',
-              background: '#14332b',
-              border: '1px solid #1f5143',
-              color: '#10b981',
+              background: 'var(--color-success-soft)',
+              border: '1px solid var(--color-success-border)',
+              color: 'var(--color-success)',
               fontSize: '0.78rem',
               fontWeight: 600,
               cursor: isFetchingRates ? 'not-allowed' : 'pointer',
@@ -146,16 +146,16 @@ export default function CalculatorHeader({
             padding: '0.85rem 1rem',
             borderRadius: '14px',
             marginBottom: '0.85rem',
-            backgroundColor: '#1b2230',
-            border: '1px solid #1f5143'
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--color-success-border)'
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem', gap: '0.5rem' }}>
-            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#10b981' }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-success)' }}>
               📅 Fecha de tasa para el cálculo
             </span>
             {resolvedHistoricalEntry && resolvedHistoricalEntry.date !== selectedDate && (
-              <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>
+              <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
                 Vigente del {formatShortDate(resolvedHistoricalEntry.date)}
               </span>
             )}
@@ -169,9 +169,9 @@ export default function CalculatorHeader({
                 width: '36px',
                 height: '38px',
                 borderRadius: '10px',
-                border: '1px solid #2a3447',
-                background: '#232c3d',
-                color: '#f1f5f9',
+                border: '1px solid var(--border-color)',
+                background: 'var(--bg-surface-elevated)',
+                color: 'var(--text-primary)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -211,9 +211,9 @@ export default function CalculatorHeader({
                 width: '36px',
                 height: '38px',
                 borderRadius: '10px',
-                border: '1px solid #2a3447',
-                background: '#232c3d',
-                color: '#f1f5f9',
+                border: '1px solid var(--border-color)',
+                background: 'var(--bg-surface-elevated)',
+                color: 'var(--text-primary)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -246,9 +246,9 @@ export default function CalculatorHeader({
                     borderRadius: '8px',
                     fontSize: '0.72rem',
                     fontWeight: 600,
-                    border: isSelected ? '1px solid #10b981' : '1px solid #2a3447',
-                    background: isSelected ? '#14332b' : '#232c3d',
-                    color: isSelected ? '#10b981' : '#94a3b8',
+                    border: isSelected ? '1px solid var(--color-accent)' : '1px solid var(--border-color)',
+                    background: isSelected ? 'var(--color-success-soft)' : 'var(--bg-surface-elevated)',
+                    color: isSelected ? 'var(--color-accent)' : 'var(--text-secondary)',
                     cursor: 'pointer'
                   }}
                 >

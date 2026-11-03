@@ -5,7 +5,8 @@ import { formatAmount } from '../../../utils/formatters';
 export default function ExchangeGapBar({ exchangeGapData }) {
   const [showGapChart, setShowGapChart] = useState(false);
 
-  if (!exchangeGapData) return null;
+  // Sin ambas tasas la brecha no aporta nada: se oculta para no cargar la pantalla.
+  if (!exchangeGapData || !(exchangeGapData.bcv > 0) || !(exchangeGapData.paralelo > 0)) return null;
 
   return (
     <>
@@ -39,7 +40,7 @@ export default function ExchangeGapBar({ exchangeGapData }) {
               borderRadius: '9999px',
               fontSize: '0.78rem',
               fontWeight: 700,
-              background: exchangeGapData.currentGap > 15 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+              background: exchangeGapData.currentGap > 15 ? 'color-mix(in srgb, var(--color-danger) 15%, transparent)' : 'color-mix(in srgb, var(--color-success) 15%, transparent)',
               color: exchangeGapData.currentGap > 15 ? 'var(--color-danger)' : 'var(--color-accent)'
             }}
           >

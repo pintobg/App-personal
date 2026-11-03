@@ -53,7 +53,7 @@ describe('Comisiones y Pago Móvil - Vistas', () => {
     expect(screen.getAllByText(/Comida/i).length).toBeGreaterThanOrEqual(1);
 
     // Escribir los últimos 4 dígitos de la referencia "3210"
-    const searchInput = screen.getByPlaceholderText(/Buscar por categoría, cuenta, referencia/i);
+    const searchInput = screen.getByPlaceholderText(/Buscar nota, monto o cuenta/i);
     fireEvent.change(searchInput, { target: { value: '3210' } });
 
     // Coincide el Pago Móvil y muestra su badge/referencia

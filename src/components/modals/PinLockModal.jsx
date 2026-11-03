@@ -104,14 +104,14 @@ export default function PinLockModal({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: '#0a0d14',
+        backgroundColor: 'var(--plomo-950)',
         zIndex: 999999,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
         padding: '1.5rem',
-        color: '#f8fafc',
+        color: 'var(--plomo-50)',
         userSelect: 'none',
         touchAction: 'manipulation'
       }}
@@ -131,23 +131,23 @@ export default function PinLockModal({
             width: '64px',
             height: '64px',
             borderRadius: '20px',
-            backgroundColor: '#1e293b',
+            backgroundColor: 'var(--bg-surface-elevated)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: '1.8rem',
             marginBottom: '1rem',
-            border: '1px solid #334155',
+            border: '1px solid var(--border-color)',
             boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)'
           }}
         >
           🔒
         </div>
 
-        <h2 style={{ margin: '0 0 0.4rem 0', fontSize: '1.4rem', fontWeight: 700, color: '#f1f5f9' }}>
+        <h2 style={{ margin: '0 0 0.4rem 0', fontSize: '1.4rem', fontWeight: 700, color: 'var(--text-primary)' }}>
           Finanzas Bloqueada
         </h2>
-        <p style={{ margin: '0 0 1.8rem 0', fontSize: '0.88rem', color: '#94a3b8' }}>
+        <p style={{ margin: '0 0 1.8rem 0', fontSize: '0.88rem', color: 'var(--text-secondary)' }}>
           Ingresa tu PIN de seguridad para continuar
         </p>
 
@@ -162,10 +162,10 @@ export default function PinLockModal({
                   width: '14px',
                   height: '14px',
                   borderRadius: '50%',
-                  border: `2px solid ${isFilled ? '#38bdf8' : '#475569'}`,
-                  backgroundColor: isFilled ? '#38bdf8' : 'transparent',
+                  border: `2px solid ${isFilled ? 'var(--color-accent)' : 'var(--plomo-500)'}`,
+                  backgroundColor: isFilled ? 'var(--color-accent-strong)' : 'transparent',
                   transition: 'all 0.15s ease',
-                  boxShadow: isFilled ? '0 0 8px rgba(56, 189, 248, 0.5)' : 'none'
+                  boxShadow: isFilled ? '0 0 8px color-mix(in srgb, var(--color-accent) 50%, transparent)' : 'none'
                 }}
               />
             );
@@ -175,7 +175,7 @@ export default function PinLockModal({
         {/* Mensaje de error */}
         <div style={{ minHeight: '24px', marginBottom: '1rem' }}>
           {errorMsg && (
-            <span style={{ color: '#f87171', fontSize: '0.85rem', fontWeight: 500 }}>
+            <span style={{ color: 'var(--color-danger)', fontSize: '0.85rem', fontWeight: 500 }}>
               {errorMsg}
             </span>
           )}
@@ -200,9 +200,9 @@ export default function PinLockModal({
               style={{
                 height: '60px',
                 borderRadius: '50%',
-                backgroundColor: '#1e293b',
-                border: '1px solid #334155',
-                color: '#f8fafc',
+                backgroundColor: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-color)',
+                color: 'var(--plomo-50)',
                 fontSize: '1.4rem',
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -212,9 +212,9 @@ export default function PinLockModal({
                 boxShadow: '0 4px 10px rgba(0, 0, 0, 0.25)',
                 transition: 'background-color 0.1s'
               }}
-              onPointerDown={(e) => { e.currentTarget.style.backgroundColor = '#334155'; }}
-              onPointerUp={(e) => { e.currentTarget.style.backgroundColor = '#1e293b'; }}
-              onPointerLeave={(e) => { e.currentTarget.style.backgroundColor = '#1e293b'; }}
+              onPointerDown={(e) => { e.currentTarget.style.backgroundColor = 'var(--border-color)'; }}
+              onPointerUp={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)'; }}
+              onPointerLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)'; }}
             >
               {num}
             </button>
@@ -230,9 +230,9 @@ export default function PinLockModal({
               style={{
                 height: '60px',
                 borderRadius: '50%',
-                backgroundColor: '#0f2942',
-                border: '1px solid #1e4f7a',
-                color: '#38bdf8',
+                backgroundColor: 'var(--color-info-soft)',
+                border: '1px solid var(--color-info-border)',
+                color: 'var(--color-accent)',
                 fontSize: '1.4rem',
                 cursor: 'pointer',
                 display: 'flex',
@@ -255,9 +255,9 @@ export default function PinLockModal({
             style={{
               height: '60px',
               borderRadius: '50%',
-              backgroundColor: '#1e293b',
-              border: '1px solid #334155',
-              color: '#f8fafc',
+              backgroundColor: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--plomo-50)',
               fontSize: '1.4rem',
               fontWeight: 600,
               cursor: 'pointer',
@@ -266,9 +266,9 @@ export default function PinLockModal({
               justifyContent: 'center',
               boxShadow: '0 4px 10px rgba(0, 0, 0, 0.25)'
             }}
-            onPointerDown={(e) => { e.currentTarget.style.backgroundColor = '#334155'; }}
-            onPointerUp={(e) => { e.currentTarget.style.backgroundColor = '#1e293b'; }}
-            onPointerLeave={(e) => { e.currentTarget.style.backgroundColor = '#1e293b'; }}
+            onPointerDown={(e) => { e.currentTarget.style.backgroundColor = 'var(--border-color)'; }}
+            onPointerUp={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)'; }}
+            onPointerLeave={(e) => { e.currentTarget.style.backgroundColor = 'var(--bg-surface-elevated)'; }}
           >
             0
           </button>
@@ -282,9 +282,9 @@ export default function PinLockModal({
             style={{
               height: '60px',
               borderRadius: '50%',
-              backgroundColor: '#1e293b',
-              border: '1px solid #334155',
-              color: '#94a3b8',
+              backgroundColor: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-secondary)',
               fontSize: '1.2rem',
               cursor: pin.length > 0 ? 'pointer' : 'default',
               opacity: pin.length > 0 ? 1 : 0.4,
@@ -307,14 +307,14 @@ export default function PinLockModal({
               width: '100%',
               padding: '0.75rem',
               borderRadius: '12px',
-              backgroundColor: '#0284c7',
+              backgroundColor: 'var(--color-accent-strong)',
               color: '#ffffff',
               border: 'none',
               fontWeight: 600,
               fontSize: '0.95rem',
               cursor: 'pointer',
               marginTop: '0.5rem',
-              boxShadow: '0 4px 12px rgba(2, 132, 199, 0.35)'
+              boxShadow: '0 4px 12px color-mix(in srgb, var(--color-accent) 35%, transparent)'
             }}
           >
             Desbloquear

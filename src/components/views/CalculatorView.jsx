@@ -153,9 +153,9 @@ export default function CalculatorView({
   }, [calcBaseAmount, setCalcBaseAmount, setCalcBaseCurrency, showToast]);
 
   const historyCurrencyMeta = {
-    bcvUsd: { label: 'USD BCV', subtitle: 'Tasa Oficial BCV', color: '#10b981', fill: '#173332' },
-    bcvEur: { label: 'EUR BCV', subtitle: 'Euro Oficial BCV', color: '#3b82f6', fill: '#172742' },
-    paralelo: { label: 'Paralelo', subtitle: 'Monitor / Paralelo', color: '#f59e0b', fill: '#312615' }
+    bcvUsd: { label: 'USD BCV', subtitle: 'Tasa Oficial BCV', color: 'var(--color-success)', fill: 'var(--color-success-soft)' },
+    bcvEur: { label: 'EUR BCV', subtitle: 'Euro Oficial BCV', color: 'var(--color-info)', fill: 'var(--color-info-soft)' },
+    paralelo: { label: 'Paralelo', subtitle: 'Monitor / Paralelo', color: 'var(--color-warning)', fill: 'var(--color-warning-soft)' }
   }[historyCurrency];
 
   return (

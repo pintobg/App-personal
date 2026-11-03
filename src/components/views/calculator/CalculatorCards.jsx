@@ -46,16 +46,16 @@ export default function CalculatorCards({
     <>
       {/* MONTO EN BOLÍVARES */}
       <div className="glass-card" style={{ padding: '0.95rem 1.15rem', borderRadius: '16px', marginBottom: '0.75rem', textAlign: 'center' }}>
-        <div style={{ color: '#94a3b8', fontSize: '0.82rem', marginBottom: '0.35rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem' }}>
+        <div style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', marginBottom: '0.35rem', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.4rem' }}>
           <span>Monto en Bolívares (Bs)</span>
           {rateMode === 'historical' && (
-            <span style={{ fontSize: '0.68rem', padding: '1px 7px', borderRadius: '999px', background: '#14332b', color: '#10b981', fontWeight: 600 }}>
+            <span style={{ fontSize: '0.68rem', padding: '1px 7px', borderRadius: '999px', background: 'var(--color-success-soft)', color: 'var(--color-success)', fontWeight: 600 }}>
               {formatShortDate(selectedDate)}
             </span>
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.45rem' }}>
-          <span style={{ fontSize: '1.35rem', fontWeight: 600, color: '#f1f5f9', flexShrink: 0 }}>Bs.</span>
+          <span style={{ fontSize: '1.35rem', fontWeight: 600, color: 'var(--text-primary)', flexShrink: 0 }}>Bs.</span>
           <input
             type="text"
             inputMode="decimal"
@@ -67,8 +67,8 @@ export default function CalculatorCards({
             style={{
               background: 'transparent',
               border: 'none',
-              borderBottom: '2px solid #10b981',
-              color: '#f1f5f9',
+              borderBottom: '2px solid var(--color-accent)',
+              color: 'var(--text-primary)',
               fontSize: bsFontSize,
               fontWeight: 700,
               width: 'min(100%, 230px)',
@@ -96,27 +96,27 @@ export default function CalculatorCards({
               padding: '0.6rem 0.95rem',
               borderRadius: '12px',
               marginBottom: '0.85rem',
-              background: 'rgba(245, 158, 11, 0.08)',
-              border: '1px solid rgba(245, 158, 11, 0.25)',
+              background: 'color-mix(in srgb, var(--color-warning) 8%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--color-warning) 25%, transparent)',
               display: 'flex',
               flexDirection: 'column',
               gap: '0.2rem'
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', color: '#cbd5e1', fontWeight: 500 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', color: 'var(--plomo-200)', fontWeight: 500 }}>
                 <span>⚖️ Brecha BCV vs Paralelo</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
                   {isPositiveGap ? '+' : ''}Bs. {formatCalcNumber(gapBs, 2)}
                 </span>
                 <span
                   style={{
                     padding: '0.15rem 0.5rem',
                     borderRadius: '999px',
-                    background: 'rgba(245, 158, 11, 0.18)',
-                    color: '#fbbf24',
+                    background: 'color-mix(in srgb, var(--color-warning) 18%, transparent)',
+                    color: 'var(--color-warning)',
                     fontSize: '0.78rem',
                     fontWeight: 700
                   }}
@@ -126,9 +126,9 @@ export default function CalculatorCards({
               </div>
             </div>
             {usdDiff > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: '#94a3b8', paddingTop: '0.15rem', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: 'var(--text-secondary)', paddingTop: '0.15rem', borderTop: '1px solid rgba(255, 255, 255, 0.05)' }}>
                 <span>Diferencia en este monto:</span>
-                <span style={{ color: '#fbbf24', fontWeight: 600 }}>
+                <span style={{ color: 'var(--color-warning)', fontWeight: 600 }}>
                   ${formatCalcNumber(usdDiff, 2)} USD
                 </span>
               </div>
@@ -154,7 +154,7 @@ export default function CalculatorCards({
           calcBaseAmount={calcBaseAmount}
           setCalcBaseAmount={setCalcBaseAmount}
           activeAmountBs={activeAmountBs}
-          accentColor="#10b981"
+          accentColor="var(--color-success)"
         />
 
         <CalculatorRateCard
@@ -172,9 +172,9 @@ export default function CalculatorCards({
           calcBaseAmount={calcBaseAmount}
           setCalcBaseAmount={setCalcBaseAmount}
           activeAmountBs={activeAmountBs}
-          accentColor="#fbbf24"
+          accentColor="var(--color-warning)"
           tag={activeRates.bcvUsd > 0 && activeRates.paralelo > 0 && (
-            <span style={{ fontSize: '0.66rem', padding: '1px 6px', borderRadius: '6px', background: 'rgba(245, 158, 11, 0.16)', color: '#fbbf24', fontWeight: 700 }}>
+            <span style={{ fontSize: '0.66rem', padding: '1px 6px', borderRadius: '6px', background: 'color-mix(in srgb, var(--color-warning) 16%, transparent)', color: 'var(--color-warning)', fontWeight: 700 }}>
               +{(((activeRates.paralelo - activeRates.bcvUsd) / activeRates.bcvUsd) * 100).toFixed(1)}%
             </span>
           )}
@@ -195,7 +195,7 @@ export default function CalculatorCards({
           calcBaseAmount={calcBaseAmount}
           setCalcBaseAmount={setCalcBaseAmount}
           activeAmountBs={activeAmountBs}
-          accentColor="#60a5fa"
+          accentColor="var(--color-info)"
         />
 
         <CalculatorRateCard
@@ -211,7 +211,7 @@ export default function CalculatorCards({
           calcBaseAmount={calcBaseAmount}
           setCalcBaseAmount={setCalcBaseAmount}
           activeAmountBs={activeAmountBs}
-          accentColor="#a855f7"
+          accentColor="var(--color-accent)"
           editableRate={{
             value: veRates?.custom ? String(veRates.custom) : ''
           }}

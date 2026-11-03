@@ -13,6 +13,8 @@ export default function FabOverlay({
   setTxModalMode,
   setNewTx,
   setIsTransferModalOpen,
+  setAssetInitialType,
+  setIsAssetModalOpen,
   onAddShoppingItem
 }) {
   if (deleteMode) {
@@ -126,7 +128,26 @@ export default function FabOverlay({
             }
           />
 
-          {/* 4. Artículo a lista de compras */}
+          {/* 4. Cuenta o activo nuevo */}
+          {setIsAssetModalOpen && (
+            <FabAction
+              variant="accent"
+              label="Cuenta o activo"
+              onClick={() => {
+                setAssetInitialType?.('fiat');
+                setIsAssetModalOpen(true);
+                setIsFabExpanded(false);
+              }}
+              icon={
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="5" width="20" height="14" rx="2"></rect>
+                  <line x1="2" y1="10" x2="22" y2="10"></line>
+                </svg>
+              }
+            />
+          )}
+
+          {/* 5. Artículo a lista de compras */}
           <FabAction
             variant="warning"
             label="Artículo a lista de compras"

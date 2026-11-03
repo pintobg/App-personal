@@ -26,7 +26,7 @@ const AccountCard = memo(function AccountCard({
         padding: '1rem 1.15rem',
         borderRadius: '16px',
         gap: '0.75rem',
-        border: isUnrecognized ? '1px solid rgba(245, 158, 11, 0.45)' : undefined
+        border: isUnrecognized ? '1px solid color-mix(in srgb, var(--color-warning) 45%, transparent)' : undefined
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: 0, flex: 1 }}>

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import CustomSelect from '../../common/CustomSelect';
 import { Chip } from '../../ui';
 import { formatAmount } from '../../../utils/formatters';
@@ -29,14 +29,26 @@ export default function TransactionFilters({
   filteredTotals,
   getCategoryName
 }) {
+  // Los filtros avanzados quedan plegados por defecto para no saturar la pantalla.
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const advancedCount =
+    (dateRangeFilter !== 'all' ? 1 : 0) +
+    (accountFilter !== 'all' ? 1 : 0) +
+    (categoryFilter !== 'all' ? 1 : 0) +
+    (currencyFilter !== 'all' ? 1 : 0) +
+    (txFilter === 'exchanges' || txFilter === 'adjustment' ? 1 : 0);
+  const labelStyle = { fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.35rem', fontWeight: 500 };
+  const gridStyle = { display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '0.6rem', marginBottom: '0.75rem' };
+
   return (
     <>
-      {/* 1. BUSCADOR POR NOTA O MONTO */}
-      <div style={{ position: 'relative', marginBottom: '0.875rem' }}>
+      {/* 1. BUSCADOR + BOTÓN "FILTROS" */}
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginBottom: '0.75rem' }}>
+      <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
         <input
           type="text"
           className="input-field"
-          placeholder="Buscar por categoría, cuenta, referencia, nota o monto..."
+          placeholder="Buscar nota, monto o cuenta"
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
           style={{
@@ -77,11 +89,38 @@ export default function TransactionFilters({
           </button>
         )}
       </div>
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(v => !v)}
+          aria-expanded={showAdvanced}
+          aria-label="Más filtros"
+          style={{
+            flexShrink: 0,
+            height: '44px',
+            padding: '0 0.75rem',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+            borderRadius: '12px',
+            border: `1px solid ${showAdvanced || advancedCount > 0 ? 'var(--color-accent-border)' : 'var(--border-color)'}`,
+            background: showAdvanced || advancedCount > 0 ? 'var(--color-accent-soft)' : 'var(--bg-surface)',
+            color: showAdvanced || advancedCount > 0 ? 'var(--color-accent)' : 'var(--text-secondary)',
+            fontSize: '0.82rem',
+            fontWeight: 600,
+            cursor: 'pointer'
+          }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="6" x2="20" y2="6"></line><line x1="7" y1="12" x2="17" y2="12"></line><line x1="10" y1="18" x2="14" y2="18"></line></svg>
+          <span>Filtros{advancedCount > 0 ? ` (${advancedCount})` : ''}</span>
+        </button>
+      </div>
 
+      {showAdvanced && (
+      <div style={{ padding: '0.75rem', marginBottom: '0.75rem', borderRadius: '12px', background: 'var(--bg-surface)', border: '1px solid var(--border-color)' }}>
       {/* FILTER CONTROLS: PERIODO & CUENTA */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.875rem' }}>
-        <div>
-          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.35rem', fontWeight: 500 }}>
+      <div style={gridStyle}>
+        <div style={{ minWidth: 0 }}>
+          <label style={labelStyle}>
             Periodo
           </label>
           <CustomSelect
@@ -92,8 +131,8 @@ export default function TransactionFilters({
             title="Filtrar por Periodo"
           />
         </div>
-        <div>
-          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.35rem', fontWeight: 500 }}>
+        <div style={{ minWidth: 0 }}>
+          <label style={labelStyle}>
             Cuenta
           </label>
           <CustomSelect
@@ -107,9 +146,9 @@ export default function TransactionFilters({
       </div>
 
       {/* FILTER CONTROLS: CATEGORIA & MONEDA */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.875rem' }}>
-        <div>
-          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.35rem', fontWeight: 500 }}>
+      <div style={gridStyle}>
+        <div style={{ minWidth: 0 }}>
+          <label style={labelStyle}>
             Categoría
           </label>
           <CustomSelect
@@ -120,8 +159,8 @@ export default function TransactionFilters({
             title="Filtrar por Categoría"
           />
         </div>
-        <div>
-          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.35rem', fontWeight: 500 }}>
+        <div style={{ minWidth: 0 }}>
+          <label style={labelStyle}>
             Moneda
           </label>
           <CustomSelect
@@ -136,28 +175,48 @@ export default function TransactionFilters({
 
       {/* CUSTOM DATE RANGE PICKER */}
       {dateRangeFilter === 'custom' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.875rem', background: 'var(--bg-surface)', padding: '0.75rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-          <div>
+        <div style={gridStyle}>
+          <div style={{ minWidth: 0 }}>
             <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Fecha inicio</label>
             <input
               type="date"
               className="input-field"
               value={customStartDate}
               onChange={e => setCustomStartDate(e.target.value)}
-              style={{ padding: '0.5rem 0.75rem', fontSize: '16px', height: '48px', borderRadius: '8px' }}
+              style={{ padding: '0.5rem 0.6rem', fontSize: '16px', height: '48px', borderRadius: '8px', width: '100%', minWidth: 0 }}
             />
           </div>
-          <div>
+          <div style={{ minWidth: 0 }}>
             <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Fecha fin</label>
             <input
               type="date"
               className="input-field"
               value={customEndDate}
               onChange={e => setCustomEndDate(e.target.value)}
-              style={{ padding: '0.5rem 0.75rem', fontSize: '16px', height: '48px', borderRadius: '8px' }}
+              style={{ padding: '0.5rem 0.6rem', fontSize: '16px', height: '48px', borderRadius: '8px', width: '100%', minWidth: 0 }}
             />
           </div>
         </div>
+      )}
+
+      {/* OTROS TIPOS DE MOVIMIENTO (menos frecuentes) */}
+      <div>
+        <span style={labelStyle}>Otros tipos</span>
+        <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+          {[{ id: 'exchanges', label: 'Mis cambios' }, { id: 'adjustment', label: 'Ajustes de saldo' }].map(opt => (
+            <Chip
+              key={opt.id}
+              variant="default"
+              active={txFilter === opt.id}
+              onClick={() => setTxFilter(txFilter === opt.id ? 'all' : opt.id)}
+              style={{ cursor: 'pointer' }}
+            >
+              {opt.label}
+            </Chip>
+          ))}
+        </div>
+      </div>
+      </div>
       )}
 
       {/* ACTIVE REMOVABLE FILTER CHIPS */}
@@ -245,7 +304,7 @@ export default function TransactionFilters({
       {/* TOTALES DEL FILTRO ARRIBA */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem', padding: '0 0.2rem' }}>
         <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-          Totales del período / filtro
+          Totales del período
         </span>
         <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
           {filteredTotals.count} {filteredTotals.count === 1 ? 'movimiento' : 'movimientos'}
@@ -255,7 +314,7 @@ export default function TransactionFilters({
         className="glass-card"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
+          gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
           gap: '0.5rem',
           padding: '0.85rem 0.75rem',
           borderRadius: '14px',
@@ -267,19 +326,19 @@ export default function TransactionFilters({
       >
         <div>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Ingresos</div>
-          <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-income)' }}>
+          <div style={{ fontSize: '0.9rem', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-income)' }}>
             +${formatAmount(filteredTotals.incomeUsd, 'USD')}
           </div>
         </div>
         <div>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Gastos</div>
-          <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-expense)' }}>
+          <div style={{ fontSize: '0.9rem', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'var(--color-expense)' }}>
             -${formatAmount(filteredTotals.spentUsd, 'USD')}
           </div>
         </div>
         <div>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Saldo Neto</div>
-          <div style={{ fontSize: '0.95rem', fontWeight: 700, color: filteredTotals.netUsd >= 0 ? 'var(--color-income)' : 'var(--color-expense)' }}>
+          <div style={{ fontSize: '0.9rem', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: filteredTotals.netUsd >= 0 ? 'var(--color-income)' : 'var(--color-expense)' }}>
             {filteredTotals.netUsd >= 0 ? '+' : ''}${formatAmount(filteredTotals.netUsd, 'USD')}
           </div>
         </div>

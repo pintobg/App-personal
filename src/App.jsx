@@ -207,6 +207,7 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
 
       <PageRouter
         currentPage={currentPage}
+        onAddAsset={() => { modalState.setAssetInitialType('fiat'); modalState.setIsAssetModalOpen(true); }}
         setCurrentPage={setCurrentPage}
         isBalanceHidden={isBalanceHidden}
         setIsBalanceHidden={setIsBalanceHidden}

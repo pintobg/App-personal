@@ -78,7 +78,7 @@ export default function TransactionFormFooter({
       </div>
 
       {validationError && (
-        <div style={{ color: 'var(--color-danger, #ef4444)', fontSize: '0.875rem', marginBottom: '1rem', textAlign: 'center' }}>
+        <div style={{ color: 'var(--color-danger)', fontSize: '0.875rem', marginBottom: '1rem', textAlign: 'center' }}>
           {validationError}
         </div>
       )}

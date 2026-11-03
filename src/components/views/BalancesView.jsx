@@ -31,7 +31,8 @@ export default function BalancesView({
   onOpenAuthModal,
   onExportBackup,
   onNavigateToCalculator,
-  onOpenSettings
+  onOpenSettings,
+  onAddAsset
 }) {
   const [expandedCurrencies, setExpandedCurrencies] = useState({});
   const [expandedAccounts, setExpandedAccounts] = useState({});
@@ -150,12 +151,13 @@ export default function BalancesView({
         setActiveFilter={setActiveFilter}
         setSelectedFilters={setSelectedFilters}
         onOpenVerifyModal={() => setIsVerifyModalOpen(true)}
+        onAddAsset={onAddAsset}
       />
 
       {/* 3. Listado de cuentas según filtro activo */}
       <div style={{ padding: '0 1rem', marginBottom: '2rem', width: '100%', boxSizing: 'border-box' }}>
         {assets.length === 0 && (
-          <EmptyState icon="🏦" message="No se encontraron cuentas" />
+          <EmptyState icon="🏦" message="Aún no tienes cuentas. Toca «Agregar cuenta» para crear la primera." />
         )}
 
         {/* VISTA 1: TODOS (Agrupado por ubicación) */}

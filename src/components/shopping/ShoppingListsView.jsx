@@ -247,7 +247,7 @@ export default function ShoppingListsView({
                         style={{
                           height: '100%',
                           width: `${totals.progressPercent}%`,
-                          background: totals.progressPercent === 100 ? 'var(--color-success)' : 'var(--color-accent)',
+                          background: totals.progressPercent === 100 ? 'var(--color-success-strong)' : 'var(--color-accent-strong)',
                           transition: 'width 0.25s ease'
                         }}
                       />

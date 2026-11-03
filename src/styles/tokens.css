@@ -2,72 +2,116 @@
 /* Sistema de Diseño Mínimo - Tokens de Diseño */
 
 :root {
-  /* Colores - Fondos y Superficies (Modo Oscuro por defecto) */
-  --bg-primary: #12161f;
-  --bg-secondary: #0b0e14;
-  --bg-surface: #1b2230;
-  --bg-surface-elevated: #232c3d;
-  --bg-surface-hover: #2c374b;
+  /* ─────────────────────────────────────────────────────────────
+     PALETA BASE: gris plomo + lila (tonos suaves, poco saturados).
+     Para cambiar el look de toda la app basta con editar estos valores.
+     ───────────────────────────────────────────────────────────── */
+  --plomo-950: #111114;
+  --plomo-900: #16171b;
+  --plomo-850: #1b1c21;
+  --plomo-800: #212228;
+  --plomo-750: #27282f;
+  --plomo-700: #2e2f37;
+  --plomo-650: #363741;
+  --plomo-600: #43444f;
+  --plomo-500: #5c5c69;
+  --plomo-400: #82818f;
+  --plomo-300: #a9a8b5;
+  --plomo-200: #cac9d3;
+  --plomo-100: #e7e6ec;
+  --plomo-50:  #f4f3f7;
+
+  --lila-200: #d6ccf2;
+  --lila-300: #c2b5ea;
+  --lila-400: #a898d8;   /* acento sobre fondo oscuro (texto, bordes, iconos) */
+  --lila-600: #7360ad;   /* relleno sólido con texto blanco (botones) */
+  --lila-700: #5f4f95;   /* hover / pressed */
+  --lila-soft: #2a2638;
+  --lila-border: #453d63;
+
+  /* Colores - Fondos y Superficies */
+  --bg-primary: var(--plomo-850);
+  --bg-secondary: var(--plomo-900);
+  --bg-surface: var(--plomo-800);
+  --bg-surface-elevated: var(--plomo-700);
+  --bg-surface-hover: var(--plomo-650);
+  --bg-overlay: rgba(14, 14, 18, 0.78);
   --bg-color: var(--bg-primary);
   --card-bg: var(--bg-surface);
   --card-elevated: var(--bg-surface-elevated);
 
   /* Colores - Tipografía */
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --text-inverse: #0f172a;
+  --text-primary: var(--plomo-100);
+  --text-secondary: var(--plomo-300);
+  --text-muted: var(--plomo-400);
+  --text-inverse: var(--plomo-900);
   --text-on-accent: #ffffff;
 
   /* Colores - Bordes */
-  --border-color: #2a3447;
-  --border-subtle: #1f293d;
-  --border-focus: #10b981;
+  --border-color: var(--plomo-650);
+  --border-subtle: var(--plomo-750);
+  --border-focus: var(--lila-400);
 
-  /* Colores - Acento */
-  --color-accent: #10b981;
-  --color-accent-hover: #059669;
-  --color-accent-soft: #14332b;
-  --color-accent-border: #1f5143;
-  --primary-color: var(--color-accent);
+  /* Colores - Acento (lila) */
+  --color-accent: var(--lila-400);
+  --color-accent-strong: var(--lila-600);
+  --color-accent-hover: var(--lila-700);
+  --color-accent-soft: var(--lila-soft);
+  --color-accent-border: var(--lila-border);
+  --primary-color: var(--color-accent-strong);
   --primary-hover: var(--color-accent-hover);
   --primary-soft: var(--color-accent-soft);
   --primary-border: var(--color-accent-border);
 
-  /* Colores Semánticos */
-  --color-success: #10b981;
-  --color-success-hover: #059669;
-  --color-success-soft: #14332b;
-  --color-success-border: #1f5143;
+  /* Colores Semánticos (apagados, sin neón) */
+  --color-success: #86bfa0;
+  --color-success-strong: #4f8a6b;
+  --color-success-hover: #437a5d;
+  --color-success-soft: #212c27;
+  --color-success-border: #34493e;
   --success-color: var(--color-success);
 
-  --color-warning: #f59e0b;
-  --color-warning-hover: #d97706;
-  --color-warning-soft: #312615;
-  --color-warning-border: #5a3e1b;
+  --color-warning: #d9b57a;
+  --color-warning-strong: #9a7433;
+  --color-warning-hover: #86652c;
+  --color-warning-soft: #2e2921;
+  --color-warning-border: #534531;
   --warning-color: var(--color-warning);
 
-  --color-danger: #ef4444;
-  --color-danger-hover: #dc2626;
-  --color-danger-soft: #311b22;
-  --color-danger-border: #4d2631;
+  --color-danger: #e0959c;
+  --color-danger-strong: #b0555f;
+  --color-danger-hover: #974852;
+  --color-danger-soft: #322326;
+  --color-danger-border: #553a3f;
   --danger-color: var(--color-danger);
 
-  --color-info: #3b82f6;
-  --color-info-hover: #2563eb;
-  --color-info-soft: #172742;
-  --color-info-border: #1e3a5f;
+  --color-info: #93a9d3;
+  --color-info-strong: #55709f;
+  --color-info-hover: #48608a;
+  --color-info-soft: #232834;
+  --color-info-border: #3a4560;
   --info-color: var(--color-info);
 
   /* Colores de Flujo (Ingreso, Gasto, Transferencia) */
-  --color-income: #10b981;
-  --color-income-soft: #14332b;
-  --color-expense: #ef4444;
-  --color-expense-soft: #311b22;
-  --color-transfer: #3b82f6;
-  --color-transfer-soft: #172742;
+  --color-income: var(--color-success);
+  --color-income-soft: var(--color-success-soft);
+  --color-expense: var(--color-danger);
+  --color-expense-soft: var(--color-danger-soft);
+  --color-transfer: var(--color-info);
+  --color-transfer-soft: var(--color-info-soft);
+  --color-spent: var(--color-expense);
+  --color-spent-soft: var(--color-expense-soft);
+  --text-color: var(--text-primary);
 
-  /* Escala de Espaciados (4, 8, 12, 16, 24, 32 px) */
+  /* Paleta para gráficos (armónica con plomo/lila) */
+  --chart-1: #a898d8;
+  --chart-2: #86bfa0;
+  --chart-3: #93a9d3;
+  --chart-4: #d9b57a;
+  --chart-5: #e0959c;
+  --chart-6: #b6a3c9;
+
+/* Escala de Espaciados (4, 8, 12, 16, 24, 32 px) */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -98,59 +142,4 @@
   --font-xl: 1.25rem;    /* 20px */
   --font-2xl: 1.5rem;    /* 24px */
   --font-hero: clamp(1.8rem, 7vw, 2.4rem);
-}
-
-/* Variante de Modo Claro */
-[data-theme='light'] {
-  --bg-primary: #f8fafc;
-  --bg-secondary: #f1f5f9;
-  --bg-surface: #ffffff;
-  --bg-surface-elevated: #f1f5f9;
-  --bg-surface-hover: #e2e8f0;
-  --bg-color: var(--bg-primary);
-  --card-bg: var(--bg-surface);
-  --card-elevated: var(--bg-surface-elevated);
-
-  --text-primary: #0f172a;
-  --text-secondary: #64748b;
-  --text-muted: #94a3b8;
-  --text-inverse: #ffffff;
-  --text-on-accent: #ffffff;
-
-  --border-color: #e2e8f0;
-  --border-subtle: #cbd5e1;
-  --border-focus: #10b981;
-
-  --color-accent: #10b981;
-  --color-accent-hover: #059669;
-  --color-accent-soft: #ecfdf5;
-  --color-accent-border: #a7f3d0;
-
-  --color-success: #10b981;
-  --color-success-hover: #059669;
-  --color-success-soft: #ecfdf5;
-  --color-success-border: #a7f3d0;
-
-  --color-warning: #f59e0b;
-  --color-warning-hover: #d97706;
-  --color-warning-soft: #fef3c7;
-  --color-warning-border: #fde68a;
-
-  --color-danger: #ef4444;
-  --color-danger-hover: #dc2626;
-  --color-danger-soft: #fee2e2;
-  --color-danger-border: #fecaca;
-
-  --color-info: #3b82f6;
-  --color-info-hover: #2563eb;
-  --color-info-soft: #eff6ff;
-  --color-info-border: #bfdbfe;
-
-  --color-income-soft: #ecfdf5;
-  --color-expense-soft: #fee2e2;
-  --color-transfer-soft: #eff6ff;
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
 }

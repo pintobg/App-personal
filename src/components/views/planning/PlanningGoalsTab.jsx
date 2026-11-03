@@ -166,7 +166,7 @@ export default function PlanningGoalsTab({
                     style={{
                       width: `${Math.min(progress.progressPercent, 100)}%`,
                       height: '100%',
-                      background: isAchieved ? 'var(--color-accent)' : isExpired ? 'var(--color-danger)' : 'var(--color-info)',
+                      background: isAchieved ? 'var(--color-accent-strong)' : isExpired ? 'var(--color-danger-strong)' : 'var(--color-info-strong)',
                       borderRadius: '4px',
                       transition: 'width 0.3s ease'
                     }}

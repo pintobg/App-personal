@@ -15,7 +15,7 @@ export default function TransactionAccountSection({
   return (
     <>
       <div className="input-group">
-        <label>{newTx.type === 'income' ? 'Destino (Cuenta Bancaria / Billetera)' : 'Origen (Cuenta Bancaria / Billetera)'}</label>
+        <label>{newTx.type === 'income' ? `Cuenta destino${newTx.currency ? ` en ${newTx.currency}` : ''}` : `Pagar desde${newTx.currency ? ` (cuentas en ${newTx.currency})` : ''}`}</label>
         <CustomSelect
           placeholder={newTx.type === 'income' ? 'Seleccionar Destino' : 'Seleccionar Origen'}
           title={newTx.type === 'income' ? 'Seleccionar Cuenta Destino' : 'Seleccionar Cuenta Origen'}
@@ -23,12 +23,17 @@ export default function TransactionAccountSection({
           onChange={e => handleAssetSelect(e.target.value)}
           options={availableAssetsForTx.map(a => ({
             value: a.id,
-            label: `${a.location} (${a.name}) - Saldo: ${formatAmount(a.amount, a.name)}`
+            label: `${a.location} · Saldo ${formatAmount(a.amount, a.name)} ${a.name}`
           }))}
         />
+        {newTx.currency && availableAssetsForTx.length === 0 && (
+          <div style={{ marginTop: '0.4rem', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+            No tienes cuentas en {newTx.currency}. Crea una en Cuentas o elige otra moneda.
+          </div>
+        )}
 
         {(newTx.assetId || (newTx.currency && newTx.origin)) && (
-          <div style={{ marginTop: '0.75rem', padding: '0.75rem', backgroundColor: 'var(--bg-surface-elevated, #232c3d)', border: '1px solid var(--border-color, #2a3447)', borderRadius: '8px', fontSize: '0.875rem' }}>
+          <div style={{ marginTop: '0.75rem', padding: '0.75rem', backgroundColor: 'var(--bg-surface-elevated)', border: '1px solid var(--border-color)', borderRadius: '8px', fontSize: '0.875rem' }}>
             {(() => {
               const asset = assets.find(a => a.id === newTx.assetId) ||
                             assets.find(a => (a.name || '').toUpperCase() === (newTx.currency || '').toUpperCase() && a.location === newTx.origin);
@@ -78,15 +83,15 @@ export default function TransactionAccountSection({
 
       {/* Opciones bancarias e IGTF para gastos */}
       {newTx.type === 'spent' && (
-        <div style={{ marginBottom: '1rem', padding: '0.85rem', background: 'var(--bg-surface-elevated, #151b26)', borderRadius: '12px', border: '1px solid var(--border-color, #2a3447)' }}>
-          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary, #f1f5f9)', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <div style={{ marginBottom: '1rem', padding: '0.85rem', background: 'var(--bg-surface-elevated)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <span>🧾</span>
             <span>Comisión bancaria e impuestos (Opcional)</span>
           </div>
 
           <div style={{ marginBottom: (selectedAsset && selectedAsset.name !== 'VES' && selectedAsset.appliesIgtf) ? '0.75rem' : '0' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.82rem', color: 'var(--text-secondary, #cbd5e1)' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
                 <input
                   type="checkbox"
                   checked={Boolean(newTx.includeCommission)}
@@ -103,7 +108,7 @@ export default function TransactionAccountSection({
                     }
                     setNewTx(prev => ({ ...prev, includeCommission: checked, commissionAmount: autoComm }));
                   }}
-                  style={{ width: '16px', height: '16px', accentColor: 'var(--color-accent, #10b981)' }}
+                  style={{ width: '16px', height: '16px', accentColor: 'var(--color-accent)' }}
                 />
                 <span>Agregar comisión bancaria {newTx.currency ? `(${newTx.currency})` : ''}</span>
               </label>
@@ -122,21 +127,21 @@ export default function TransactionAccountSection({
               )}
             </div>
             {newTx.includeCommission && (
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #64748b)', marginTop: '0.3rem', marginLeft: '1.6rem' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.3rem', marginLeft: '1.6rem' }}>
                 Se deducirá del saldo de la cuenta y se registrará como gasto de comisión.
               </div>
             )}
           </div>
 
           {selectedAsset && selectedAsset.name !== 'VES' && selectedAsset.appliesIgtf && (
-            <div style={{ paddingTop: '0.65rem', borderTop: '1px solid var(--border-color, #232c3d)', marginTop: '0.65rem' }}>
+            <div style={{ paddingTop: '0.65rem', borderTop: '1px solid var(--border-color)', marginTop: '0.65rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.82rem', color: 'var(--text-secondary, #cbd5e1)' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
                   <input
                     type="checkbox"
                     checked={Boolean(newTx.includeIgtf)}
                     onChange={e => setNewTx(prev => ({ ...prev, includeIgtf: e.target.checked }))}
-                    style={{ width: '16px', height: '16px', accentColor: 'var(--color-accent, #10b981)' }}
+                    style={{ width: '16px', height: '16px', accentColor: 'var(--color-accent)' }}
                   />
                   <span>Cobrar IGTF ({selectedAsset.igtfPercent || 3}%)</span>
                 </label>

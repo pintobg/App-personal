@@ -29,8 +29,8 @@ export default function AuthLoggedInView({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
       <div style={{
-        background: '#232c3d',
-        border: '1px solid #2a3447',
+        background: 'var(--bg-surface-elevated)',
+        border: '1px solid var(--border-color)',
         borderRadius: '16px',
         padding: '1rem',
         display: 'flex',
@@ -42,7 +42,7 @@ export default function AuthLoggedInView({
             width: '42px',
             height: '42px',
             borderRadius: '50%',
-            background: '#10b981',
+            background: 'var(--color-success-strong)',
             color: '#ffffff',
             fontWeight: 'bold',
             fontSize: '1.1rem',
@@ -54,10 +54,10 @@ export default function AuthLoggedInView({
             {user.email ? user.email.charAt(0).toUpperCase() : 'U'}
           </div>
           <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#f1f5f9', wordBreak: 'break-all' }}>
+            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', wordBreak: 'break-all' }}>
               {user.email}
             </div>
-            <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
               ID: {user.id?.slice(0, 12)}...
             </div>
           </div>
@@ -70,17 +70,17 @@ export default function AuthLoggedInView({
           justifyContent: 'space-between',
           padding: '0.5rem 0.75rem',
           borderRadius: '10px',
-          background: '#1b2230',
-          border: '1px solid #2a3447',
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border-color)',
           fontSize: '0.8rem'
         }}>
-          <span style={{ color: '#94a3b8' }}>Estado de sincronización:</span>
+          <span style={{ color: 'var(--text-secondary)' }}>Estado de sincronización:</span>
           <span style={{
             fontWeight: 600,
             display: 'flex',
             alignItems: 'center',
             gap: '0.35rem',
-            color: (syncStatus === 'synced' && pendingCount === 0) ? '#10b981' : syncStatus === 'syncing' ? '#3b82f6' : syncStatus === 'error' ? '#ef4444' : (syncStatus === 'offline' || pendingCount > 0) ? '#f59e0b' : '#ef4444'
+            color: (syncStatus === 'synced' && pendingCount === 0) ? 'var(--color-success)' : syncStatus === 'syncing' ? 'var(--color-info)' : syncStatus === 'error' ? 'var(--color-danger)' : (syncStatus === 'offline' || pendingCount > 0) ? 'var(--color-warning)' : 'var(--color-danger)'
           }}>
             {syncStatus === 'syncing' && '🔄 Sincronizando...'}
             {syncStatus !== 'syncing' && syncStatus === 'offline' && '⚠️ Sin conexión'}
@@ -91,7 +91,7 @@ export default function AuthLoggedInView({
                 style={{
                   background: 'transparent',
                   border: 'none',
-                  color: '#ef4444',
+                  color: 'var(--color-danger)',
                   cursor: 'pointer',
                   padding: 0,
                   fontWeight: 600,
@@ -123,8 +123,8 @@ export default function AuthLoggedInView({
       {!isSupabaseConfigured && (
         <div
           style={{
-            background: '#231c12',
-            border: '1px solid #5a3e1b',
+            background: 'var(--color-warning-soft)',
+            border: '1px solid var(--color-warning-border)',
             borderRadius: '14px',
             padding: '0.85rem 1rem',
             display: 'flex',
@@ -134,7 +134,7 @@ export default function AuthLoggedInView({
         >
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem' }}>
             <span style={{ fontSize: '1.1rem', lineHeight: '1.2' }}>📱</span>
-            <div style={{ fontSize: '0.82rem', color: '#fde68a', lineHeight: '1.35', fontWeight: 500 }}>
+            <div style={{ fontSize: '0.82rem', color: 'var(--color-warning)', lineHeight: '1.35', fontWeight: 500 }}>
               Tus datos están guardados solo en este teléfono. Haz respaldos frecuentes.
             </div>
           </div>
@@ -144,8 +144,8 @@ export default function AuthLoggedInView({
                 type="button"
                 onClick={onExportBackup}
                 style={{
-                  background: '#f59e0b',
-                  color: '#1a1306',
+                  background: 'var(--color-warning-strong)',
+                  color: 'var(--color-warning-soft)',
                   border: 'none',
                   borderRadius: '8px',
                   padding: '6px 12px',
@@ -204,8 +204,8 @@ export default function AuthLoggedInView({
       {/* AJUSTE GLOBAL: TASA DE REFERENCIA */}
       <div
         style={{
-          background: '#17202f',
-          border: '1px solid #233148',
+          background: 'var(--plomo-800)',
+          border: '1px solid var(--plomo-700)',
           borderRadius: '14px',
           padding: '0.85rem 1rem',
           display: 'flex',
@@ -217,8 +217,8 @@ export default function AuthLoggedInView({
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             <span style={{ fontSize: '1.2rem' }}>💱</span>
             <div>
-              <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#f1f5f9' }}>Tasa de referencia global</div>
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+              <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-primary)' }}>Tasa de referencia global</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                 Valora tus bolívares en dólares
               </div>
             </div>
@@ -246,8 +246,8 @@ export default function AuthLoggedInView({
             onOpenSecurityModal();
           }}
           style={{
-            background: '#17202f',
-            border: '1px solid #233148',
+            background: 'var(--plomo-800)',
+            border: '1px solid var(--plomo-700)',
             borderRadius: '14px',
             padding: '0.85rem 1rem',
             display: 'flex',
@@ -260,12 +260,12 @@ export default function AuthLoggedInView({
             <span style={{ fontSize: '1.2rem' }}>🔒</span>
             <div style={{ textAlign: 'left' }}>
               <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>Seguridad y Bloqueo</div>
-              <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                 {hasPin ? 'PIN y biometría activados' : 'Configurar PIN de 4 a 6 dígitos'}
               </div>
             </div>
           </div>
-          <span style={{ color: '#60a5fa', fontSize: '0.82rem', fontWeight: 600 }}>
+          <span style={{ color: 'var(--color-info)', fontSize: '0.82rem', fontWeight: 600 }}>
             {hasPin ? 'Ajustar →' : 'Activar →'}
           </span>
         </div>
@@ -276,7 +276,7 @@ export default function AuthLoggedInView({
           type="button"
           className="btn btn-secondary"
           onClick={onSignOut}
-          style={{ color: '#ef4444' }}
+          style={{ color: 'var(--color-danger)' }}
         >
           Cerrar sesión
         </button>

@@ -75,9 +75,9 @@ export default function AuthGuestView({
 
       {errorMsg && (
         <div style={{
-          background: '#311b22',
-          border: '1px solid #4d2631',
-          color: '#f87171',
+          background: 'var(--color-danger-soft)',
+          border: '1px solid var(--color-danger-border)',
+          color: 'var(--color-danger)',
           padding: '0.65rem 0.85rem',
           borderRadius: '10px',
           fontSize: '0.82rem'
@@ -112,12 +112,12 @@ export default function AuthGuestView({
         </div>
 
         {hasLocalData && (
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
             <input
               type="checkbox"
               checked={syncLocalData}
               onChange={(e) => setSyncLocalData(e.target.checked)}
-              style={{ accentColor: '#10b981', width: '16px', height: '16px' }}
+              style={{ accentColor: 'var(--color-accent)', width: '16px', height: '16px' }}
             />
             Subir y respaldar mis datos locales actuales a esta cuenta
           </label>
@@ -159,8 +159,8 @@ export default function AuthGuestView({
         {/* AJUSTE GLOBAL: TASA DE REFERENCIA */}
         <div
           style={{
-            background: '#17202f',
-            border: '1px solid #233148',
+            background: 'var(--plomo-800)',
+            border: '1px solid var(--plomo-700)',
             borderRadius: '14px',
             padding: '0.85rem 1rem',
             display: 'flex',
@@ -173,8 +173,8 @@ export default function AuthGuestView({
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
               <span style={{ fontSize: '1.2rem' }}>💱</span>
               <div>
-                <div style={{ fontWeight: 600, fontSize: '0.88rem', color: '#f1f5f9' }}>Tasa de referencia global</div>
-                <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-primary)' }}>Tasa de referencia global</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                   Valora tus bolívares en dólares
                 </div>
               </div>
@@ -204,8 +204,8 @@ export default function AuthGuestView({
               onOpenSecurityModal();
             }}
             style={{
-              background: '#17202f',
-              border: '1px solid #233148',
+              background: 'var(--plomo-800)',
+              border: '1px solid var(--plomo-700)',
               borderRadius: '14px',
               padding: '0.85rem 1rem',
               display: 'flex',
@@ -219,12 +219,12 @@ export default function AuthGuestView({
               <span style={{ fontSize: '1.2rem' }}>🔒</span>
               <div style={{ textAlign: 'left' }}>
                 <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>Seguridad y Bloqueo</div>
-                <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                   {hasPin ? 'PIN y biometría activados' : 'Configurar PIN de 4 a 6 dígitos'}
                 </div>
               </div>
             </div>
-            <span style={{ color: '#60a5fa', fontSize: '0.82rem', fontWeight: 600 }}>
+            <span style={{ color: 'var(--color-info)', fontSize: '0.82rem', fontWeight: 600 }}>
               {hasPin ? 'Ajustar →' : 'Activar →'}
             </span>
           </div>

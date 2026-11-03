@@ -427,7 +427,7 @@ export default function ShoppingListDetailView({
                 style={{
                   height: '100%',
                   width: `${Math.min(totals.budgetUsagePercent, 100)}%`,
-                  background: totals.isOverBudget ? 'var(--color-danger)' : 'var(--color-accent)',
+                  background: totals.isOverBudget ? 'var(--color-danger-strong)' : 'var(--color-accent-strong)',
                   transition: 'width 0.3s ease'
                 }}
               />

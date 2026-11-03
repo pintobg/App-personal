@@ -19,7 +19,7 @@ export default function AccountGroupCard({
       style={{
         borderRadius: '16px',
         padding: '1rem 1.15rem',
-        border: isExpanded ? '1px solid rgba(16, 185, 129, 0.35)' : undefined,
+        border: isExpanded ? '1px solid color-mix(in srgb, var(--color-success) 35%, transparent)' : undefined,
         transition: 'border-color 0.2s ease'
       }}
     >

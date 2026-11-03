@@ -8,6 +8,7 @@ import NewCategoryModal from './categories/NewCategoryModal';
 import NewSubcategoryModal from './categories/NewSubcategoryModal';
 import ReassignCategoryModal from './categories/ReassignCategoryModal';
 import { useCategoryManagement } from './categories/useCategoryManagement';
+import { SOFT_PRESET_COLORS } from '../../utils/colors';
 
 export default function CategoriesView({ onBack }) {
   const finance = useFinance();
@@ -101,7 +102,7 @@ export default function CategoriesView({ onBack }) {
             onClick={() => {
               setNewCatName('');
               setNewCatIcon('🏷️');
-              setNewCatColor('#0ea5e9');
+              setNewCatColor(SOFT_PRESET_COLORS[5]);
               setIsNewCategoryModalOpen(true);
             }}
           >
@@ -120,7 +121,7 @@ export default function CategoriesView({ onBack }) {
             padding: '0.65rem',
             borderRadius: '12px',
             border: activeTab === 'expense' ? '2px solid var(--color-spent)' : '1px solid var(--border-color)',
-            background: activeTab === 'expense' ? 'var(--color-spent-soft, rgba(239, 68, 68, 0.12))' : 'var(--bg-surface)',
+            background: activeTab === 'expense' ? 'var(--color-spent-soft, color-mix(in srgb, var(--color-danger) 12%, transparent))' : 'var(--bg-surface)',
             color: activeTab === 'expense' ? 'var(--color-spent)' : 'var(--text-secondary)',
             fontWeight: 700,
             fontSize: '0.9rem',
@@ -144,7 +145,7 @@ export default function CategoriesView({ onBack }) {
             padding: '0.65rem',
             borderRadius: '12px',
             border: activeTab === 'income' ? '2px solid var(--color-income)' : '1px solid var(--border-color)',
-            background: activeTab === 'income' ? 'var(--color-income-soft, rgba(16, 185, 129, 0.12))' : 'var(--bg-surface)',
+            background: activeTab === 'income' ? 'var(--color-income-soft, color-mix(in srgb, var(--color-success) 12%, transparent))' : 'var(--bg-surface)',
             color: activeTab === 'income' ? 'var(--color-income)' : 'var(--text-secondary)',
             fontWeight: 700,
             fontSize: '0.9rem',

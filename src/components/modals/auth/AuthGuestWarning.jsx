@@ -4,8 +4,8 @@ export default function AuthGuestWarning({ onExportBackup }) {
   return (
     <div
       style={{
-        background: '#231c12',
-        border: '1px solid #5a3e1b',
+        background: 'var(--color-warning-soft)',
+        border: '1px solid var(--color-warning-border)',
         borderRadius: '14px',
         padding: '0.85rem 1rem',
         display: 'flex',
@@ -15,7 +15,7 @@ export default function AuthGuestWarning({ onExportBackup }) {
     >
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem' }}>
         <span style={{ fontSize: '1.1rem', lineHeight: '1.2' }}>📱</span>
-        <div style={{ fontSize: '0.82rem', color: '#fde68a', lineHeight: '1.35', fontWeight: 500 }}>
+        <div style={{ fontSize: '0.82rem', color: 'var(--color-warning)', lineHeight: '1.35', fontWeight: 500 }}>
           Tus datos están guardados solo en este teléfono. Haz respaldos frecuentes.
         </div>
       </div>
@@ -25,8 +25,8 @@ export default function AuthGuestWarning({ onExportBackup }) {
             type="button"
             onClick={onExportBackup}
             style={{
-              background: '#f59e0b',
-              color: '#1a1306',
+              background: 'var(--color-warning-strong)',
+              color: 'var(--color-warning-soft)',
               border: 'none',
               borderRadius: '8px',
               padding: '6px 12px',

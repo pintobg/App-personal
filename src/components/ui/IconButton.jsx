@@ -55,7 +55,7 @@ export default function IconButton({
       border: '1px solid var(--border-color)'
     },
     primary: {
-      backgroundColor: 'var(--color-accent)',
+      backgroundColor: 'var(--color-accent-strong)',
       color: 'var(--text-on-accent)',
       border: '1px solid transparent'
     },

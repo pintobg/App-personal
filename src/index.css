@@ -2,34 +2,11 @@
 @import './styles/tokens.css';
 
 :root {
-  /* Balanced Solid Dark Palette - Neither too dull nor neon */
-  --bg-color: #12161f;
-  --bg-primary: #12161f;
-  --card-bg: #1b2230;
-  --card-elevated: #232c3d;
-  --border-color: #2a3447;
-
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
-  
-  --primary-color: #10b981; /* Balanced Solid Emerald */
-  --primary-hover: #059669;
-  --primary-soft: #14332b;
-  --primary-border: #1f5143;
-
-  --danger-color: #ef4444;
-  --danger-soft: #311b22;
-  --success-color: #10b981;
-  --warning-color: #f59e0b;
-  --warning-soft: #312615;
-  --info-color: #3b82f6;
-  --info-soft: #172742;
-  
-  /* Solid surface values (legacy variable names kept for compatibility) */
-  --glass-bg: #1b2230;
-  --glass-border: #2a3447;
+  /* Los colores viven en styles/tokens.css. Aquí solo quedan alias heredados. */
+  --glass-bg: var(--bg-surface);
+  --glass-border: var(--border-color);
   --glass-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
-  
+
   --radius-sm: 12px;
   --radius-md: 20px;
   --radius-lg: 32px;
@@ -100,7 +77,7 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    background-color: #0b0e14;
+    background-color: var(--plomo-950);
   }
 
   #root {
@@ -114,7 +91,7 @@ body {
     height: 90vh;
     min-height: 720px;
     max-height: 880px;
-    border: 10px solid #232c3d;
+    border: 10px solid var(--bg-surface-elevated);
     border-radius: 40px;
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
     padding-top: 0;
@@ -170,6 +147,9 @@ h1, h2, h3 {
   width: 100%;
   flex: 1;
   overflow-y: auto;
+  /* Nunca permitir desplazamiento lateral: el contenido debe caber en el ancho del teléfono */
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
   padding-bottom: calc(68px + env(safe-area-inset-bottom));
   -webkit-overflow-scrolling: touch;
   box-sizing: border-box;
@@ -179,7 +159,17 @@ h1, h2, h3 {
 .view-container {
   padding: 0 1rem;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   box-sizing: border-box;
+}
+
+/* Textos largos (nombres de cuentas, notas, montos) se recortan en lugar de empujar el layout */
+.view-container h1, .view-container h2, .view-container h3 {
+  overflow-wrap: anywhere;
+}
+.modal-content {
+  overflow-x: hidden;
 }
 
 /* Solid Card Utilities */
@@ -273,7 +263,7 @@ h1, h2, h3 {
 .input-field:focus {
   outline: none;
   border-color: var(--primary-color);
-  background-color: #283246;
+  background-color: var(--bg-surface-hover);
 }
 
 /* Custom Select Dropdown */
@@ -300,14 +290,14 @@ h1, h2, h3 {
 .custom-select-trigger.open {
   border-color: var(--primary-color);
   box-shadow: none;
-  background-color: #283246;
+  background-color: var(--bg-surface-hover);
 }
 
 /* Custom Select Portal Picker Sheet */
 .custom-select-portal-overlay {
   position: fixed;
   inset: 0;
-  background-color: rgba(9, 12, 18, 0.78);
+  background-color: var(--bg-overlay);
   z-index: 2500;
   display: flex;
   align-items: flex-end;
@@ -446,7 +436,7 @@ input[type=number] {
   border-radius: 14px 14px 0 0;
   z-index: 50;
   box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
-  background-color: #171d29;
+  background-color: var(--plomo-800);
   border-top: 1px solid var(--border-color);
 }
 
@@ -691,7 +681,7 @@ input[type=number] {
 }
 
 .segmented-btn.active-danger {
-  background-color: var(--danger-color);
+  background-color: var(--color-danger-strong);
   color: #ffffff;
   box-shadow: none;
 }
@@ -721,13 +711,13 @@ input[type=number] {
 
 .modal-actions .btn:not(.btn-primary):hover,
 .btn-secondary:hover {
-  background-color: #2c374b;
+  background-color: var(--bg-surface-hover);
   color: #ffffff;
 }
 
 .modal-actions .btn:not(.btn-primary):active,
 .btn-secondary:active {
-  background-color: #334056;
+  background-color: var(--plomo-600);
   transform: scale(0.97);
 }
 
@@ -744,7 +734,7 @@ input[type=number] {
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(9, 12, 18, 0.72);
+  background-color: var(--bg-overlay);
   z-index: 65;
   animation: fadeIn 0.2s ease;
 }

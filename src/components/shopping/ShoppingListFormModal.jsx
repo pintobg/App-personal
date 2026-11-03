@@ -90,7 +90,6 @@ export default function ShoppingListFormModal({
             placeholder="Ej. Mercado de la semana, Farmacia, Charcutería..."
             value={name}
             onChange={e => { setName(e.target.value); setError(''); }}
-            autoFocus
             style={{ width: '100%', height: '46px', borderRadius: '10px' }}
           />
         </div>

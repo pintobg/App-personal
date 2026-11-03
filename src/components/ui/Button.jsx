@@ -42,7 +42,7 @@ export default function Button({
 
   const variantStyles = {
     primary: {
-      backgroundColor: 'var(--color-accent)',
+      backgroundColor: 'var(--color-accent-strong)',
       color: 'var(--text-on-accent)',
       border: '1px solid transparent'
     },
@@ -57,7 +57,7 @@ export default function Button({
       border: '1px solid transparent'
     },
     danger: {
-      backgroundColor: 'var(--color-danger)',
+      backgroundColor: 'var(--color-danger-strong)',
       color: 'var(--text-on-accent)',
       border: '1px solid transparent'
     }

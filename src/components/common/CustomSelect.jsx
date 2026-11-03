@@ -43,7 +43,8 @@ export default function CustomSelect({ value, onChange, options = [], placeholde
       className={`custom-select-container ${isOpen ? 'is-open' : ''}`}
       style={{
         position: 'relative',
-        width: '100%'
+        width: '100%',
+        minWidth: 0
       }}
     >
       <div
@@ -55,16 +56,16 @@ export default function CustomSelect({ value, onChange, options = [], placeholde
           justifyContent: 'space-between',
           alignItems: 'center',
           cursor: 'pointer',
-          borderColor: isOpen ? '#10b981' : '#2a3447',
+          borderColor: isOpen ? 'var(--color-accent)' : 'var(--border-color)',
           boxShadow: 'none',
-          backgroundColor: isOpen ? '#1b2230' : '#232c3d',
+          backgroundColor: isOpen ? 'var(--bg-surface)' : 'var(--bg-surface-elevated)',
           color: selectedOption ? 'var(--text-primary)' : 'var(--text-secondary)',
           transition: 'border-color 0.2s ease, background-color 0.2s ease',
           userSelect: 'none'
         }}
         onClick={() => setIsOpen(true)}
       >
-        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', paddingRight: '0.5rem' }}>
+        <span style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', paddingRight: '0.5rem' }}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <svg
@@ -72,7 +73,7 @@ export default function CustomSelect({ value, onChange, options = [], placeholde
           height="16"
           viewBox="0 0 24 24"
           fill="none"
-          stroke={isOpen ? '#10b981' : 'currentColor'}
+          stroke={isOpen ? 'var(--color-accent)' : 'currentColor'}
           strokeWidth="2"
           strokeLinecap="round"
           strokeLinejoin="round"
@@ -96,7 +97,7 @@ export default function CustomSelect({ value, onChange, options = [], placeholde
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(9, 13, 20, 0.85)',
+            backgroundColor: 'var(--bg-overlay)',
             zIndex: 2500,
             display: 'flex',
             alignItems: 'flex-end',
@@ -111,10 +112,10 @@ export default function CustomSelect({ value, onChange, options = [], placeholde
               width: '100%',
               maxWidth: '540px',
               maxHeight: '82dvh',
-              backgroundColor: '#1b2230',
-              borderTop: '1px solid #2a3447',
-              borderLeft: '1px solid #2a3447',
-              borderRight: '1px solid #2a3447',
+              backgroundColor: 'var(--bg-surface)',
+              borderTop: '1px solid var(--border-color)',
+              borderLeft: '1px solid var(--border-color)',
+              borderRight: '1px solid var(--border-color)',
               borderRadius: '24px 24px 0 0',
               padding: '0.75rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom)) 1.25rem',
               boxShadow: '0 -8px 24px rgba(0, 0, 0, 0.5)',
@@ -129,7 +130,7 @@ export default function CustomSelect({ value, onChange, options = [], placeholde
               style={{
                 width: '38px',
                 height: '4px',
-                backgroundColor: '#334155',
+                backgroundColor: 'var(--border-color)',
                 borderRadius: '9999px',
                 margin: '0 auto 0.75rem auto',
                 flexShrink: 0
@@ -151,7 +152,7 @@ export default function CustomSelect({ value, onChange, options = [], placeholde
                   margin: 0,
                   fontSize: '1.15rem',
                   fontWeight: 700,
-                  color: '#f1f5f9',
+                  color: 'var(--text-primary)',
                   letterSpacing: '-0.015em'
                 }}
               >
@@ -161,12 +162,12 @@ export default function CustomSelect({ value, onChange, options = [], placeholde
                 type="button"
                 onClick={() => { setIsOpen(false); setSearchQuery(''); }}
                 style={{
-                  background: '#232c3d',
-                  border: '1px solid #2a3447',
+                  background: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-color)',
                   borderRadius: '50%',
                   width: '32px',
                   height: '32px',
-                  color: '#94a3b8',
+                  color: 'var(--text-secondary)',
                   fontSize: '1.1rem',
                   display: 'flex',
                   alignItems: 'center',
@@ -195,10 +196,9 @@ export default function CustomSelect({ value, onChange, options = [], placeholde
                     paddingLeft: '2.5rem',
                     paddingRight: searchQuery ? '2.2rem' : '1rem',
                     borderRadius: '12px',
-                    backgroundColor: '#232c3d',
-                    border: '1px solid #2a3447'
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-color)'
                   }}
-                  autoFocus
                 />
                 <svg
                   width="16"
@@ -259,7 +259,7 @@ export default function CustomSelect({ value, onChange, options = [], placeholde
               }}
             >
               {filteredOptions.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '2rem 1rem', color: '#98989d', fontSize: '0.95rem' }}>
+                <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-muted)', fontSize: '0.95rem' }}>
                   No se encontraron opciones para "{searchQuery}"
                 </div>
               ) : (
@@ -279,12 +279,12 @@ export default function CustomSelect({ value, onChange, options = [], placeholde
                         padding: '0.75rem 1rem',
                         borderRadius: '14px',
                         border: isSelected
-                          ? '1.5px solid #10b981'
-                          : '1px solid #2a3447',
+                          ? '1.5px solid var(--color-accent)'
+                          : '1px solid var(--border-color)',
                         backgroundColor: isSelected
-                          ? '#14332b'
-                          : '#232c3d',
-                        color: isSelected ? '#10b981' : 'var(--text-primary)',
+                          ? 'var(--color-success-soft)'
+                          : 'var(--bg-surface-elevated)',
+                        color: isSelected ? 'var(--color-accent)' : 'var(--text-primary)',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
@@ -304,7 +304,7 @@ export default function CustomSelect({ value, onChange, options = [], placeholde
                             width: '22px',
                             height: '22px',
                             borderRadius: '50%',
-                            backgroundColor: '#10b981',
+                            backgroundColor: 'var(--color-accent-strong)',
                             color: '#ffffff',
                             display: 'flex',
                             alignItems: 'center',

@@ -42,7 +42,7 @@ const ShoppingListItemRow = memo(function ShoppingListItemRow({
           height: '22px',
           borderRadius: '6px',
           border: isChecked ? '2px solid var(--color-accent)' : '2px solid var(--text-muted)',
-          background: isChecked ? 'var(--color-accent)' : 'transparent',
+          background: isChecked ? 'var(--color-accent-strong)' : 'transparent',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -104,7 +104,7 @@ const ShoppingListItemRow = memo(function ShoppingListItemRow({
             <button
               type="button"
               onClick={() => onSaveActualPrice(item.id)}
-              style={{ background: 'var(--color-accent)', color: '#fff', border: 'none', borderRadius: '4px', padding: '2px 6px', fontSize: '0.7rem', cursor: 'pointer' }}
+              style={{ background: 'var(--color-accent-strong)', color: '#fff', border: 'none', borderRadius: '4px', padding: '2px 6px', fontSize: '0.7rem', cursor: 'pointer' }}
             >
               ✓
             </button>

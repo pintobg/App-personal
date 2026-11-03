@@ -7,14 +7,14 @@ export default function TransactionVesDetails({
   if (newTx.currency !== 'VES') return null;
 
   return (
-    <div style={{ marginBottom: '1rem', padding: '0.85rem', background: 'var(--bg-surface-elevated, #151b26)', borderRadius: '12px', border: '1px solid var(--border-color, #2a3447)' }}>
-      <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary, #f1f5f9)', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+    <div style={{ marginBottom: '1rem', padding: '0.85rem', background: 'var(--bg-surface-elevated)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+      <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
         <span>🇻🇪</span>
         <span>Detalles de pago en Bolívares (Opcional)</span>
       </div>
 
       <div style={{ marginBottom: '0.65rem' }}>
-        <label style={{ fontSize: '0.74rem', color: 'var(--text-secondary, #94a3b8)', display: 'block', marginBottom: '0.35rem' }}>Tipo de pago</label>
+        <label style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.35rem' }}>Tipo de pago</label>
         <div className="segmented-control" style={{ flexWrap: 'wrap' }}>
           {['Pago Móvil', 'Transferencia', 'Punto de venta', 'Efectivo'].map(method => (
             <button
@@ -35,7 +35,7 @@ export default function TransactionVesDetails({
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.65rem' }}>
         <div>
-          <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary, #94a3b8)', display: 'block', marginBottom: '0.2rem' }}>
+          <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>
             Nro. de Referencia
           </label>
           <input
@@ -48,7 +48,7 @@ export default function TransactionVesDetails({
           />
         </div>
         <div>
-          <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary, #94a3b8)', display: 'block', marginBottom: '0.2rem' }}>
+          <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>
             Banco
           </label>
           <input
@@ -63,7 +63,7 @@ export default function TransactionVesDetails({
       </div>
 
       <div>
-        <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary, #94a3b8)', display: 'block', marginBottom: '0.2rem' }}>
+        <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>
           Teléfono o Cédula / RIF del destinatario
         </label>
         <input

@@ -2,6 +2,7 @@ import React, { useState, useMemo, useContext } from 'react';
 import { Button, Modal } from '../ui';
 import { FinanceContext } from '../../context/FinanceContext';
 import { useCategories } from '../../hooks/useCategories';
+import { SOFT_PRESET_COLORS, tint } from '../../utils/colors';
 
 const PRESET_ICONS = [
   '🍔', '🛒', '🚗', '🏠', '💊', '📚', '👕', '💡',
@@ -9,11 +10,7 @@ const PRESET_ICONS = [
   '📦', '✈️', '🐶', '⚽', '📱', '⛽', '🔧', '🍕'
 ];
 
-const PRESET_COLORS = [
-  '#10b981', '#0ea5e9', '#6366f1', '#8b5cf6',
-  '#ec4899', '#f59e0b', '#ef4444', '#14b8a6',
-  '#84cc16', '#64748b'
-];
+const PRESET_COLORS = SOFT_PRESET_COLORS;
 
 /**
  * Componente CategoryPicker:
@@ -55,7 +52,7 @@ export default function CategoryPicker({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [newCatIcon, setNewCatIcon] = useState('📦');
-  const [newCatColor, setNewCatColor] = useState('#0ea5e9');
+  const [newCatColor, setNewCatColor] = useState(SOFT_PRESET_COLORS[5]);
 
   // Categorías activas según el tipo ('expense' o 'income')
   const activeCategories = kind === 'income' ? activeIncomeCategories : activeExpenseCategories;
@@ -148,7 +145,7 @@ export default function CategoryPicker({
         kind,
         name: cleanName,
         icon: newCatIcon || '📦',
-        color: newCatColor || '#0ea5e9'
+        color: newCatColor || SOFT_PRESET_COLORS[5]
       });
 
       if (created) {
@@ -272,8 +269,8 @@ export default function CategoryPicker({
                     borderRadius: '9999px',
                     fontSize: '0.78rem',
                     fontWeight: isSelected ? 700 : 500,
-                    color: isSelected ? '#ffffff' : 'var(--text-primary)',
-                    backgroundColor: isSelected ? (cat.color || 'var(--color-accent)') : 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
+                    backgroundColor: isSelected ? tint(cat.color || 'var(--color-accent)', 0.25) : 'var(--bg-surface)',
                     border: `1px solid ${isSelected ? (cat.color || 'var(--color-accent)') : 'var(--border-color)'}`,
                     cursor: 'pointer',
                     whiteSpace: 'nowrap',
@@ -345,7 +342,7 @@ export default function CategoryPicker({
                       alignItems: 'center',
                       justifyContent: 'center',
                       fontSize: '0.95rem',
-                      backgroundColor: `${cat.color || '#64748b'}25`,
+                      backgroundColor: tint(cat.color || 'var(--text-muted)', 0.15),
                       flexShrink: 0
                     }}
                   >
@@ -369,7 +366,7 @@ export default function CategoryPicker({
                         width: '6px',
                         height: '6px',
                         borderRadius: '50%',
-                        backgroundColor: cat.color || 'var(--color-accent)'
+                        backgroundColor: cat.color || 'var(--color-accent-strong)'
                       }}
                     />
                   )}
@@ -419,8 +416,8 @@ export default function CategoryPicker({
                 borderRadius: '8px',
                 fontSize: '0.75rem',
                 fontWeight: !selectedSubcategoryId ? 700 : 500,
-                color: !selectedSubcategoryId ? '#ffffff' : 'var(--text-secondary)',
-                backgroundColor: !selectedSubcategoryId ? (currentCategory.color || 'var(--color-accent)') : 'var(--bg-surface)',
+                color: !selectedSubcategoryId ? 'var(--text-primary)' : 'var(--text-secondary)',
+                backgroundColor: !selectedSubcategoryId ? tint(currentCategory.color || 'var(--color-accent)', 0.25) : 'var(--bg-surface)',
                 border: `1px solid ${!selectedSubcategoryId ? (currentCategory.color || 'var(--color-accent)') : 'var(--border-color)'}`,
                 cursor: 'pointer'
               }}
@@ -440,8 +437,8 @@ export default function CategoryPicker({
                     borderRadius: '8px',
                     fontSize: '0.75rem',
                     fontWeight: isSubSelected ? 700 : 500,
-                    color: isSubSelected ? '#ffffff' : 'var(--text-primary)',
-                    backgroundColor: isSubSelected ? (currentCategory.color || 'var(--color-accent)') : 'var(--bg-surface)',
+                    color: 'var(--text-primary)',
+                    backgroundColor: isSubSelected ? tint(currentCategory.color || 'var(--color-accent)', 0.25) : 'var(--bg-surface)',
                     border: `1px solid ${isSubSelected ? (currentCategory.color || 'var(--color-accent)') : 'var(--border-color)'}`,
                     cursor: 'pointer',
                     transition: 'all 0.15s ease'
@@ -471,7 +468,6 @@ export default function CategoryPicker({
               value={newCatName}
               onChange={(e) => setNewCatName(e.target.value)}
               required
-              autoFocus
             />
           </div>
 

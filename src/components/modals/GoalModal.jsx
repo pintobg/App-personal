@@ -107,9 +107,9 @@ export default function GoalModal({
         <form onSubmit={handleSubmit}>
           {error && (
             <div style={{
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              color: '#ef4444',
+              background: 'color-mix(in srgb, var(--color-danger) 10%, transparent)',
+              border: '1px solid color-mix(in srgb, var(--color-danger) 30%, transparent)',
+              color: 'var(--color-danger)',
               padding: '0.65rem 0.85rem',
               borderRadius: '8px',
               fontSize: '0.85rem',
@@ -177,7 +177,7 @@ export default function GoalModal({
                   style={{
                     background: 'none',
                     border: 'none',
-                    color: '#0284c7',
+                    color: 'var(--color-accent-strong)',
                     fontSize: '0.75rem',
                     cursor: 'pointer',
                     fontWeight: '600',
@@ -190,7 +190,7 @@ export default function GoalModal({
             </div>
 
             {assets.length === 0 ? (
-              <div style={{ fontSize: '0.82rem', color: '#64748b', fontStyle: 'italic', padding: '0.5rem 0' }}>
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontStyle: 'italic', padding: '0.5rem 0' }}>
                 No tienes cuentas registradas aún.
               </div>
             ) : (
@@ -213,8 +213,8 @@ export default function GoalModal({
                         justifyContent: 'space-between',
                         padding: '0.55rem 0.75rem',
                         borderRadius: '8px',
-                        background: isChecked ? 'rgba(2, 132, 199, 0.08)' : 'rgba(255, 255, 255, 0.04)',
-                        border: isChecked ? '1px solid #0284c7' : '1px solid rgba(255, 255, 255, 0.08)',
+                        background: isChecked ? 'color-mix(in srgb, var(--color-accent) 8%, transparent)' : 'rgba(255, 255, 255, 0.04)',
+                        border: isChecked ? '1px solid var(--color-accent-strong)' : '1px solid rgba(255, 255, 255, 0.08)',
                         cursor: 'pointer',
                         transition: 'all 0.15s'
                       }}
@@ -224,14 +224,14 @@ export default function GoalModal({
                           type="checkbox"
                           checked={isChecked}
                           onChange={() => toggleAccount(asset.id)}
-                          style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: '#0284c7' }}
+                          style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--color-accent)' }}
                         />
                         <div>
                           <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{asset.location}</div>
-                          <div style={{ fontSize: '0.72rem', color: '#94a3b8' }}>{asset.name}</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{asset.name}</div>
                         </div>
                       </div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: '500', color: '#cbd5e1' }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--plomo-200)' }}>
                         {Number(asset.amount || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {asset.name}
                       </div>
                     </label>
@@ -239,7 +239,7 @@ export default function GoalModal({
                 })}
               </div>
             )}
-            <small style={{ color: '#64748b', fontSize: '0.72rem', marginTop: '0.35rem', display: 'block' }}>
+            <small style={{ color: 'var(--text-muted)', fontSize: '0.72rem', marginTop: '0.35rem', display: 'block' }}>
               El saldo de estas cuentas se convertirá a {currency} a la tasa de hoy para calcular tu avance.
             </small>
           </div>
@@ -249,7 +249,7 @@ export default function GoalModal({
               <button
                 type="button"
                 className="btn btn-secondary"
-                style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+                style={{ color: 'var(--color-danger)', borderColor: 'color-mix(in srgb, var(--color-danger) 30%, transparent)' }}
                 onClick={() => {
                   onDelete(goal.id);
                   onClose();

@@ -25,9 +25,9 @@ export default function TransactionTypeSelector({
               padding: '1.15rem',
               fontSize: '1.05rem',
               borderRadius: '14px',
-              border: '1px solid #1f5143',
-              color: '#10b981',
-              background: '#14332b',
+              border: '1px solid var(--color-success-border)',
+              color: 'var(--color-success)',
+              background: 'var(--color-success-soft)',
               fontWeight: 700
             }}
             onClick={() => {
@@ -62,9 +62,9 @@ export default function TransactionTypeSelector({
               padding: '1.15rem',
               fontSize: '1.05rem',
               borderRadius: '14px',
-              border: '1px solid #4d2631',
-              color: '#ef4444',
-              background: '#311b22',
+              border: '1px solid var(--color-danger-border)',
+              color: 'var(--color-danger)',
+              background: 'var(--color-danger-soft)',
               fontWeight: 700
             }}
             onClick={() => {

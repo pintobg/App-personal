@@ -19,4 +19,5 @@ export const CRYPTO_WALLETS = [
   'KuCoin', 'Coinbase', 'Billetera Fría / Externa'
 ];
 
-export const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316', '#6366f1', '#64748b'];
+// Paleta de gráficos: tonos apagados que combinan con gris plomo y lila.
+export const COLORS = ['#a898d8', '#86bfa0', '#93a9d3', '#d9b57a', '#cf98bd', '#80b8b0', '#d9a07c', '#9d9fd6', '#8f8e9c'];

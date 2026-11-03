@@ -132,20 +132,20 @@ export default function BudgetModal({
             padding: '0.55rem 0.85rem',
             marginBottom: '0.65rem',
             borderRadius: '12px',
-            backgroundColor: '#1b2230',
-            border: '1px solid #2a3447',
+            backgroundColor: 'var(--bg-surface)',
+            border: '1px solid var(--border-color)',
             flexShrink: 0
           }}
         >
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 500 }}>
+            <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
               Límite mensual total (USD)
             </span>
-            <span style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 600 }}>
+            <span style={{ fontSize: '0.72rem', color: 'var(--color-success)', fontWeight: 600 }}>
               {activeCount} de {allCategories.length} categorías activas
             </span>
           </div>
-          <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f1f5f9' }}>
+          <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             ${totalBudget.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
         </div>
@@ -194,8 +194,8 @@ export default function BudgetModal({
                     gap: '0.4rem',
                     padding: '0.55rem 0.65rem',
                     borderRadius: '12px',
-                    background: isHighlighted ? 'var(--bg-surface-elevated)' : '#1b2230',
-                    border: isHighlighted ? `1.5px solid ${color}` : (hasValue ? '1px solid #1f5143' : '1px solid #2a3447'),
+                    background: isHighlighted ? 'var(--bg-surface-elevated)' : 'var(--bg-surface)',
+                    border: isHighlighted ? `1.5px solid ${color}` : (hasValue ? '1px solid var(--color-success-border)' : '1px solid var(--border-color)'),
                     boxShadow: isHighlighted ? `0 0 0 1px ${color}` : 'none',
                     transition: 'all 0.15s ease'
                   }}
@@ -207,7 +207,7 @@ export default function BudgetModal({
                         style={{
                           fontSize: '0.8rem',
                           fontWeight: 600,
-                          color: '#f1f5f9',
+                          color: 'var(--text-primary)',
                           whiteSpace: 'nowrap',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis'
@@ -225,7 +225,7 @@ export default function BudgetModal({
                         style={{
                           background: 'transparent',
                           border: 'none',
-                          color: '#ef4444',
+                          color: 'var(--color-danger)',
                           cursor: 'pointer',
                           padding: '0 2px',
                           display: 'flex',
@@ -245,7 +245,7 @@ export default function BudgetModal({
                       style={{
                         position: 'absolute',
                         left: '0.55rem',
-                        color: hasValue ? '#10b981' : '#94a3b8',
+                        color: hasValue ? 'var(--color-accent)' : 'var(--text-secondary)',
                         fontSize: '0.8rem',
                         fontWeight: 600,
                         pointerEvents: 'none'
@@ -275,7 +275,7 @@ export default function BudgetModal({
             })}
           </div>
 
-          <div className="modal-actions" style={{ marginTop: '0.65rem', paddingTop: '0.5rem', borderTop: '1px solid #2a3447', flexShrink: 0 }}>
+          <div className="modal-actions" style={{ marginTop: '0.65rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-color)', flexShrink: 0 }}>
             <button type="button" className="btn btn-secondary" onClick={onClose} style={{ height: '42px', fontSize: '0.9rem' }}>
               Cancelar
             </button>

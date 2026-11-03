@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { syncService } from '../services/syncService';
 import { loadCategoriesFromDB, persistCategoriesToDB } from '../services/db';
 import { buildInitialUserCategories } from '../domain/categories/catalog';
+import { softColor } from '../utils/colors';
 
 export const CATEGORIES_STORAGE_KEY = 'personal_user_categories';
 
@@ -56,47 +57,53 @@ export function useCategories(user = null) {
     }
   }, [categories]);
 
+  // Vista de las categorías con colores suavizados (paleta plomo/lila). Los datos guardados no cambian.
+  const viewCategories = useMemo(
+    () => categories.map(c => (c && c.color && softColor(c.color) !== c.color ? { ...c, color: softColor(c.color) } : c)),
+    [categories]
+  );
+
   // Mapa por ID para resoluciones O(1)
   const categoryMap = useMemo(() => {
     const map = new Map();
-    categories.forEach(c => {
+    viewCategories.forEach(c => {
       if (c && c.id) map.set(c.id, c);
     });
     return map;
-  }, [categories]);
+  }, [viewCategories]);
 
   // Categorías padre (parent_id === null) activas y ordenadas
   const activeExpenseCategories = useMemo(() => {
-    return categories
+    return viewCategories
       .filter(c => c.kind === 'expense' && !c.parent_id && c.is_active && !c.deleted_at)
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  }, [categories]);
+  }, [viewCategories]);
 
   const activeIncomeCategories = useMemo(() => {
-    return categories
+    return viewCategories
       .filter(c => c.kind === 'income' && !c.parent_id && c.is_active && !c.deleted_at)
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  }, [categories]);
+  }, [viewCategories]);
 
   const allExpenseCategories = useMemo(() => {
-    return categories
+    return viewCategories
       .filter(c => c.kind === 'expense' && !c.parent_id && !c.deleted_at)
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  }, [categories]);
+  }, [viewCategories]);
 
   const allIncomeCategories = useMemo(() => {
-    return categories
+    return viewCategories
       .filter(c => c.kind === 'income' && !c.parent_id && !c.deleted_at)
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  }, [categories]);
+  }, [viewCategories]);
 
   // Subcategorías de un padre determinado
   const getSubcategories = useCallback((parentId, onlyActive = true) => {
     if (!parentId) return [];
-    return categories
+    return viewCategories
       .filter(c => c.parent_id === parentId && (!onlyActive || c.is_active) && !c.deleted_at)
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-  }, [categories]);
+  }, [viewCategories]);
 
   const getCategoryById = useCallback((id) => {
     if (!id) return null;
@@ -316,7 +323,7 @@ export function useCategories(user = null) {
   }), [allExpenseCategories, allIncomeCategories]);
 
   return {
-    categories,
+    categories: viewCategories,
     categoryMap,
     categoriesMap: categoryMap,
     categoriesByKind,

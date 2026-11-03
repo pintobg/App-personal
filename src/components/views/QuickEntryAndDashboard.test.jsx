@@ -132,7 +132,7 @@ describe('Acciones rápidas de transacción y reordenamiento de Inicio', () => {
       expect(setNewTx).toHaveBeenCalled();
     });
 
-    it('permite seleccionar moneda y muestra todas las cuentas disponibles sin bloquear por moneda previa', () => {
+    it('solo muestra como origen las cuentas que manejan la moneda elegida', () => {
       let txState = {
         type: 'spent',
         amount: '100',
@@ -159,9 +159,10 @@ describe('Acciones rápidas de transacción y reordenamiento de Inicio', () => {
       expect(screen.getByText('Moneda')).toBeDefined();
       expect(screen.getByText('VES')).toBeDefined();
 
-      // Al abrir el selector de cuenta origen, deben aparecer tanto las cuentas en VES como las cuentas en USD
-      // Efectivo (USD) y Banesco (VES) deben estar disponibles
-      expect(screen.getByText(/Banesco \(VES\)/i)).toBeDefined();
+      // La cuenta seleccionada (Banesco, VES) se muestra y las cuentas en otra moneda no se ofrecen
+      expect(screen.getByText(/Banesco/i)).toBeDefined();
+      expect(screen.queryByText(/Efectivo ·/i)).toBeNull();
+      expect(screen.getByText(/Banesco · Saldo/i)).toBeDefined();
     });
   });
 
@@ -206,7 +207,7 @@ describe('Acciones rápidas de transacción y reordenamiento de Inicio', () => {
         />
       );
 
-      const searchInput = screen.getByPlaceholderText(/nota o monto/i);
+      const searchInput = screen.getByPlaceholderText(/Buscar nota, monto/i);
       expect(searchInput).toBeDefined();
 
       expect(screen.getByText(/Totales del período/i)).toBeDefined();
@@ -309,8 +310,8 @@ describe('Acciones rápidas de transacción y reordenamiento de Inicio', () => {
       // 4. Brecha cambiaria visible
       expect(screen.getByText('Brecha:')).toBeDefined();
 
-      // 5. Gráficos colapsables al final
-      expect(screen.getByText(/Ocultar gráficos/i)).toBeDefined();
+      // 5. Gráficos plegados por defecto
+      expect(screen.getByText(/Ver gráficos/i)).toBeDefined();
     });
   });
 });

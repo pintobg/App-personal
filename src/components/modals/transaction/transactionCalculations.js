@@ -33,7 +33,9 @@ export function calculateAssetFees(amountStr, asset, isSpent) {
 }
 
 export function getCurrencyOptions(assets = []) {
-  const list = ['USD', 'VES', 'EUR', 'USDT'];
+  // Si el usuario ya tiene cuentas, solo se ofrecen las monedas/activos que realmente maneja.
+  const hasAssets = Array.isArray(assets) && assets.some(a => (a.name || '').trim());
+  const list = hasAssets ? [] : ['USD', 'VES', 'EUR', 'USDT'];
   if (Array.isArray(assets)) {
     assets.forEach(a => {
       const c = (a.name || '').toUpperCase().trim();
@@ -65,4 +67,17 @@ export function findMatchingAssetForCurrency(assets = [], transactions = [], tar
     if (found) return found;
   }
   return assets.find(a => (a.name || '').toUpperCase() === clean) || null;
+}
+
+/**
+ * Cuentas que manejan la moneda/activo indicado, ordenadas por nombre.
+ * Sin moneda elegida devuelve todas (ordenadas igual que sortAssetsByCurrency).
+ */
+export function filterAssetsByCurrency(assets = [], currentCurrency = '') {
+  if (!Array.isArray(assets) || assets.length === 0) return [];
+  const cur = (currentCurrency || '').toUpperCase().trim();
+  if (!cur) return sortAssetsByCurrency(assets, '');
+  return assets
+    .filter(a => (a.name || '').toUpperCase().trim() === cur)
+    .sort((a, b) => (a.location || '').localeCompare(b.location || ''));
 }

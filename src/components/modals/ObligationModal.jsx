@@ -106,8 +106,8 @@ export default function ObligationModal({
           {isNewDebt && (
             <div
               style={{
-                background: isInstallment ? 'rgba(2, 132, 199, 0.08)' : '#1b2230',
-                border: isInstallment ? '1px solid #0284c7' : '1px solid #2a3447',
+                background: isInstallment ? 'color-mix(in srgb, var(--color-accent) 8%, transparent)' : 'var(--bg-surface)',
+                border: isInstallment ? '1px solid var(--color-accent-strong)' : '1px solid var(--border-color)',
                 borderRadius: '12px',
                 padding: '0.85rem 1rem',
                 marginBottom: '1rem',
@@ -116,7 +116,7 @@ export default function ObligationModal({
                 gap: '0.5rem'
               }}
             >
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', margin: 0, fontSize: '0.88rem', fontWeight: 600, color: '#f1f5f9' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', margin: 0, fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                 <input
                   type="checkbox"
                   checked={Boolean(newOb.isInstallmentPurchase)}
@@ -131,12 +131,12 @@ export default function ObligationModal({
                       downPayment: checked ? (newOb.downPayment || '') : ''
                     });
                   }}
-                  style={{ accentColor: '#0284c7', width: '18px', height: '18px', cursor: 'pointer' }}
+                  style={{ accentColor: 'var(--color-accent)', width: '18px', height: '18px', cursor: 'pointer' }}
                 />
                 <span>🛍️ Compra en cuotas (estilo Cashea)</span>
               </label>
               {isInstallment && (
-                <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
                   Indica el total y la inicial pagada. Se creará la deuda con las cuotas restantes y la inicial se registrará como gasto.
                 </div>
               )}

@@ -278,9 +278,9 @@ export default function TransferModal({
                   type="button"
                   onClick={handleSetToday}
                   style={{
-                    background: isToday ? '#0284c7' : '#1e293b',
-                    border: '1px solid ' + (isToday ? '#0284c7' : '#334155'),
-                    color: isToday ? '#fff' : '#cbd5e1',
+                    background: isToday ? 'var(--color-accent-strong)' : 'var(--bg-surface-elevated)',
+                    border: '1px solid ' + (isToday ? 'var(--color-accent-strong)' : 'var(--border-color)'),
+                    color: isToday ? '#fff' : 'var(--plomo-200)',
                     fontSize: '0.72rem',
                     fontWeight: 600,
                     padding: '2px 8px',
@@ -294,9 +294,9 @@ export default function TransferModal({
                   type="button"
                   onClick={handleSetYesterday}
                   style={{
-                    background: isYesterday ? '#0284c7' : '#1e293b',
-                    border: '1px solid ' + (isYesterday ? '#0284c7' : '#334155'),
-                    color: isYesterday ? '#fff' : '#cbd5e1',
+                    background: isYesterday ? 'var(--color-accent-strong)' : 'var(--bg-surface-elevated)',
+                    border: '1px solid ' + (isYesterday ? 'var(--color-accent-strong)' : 'var(--border-color)'),
+                    color: isYesterday ? '#fff' : 'var(--plomo-200)',
                     fontSize: '0.72rem',
                     fontWeight: 600,
                     padding: '2px 8px',
@@ -347,7 +347,7 @@ export default function TransferModal({
                 required
               />
               {suggestedRateInfo && (
-                <div style={{ fontSize: '0.75rem', color: '#38bdf8', marginTop: '0.35rem', display: 'flex', alignItems: 'flex-start', gap: '0.3rem' }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-accent)', marginTop: '0.35rem', display: 'flex', alignItems: 'flex-start', gap: '0.3rem' }}>
                   <span>💡</span>
                   <span>{suggestedRateInfo.message}</span>
                 </div>
@@ -356,8 +356,8 @@ export default function TransferModal({
           )}
 
           {/* Comisiones bancarias e IGTF configurados/propuestos */}
-          <div style={{ marginTop: '0.75rem', padding: '0.85rem', background: '#151b26', borderRadius: '12px', border: '1px solid #2a3447', marginBottom: '1rem' }}>
-            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f1f5f9', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <div style={{ marginTop: '0.75rem', padding: '0.85rem', background: 'var(--plomo-900)', borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '1rem' }}>
+            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <span>🧾</span>
               <span>Comisión bancaria e IGTF (editables)</span>
             </div>
@@ -365,7 +365,7 @@ export default function TransferModal({
             {/* Comisión */}
             <div style={{ marginBottom: src && src.name !== 'VES' && src.appliesIgtf ? '0.75rem' : '0' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: '#cbd5e1' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--plomo-200)' }}>
                   <input
                     type="checkbox"
                     id="hasCommission"
@@ -393,9 +393,9 @@ export default function TransferModal({
 
             {/* IGTF si aplica */}
             {src && src.name !== 'VES' && src.appliesIgtf && (
-              <div style={{ paddingTop: '0.65rem', borderTop: '1px solid #232c3d' }}>
+              <div style={{ paddingTop: '0.65rem', borderTop: '1px solid var(--bg-surface-elevated)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: '#cbd5e1' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--plomo-200)' }}>
                     <input
                       type="checkbox"
                       id="hasIgtf"
@@ -433,18 +433,18 @@ export default function TransferModal({
                   marginTop: '0.5rem',
                   marginBottom: '1rem',
                   padding: '0.75rem',
-                  backgroundColor: '#232c3d',
-                  border: '1px solid #2a3447',
+                  backgroundColor: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-color)',
                   borderRadius: '8px',
                   fontSize: '0.875rem'
                 }}
               >
-                <div style={{ color: '#94a3b8', marginBottom: '0.25rem' }}>Tasa de cambio aplicada:</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontWeight: 600, color: '#10b981' }}>
+                <div style={{ color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>Tasa de cambio aplicada:</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontWeight: 600, color: 'var(--color-success)' }}>
                   <div>
                     1 {src.name} = {formatAmount(parsedRec / parsedDed, dest.name)} {dest.name}
                   </div>
-                  <div style={{ color: '#94a3b8', fontWeight: 400, fontSize: '0.75rem' }}>
+                  <div style={{ color: 'var(--text-secondary)', fontWeight: 400, fontSize: '0.75rem' }}>
                     1 {dest.name} = {formatAmount(parsedDed / parsedRec, src.name)} {src.name}
                   </div>
                 </div>

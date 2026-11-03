@@ -25,7 +25,6 @@ export default function NewSubcategoryModal({
             value={newSubcatName}
             onChange={(e) => setNewSubcatName(e.target.value)}
             required
-            autoFocus
           />
         </div>
 

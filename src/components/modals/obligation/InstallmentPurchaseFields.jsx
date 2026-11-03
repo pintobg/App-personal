@@ -91,20 +91,20 @@ export default function InstallmentPurchaseFields({
               label: `${a.location} (${a.name} - Saldo: ${a.amount})`
             }))}
           />
-          <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.25rem' }}>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
             Se descontará de esta cuenta y se guardará automáticamente como gasto.
           </div>
         </div>
       )}
 
       <div style={{
-        background: planError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(2, 132, 199, 0.1)',
-        border: planError ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(2, 132, 199, 0.3)',
+        background: planError ? 'color-mix(in srgb, var(--color-danger) 10%, transparent)' : 'color-mix(in srgb, var(--color-accent) 10%, transparent)',
+        border: planError ? '1px solid color-mix(in srgb, var(--color-danger) 30%, transparent)' : '1px solid color-mix(in srgb, var(--color-accent) 30%, transparent)',
         borderRadius: '10px',
         padding: '0.75rem 0.9rem',
         marginBottom: '1rem',
         fontSize: '0.82rem',
-        color: planError ? '#f87171' : '#38bdf8',
+        color: planError ? 'var(--color-danger)' : 'var(--color-accent)',
         lineHeight: '1.45'
       }}>
         {planError ? (

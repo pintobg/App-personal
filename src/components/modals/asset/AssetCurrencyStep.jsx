@@ -76,7 +76,6 @@ export default function AssetCurrencyStep({
               setNewAsset({ ...newAsset, name: e.target.value.toUpperCase() });
               if (assetValidationError) setAssetValidationError('');
             }}
-            autoFocus
             required
           />
 
@@ -86,9 +85,9 @@ export default function AssetCurrencyStep({
                 marginTop: '0.65rem',
                 padding: '0.75rem 0.85rem',
                 borderRadius: '12px',
-                backgroundColor: 'rgba(239, 68, 68, 0.12)',
-                border: '1px solid rgba(239, 68, 68, 0.4)',
-                color: '#fca5a5',
+                backgroundColor: 'color-mix(in srgb, var(--color-danger) 12%, transparent)',
+                border: '1px solid color-mix(in srgb, var(--color-danger) 40%, transparent)',
+                color: 'var(--color-danger)',
                 fontSize: '0.82rem',
                 lineHeight: 1.4
               }}
@@ -99,7 +98,7 @@ export default function AssetCurrencyStep({
               </div>
               {suggestedSymbols.length > 0 && (
                 <div style={{ marginTop: '0.55rem', display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                  <span style={{ color: '#94a3b8', fontSize: '0.76rem' }}>¿Quisiste decir?</span>
+                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.76rem' }}>¿Quisiste decir?</span>
                   {suggestedSymbols.map(sug => (
                     <button
                       key={sug}
@@ -111,9 +110,9 @@ export default function AssetCurrencyStep({
                         gap: '0.3rem',
                         padding: '0.25rem 0.55rem',
                         borderRadius: '8px',
-                        border: '1px solid #10b981',
-                        background: '#14332b',
-                        color: '#10b981',
+                        border: '1px solid var(--color-accent)',
+                        background: 'var(--color-success-soft)',
+                        color: 'var(--color-accent)',
                         fontSize: '0.76rem',
                         fontWeight: 700,
                         cursor: 'pointer'
@@ -129,7 +128,7 @@ export default function AssetCurrencyStep({
           )}
 
           <div style={{ marginTop: '0.75rem' }}>
-            <div style={{ fontSize: '0.74rem', color: '#94a3b8', marginBottom: '0.4rem', fontWeight: 600 }}>
+            <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginBottom: '0.4rem', fontWeight: 600 }}>
               {newAsset.type === 'crypto'
                 ? 'Listado disponible en Binance (toca para seleccionar):'
                 : 'Monedas oficiales disponibles (toca para seleccionar):'}
@@ -139,15 +138,15 @@ export default function AssetCurrencyStep({
                 maxHeight: '185px',
                 overflowY: 'auto',
                 borderRadius: '12px',
-                border: '1px solid #2a3447',
-                background: '#151b26',
+                border: '1px solid var(--border-color)',
+                background: 'var(--plomo-900)',
                 display: 'flex',
                 flexDirection: 'column'
               }}
             >
               {newAsset.type === 'crypto' ? (
                 filteredBinanceList.length === 0 ? (
-                  <div style={{ padding: '0.85rem', fontSize: '0.8rem', color: '#94a3b8', textAlign: 'center' }}>
+                  <div style={{ padding: '0.85rem', fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
                     No se encontraron coincidencias en Binance para "{newAsset.name}".
                   </div>
                 ) : (
@@ -163,10 +162,10 @@ export default function AssetCurrencyStep({
                           alignItems: 'center',
                           justifyContent: 'space-between',
                           padding: '0.55rem 0.75rem',
-                          background: newAsset.name === sym ? '#1e293b' : 'transparent',
+                          background: newAsset.name === sym ? 'var(--bg-surface-elevated)' : 'transparent',
                           border: 'none',
-                          borderBottom: '1px solid #1f2937',
-                          color: '#f1f5f9',
+                          borderBottom: '1px solid var(--plomo-750)',
+                          color: 'var(--text-primary)',
                           cursor: 'pointer',
                           textAlign: 'left',
                           width: '100%'
@@ -175,12 +174,12 @@ export default function AssetCurrencyStep({
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                           <CurrencyIcon symbol={sym} type="crypto" size={26} />
                           <div>
-                            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f1f5f9' }}>{sym}</div>
-                            <div style={{ fontSize: '0.68rem', color: '#94a3b8' }}>Binance Spot ({sym}/USDT)</div>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>{sym}</div>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>Binance Spot ({sym}/USDT)</div>
                           </div>
                         </div>
                         {priceStr && (
-                          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#10b981' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-success)' }}>
                             {priceStr}
                           </span>
                         )}
@@ -190,7 +189,7 @@ export default function AssetCurrencyStep({
                 )
               ) : (
                 filteredFiatList.length === 0 ? (
-                  <div style={{ padding: '0.85rem', fontSize: '0.8rem', color: '#94a3b8', textAlign: 'center' }}>
+                  <div style={{ padding: '0.85rem', fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
                     No se encontraron monedas fiat para "{newAsset.name}".
                   </div>
                 ) : (
@@ -206,10 +205,10 @@ export default function AssetCurrencyStep({
                           alignItems: 'center',
                           justifyContent: 'space-between',
                           padding: '0.55rem 0.75rem',
-                          background: newAsset.name === item.code ? '#1e293b' : 'transparent',
+                          background: newAsset.name === item.code ? 'var(--bg-surface-elevated)' : 'transparent',
                           border: 'none',
-                          borderBottom: '1px solid #1f2937',
-                          color: '#f1f5f9',
+                          borderBottom: '1px solid var(--plomo-750)',
+                          color: 'var(--text-primary)',
                           cursor: 'pointer',
                           textAlign: 'left',
                           width: '100%'
@@ -218,12 +217,12 @@ export default function AssetCurrencyStep({
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                           <CurrencyIcon symbol={item.code} type="fiat" size={26} />
                           <div>
-                            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f1f5f9' }}>{item.code}</div>
-                            <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{item.name}</div>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>{item.code}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{item.name}</div>
                           </div>
                         </div>
                         {priceStr && (
-                          <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#10b981' }}>
+                          <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-success)' }}>
                             {priceStr}
                           </span>
                         )}

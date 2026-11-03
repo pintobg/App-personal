@@ -1,5 +1,6 @@
 import React from 'react';
 import { IconButton } from '../../ui';
+import { tint } from '../../../utils/colors';
 
 export default function CategoryListItem({
   category,
@@ -41,8 +42,8 @@ export default function CategoryListItem({
             width: '36px',
             height: '36px',
             borderRadius: '10px',
-            backgroundColor: `${category.color || '#3b82f6'}22`,
-            border: `1.5px solid ${category.color || '#3b82f6'}44`,
+            backgroundColor: tint(category.color || 'var(--color-info)', 0.13),
+            border: `1.5px solid ${tint(category.color || 'var(--color-info)', 0.27)}`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

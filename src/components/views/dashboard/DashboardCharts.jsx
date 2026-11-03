@@ -14,14 +14,21 @@ export default function DashboardCharts({
   allCategories = []
 }) {
   const [activeChart, setActiveChart] = useState('pie'); // 'pie' | 'evolution'
-  const [isChartsCollapsed, setIsChartsCollapsed] = useState(false);
+  // Gráficos plegados por defecto: la pantalla de inicio muestra primero lo esencial.
+  const [isChartsCollapsed, setIsChartsCollapsedState] = useState(() => {
+    try { return localStorage.getItem('dashboard_charts_open') !== '1'; } catch { return true; }
+  });
+  const setIsChartsCollapsed = (collapsed) => {
+    setIsChartsCollapsedState(collapsed);
+    try { localStorage.setItem('dashboard_charts_open', collapsed ? '0' : '1'); } catch { /* sin almacenamiento */ }
+  };
 
   return (
     <div style={{ marginTop: '2.5rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.65rem', width: '100%' }}>
           <h2 className="section-title" style={{ padding: 0, color: 'var(--text-primary)', fontSize: 'clamp(1rem, 4vw, 1.2rem)', margin: 0 }}>
-            {activeChart === 'pie' ? 'Análisis de Gastos' : 'Evolución Patrimonial'}
+            {isChartsCollapsed ? 'Análisis' : (activeChart === 'pie' ? 'Análisis de gastos' : 'Evolución patrimonial')}
           </h2>
           <button
             type="button"
@@ -30,16 +37,17 @@ export default function DashboardCharts({
             style={{
               background: 'transparent',
               border: 'none',
-              color: 'var(--text-secondary)',
+              color: 'var(--color-accent)',
               cursor: 'pointer',
-              fontSize: '0.75rem',
+              fontSize: '0.8rem',
+              fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
               padding: '2px 4px',
               gap: '4px'
             }}
           >
-            <span>{isChartsCollapsed ? 'Mostrar gráficos ▼' : 'Ocultar gráficos ▲'}</span>
+            <span>{isChartsCollapsed ? 'Ver gráficos ▼' : 'Ocultar gráficos ▲'}</span>
           </button>
         </div>
 

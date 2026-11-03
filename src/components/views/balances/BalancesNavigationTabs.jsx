@@ -4,7 +4,8 @@ export default function BalancesNavigationTabs({
   activeFilter,
   setActiveFilter,
   setSelectedFilters,
-  onOpenVerifyModal
+  onOpenVerifyModal,
+  onAddAsset
 }) {
   return (
     <div style={{ padding: '0 1rem', marginBottom: '1.5rem', width: '100%', boxSizing: 'border-box' }}>
@@ -73,7 +74,31 @@ export default function BalancesNavigationTabs({
         </button>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
+        {onAddAsset ? (
+          <button
+            type="button"
+            onClick={onAddAsset}
+            aria-label="Agregar cuenta o activo"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              padding: '0.35rem 0.75rem',
+              borderRadius: '8px',
+              background: 'var(--color-accent-soft)',
+              border: '1px solid var(--color-accent-border)',
+              color: 'var(--color-accent)',
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>Agregar cuenta</span>
+          </button>
+        ) : <span />}
         <button
           type="button"
           onClick={onOpenVerifyModal}

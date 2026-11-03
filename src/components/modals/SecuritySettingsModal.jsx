@@ -136,11 +136,11 @@ export default function SecuritySettingsModal({
         style={{
           width: '100%',
           maxWidth: '420px',
-          backgroundColor: '#12161f',
-          border: '1px solid #1e293b',
+          backgroundColor: 'var(--plomo-850)',
+          border: '1px solid var(--bg-surface-elevated)',
           borderRadius: '16px',
           padding: '1.5rem',
-          color: '#f8fafc',
+          color: 'var(--plomo-50)',
           boxShadow: '0 20px 40px rgba(0, 0, 0, 0.6)'
         }}
         onClick={(e) => e.stopPropagation()}
@@ -157,7 +157,7 @@ export default function SecuritySettingsModal({
             style={{
               background: 'transparent',
               border: 'none',
-              color: '#94a3b8',
+              color: 'var(--text-secondary)',
               fontSize: '1.2rem',
               cursor: 'pointer'
             }}
@@ -169,9 +169,9 @@ export default function SecuritySettingsModal({
         {errorMsg && (
           <div
             style={{
-              backgroundColor: '#451a1a',
-              border: '1px solid #7f1d1d',
-              color: '#fca5a5',
+              backgroundColor: 'var(--color-danger-soft)',
+              border: '1px solid var(--color-danger-border)',
+              color: 'var(--color-danger)',
               padding: '0.6rem 0.8rem',
               borderRadius: '8px',
               fontSize: '0.85rem',
@@ -187,16 +187,16 @@ export default function SecuritySettingsModal({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             <div
               style={{
-                backgroundColor: '#17202f',
+                backgroundColor: 'var(--plomo-800)',
                 padding: '1rem',
                 borderRadius: '12px',
-                border: '1px solid #233148'
+                border: '1px solid var(--plomo-700)'
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>Bloqueo por PIN</div>
-                  <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
                     {hasPin
                       ? 'Activado (se solicita al abrir y tras 1 min en 2do plano)'
                       : 'Protege tu información financiera con un código numérico'}
@@ -208,8 +208,8 @@ export default function SecuritySettingsModal({
                     fontWeight: 700,
                     padding: '4px 8px',
                     borderRadius: '6px',
-                    backgroundColor: hasPin ? '#064e3b' : '#334155',
-                    color: hasPin ? '#34d399' : '#94a3b8'
+                    backgroundColor: hasPin ? 'var(--color-success-border)' : 'var(--border-color)',
+                    color: hasPin ? 'var(--color-success)' : 'var(--text-secondary)'
                   }}
                 >
                   {hasPin ? 'ACTIVO' : 'INACTIVO'}
@@ -225,7 +225,7 @@ export default function SecuritySettingsModal({
                       flex: 1,
                       padding: '0.6rem',
                       borderRadius: '8px',
-                      backgroundColor: '#0284c7',
+                      backgroundColor: 'var(--color-accent-strong)',
                       color: '#ffffff',
                       border: 'none',
                       fontWeight: 600,
@@ -244,9 +244,9 @@ export default function SecuritySettingsModal({
                         flex: 1,
                         padding: '0.6rem',
                         borderRadius: '8px',
-                        backgroundColor: '#1e293b',
-                        color: '#f8fafc',
-                        border: '1px solid #334155',
+                        backgroundColor: 'var(--bg-surface-elevated)',
+                        color: 'var(--plomo-50)',
+                        border: '1px solid var(--border-color)',
                         fontWeight: 600,
                         fontSize: '0.85rem',
                         cursor: 'pointer'
@@ -260,9 +260,9 @@ export default function SecuritySettingsModal({
                       style={{
                         padding: '0.6rem 0.8rem',
                         borderRadius: '8px',
-                        backgroundColor: '#451a1a',
-                        color: '#f87171',
-                        border: '1px solid #7f1d1d',
+                        backgroundColor: 'var(--color-danger-soft)',
+                        color: 'var(--color-danger)',
+                        border: '1px solid var(--color-danger-border)',
                         fontWeight: 600,
                         fontSize: '0.85rem',
                         cursor: 'pointer'
@@ -279,10 +279,10 @@ export default function SecuritySettingsModal({
             {hasPin && (
               <div
                 style={{
-                  backgroundColor: '#17202f',
+                  backgroundColor: 'var(--plomo-800)',
                   padding: '1rem',
                   borderRadius: '12px',
-                  border: '1px solid #233148',
+                  border: '1px solid var(--plomo-700)',
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center'
@@ -292,7 +292,7 @@ export default function SecuritySettingsModal({
                   <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
                     {biometryTitle || 'Desbloqueo por huella'}
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
                     {bioAvailable
                       ? 'Desbloquea rápidamente con sensor biométrico'
                       : 'Sensor biométrico no detectado o no disponible en este dispositivo'}
@@ -307,7 +307,7 @@ export default function SecuritySettingsModal({
                     width: '20px',
                     height: '20px',
                     cursor: bioAvailable ? 'pointer' : 'not-allowed',
-                    accentColor: '#0284c7'
+                    accentColor: 'var(--color-accent)'
                   }}
                 />
               </div>
@@ -319,7 +319,7 @@ export default function SecuritySettingsModal({
         {mode === 'setup' && (
           <form onSubmit={handleSetupPin} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '4px' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                 Nuevo PIN (4 a 6 dígitos):
               </label>
               <input
@@ -334,18 +334,17 @@ export default function SecuritySettingsModal({
                   width: '100%',
                   padding: '0.65rem 0.8rem',
                   borderRadius: '8px',
-                  backgroundColor: '#0a0d14',
-                  border: '1px solid #334155',
-                  color: '#f8fafc',
+                  backgroundColor: 'var(--plomo-950)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--plomo-50)',
                   fontSize: '1.1rem',
                   letterSpacing: '4px'
                 }}
-                autoFocus
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '4px' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                 Confirma el nuevo PIN:
               </label>
               <input
@@ -360,9 +359,9 @@ export default function SecuritySettingsModal({
                   width: '100%',
                   padding: '0.65rem 0.8rem',
                   borderRadius: '8px',
-                  backgroundColor: '#0a0d14',
-                  border: '1px solid #334155',
-                  color: '#f8fafc',
+                  backgroundColor: 'var(--plomo-950)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--plomo-50)',
                   fontSize: '1.1rem',
                   letterSpacing: '4px'
                 }}
@@ -377,8 +376,8 @@ export default function SecuritySettingsModal({
                   flex: 1,
                   padding: '0.65rem',
                   borderRadius: '8px',
-                  backgroundColor: '#1e293b',
-                  color: '#94a3b8',
+                  backgroundColor: 'var(--bg-surface-elevated)',
+                  color: 'var(--text-secondary)',
                   border: 'none',
                   fontWeight: 600,
                   cursor: 'pointer'
@@ -393,7 +392,7 @@ export default function SecuritySettingsModal({
                   flex: 1,
                   padding: '0.65rem',
                   borderRadius: '8px',
-                  backgroundColor: '#0284c7',
+                  backgroundColor: 'var(--color-accent-strong)',
                   color: '#ffffff',
                   border: 'none',
                   fontWeight: 600,
@@ -411,7 +410,7 @@ export default function SecuritySettingsModal({
         {mode === 'change' && (
           <form onSubmit={handleChangePin} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '4px' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                 PIN actual:
               </label>
               <input
@@ -425,18 +424,17 @@ export default function SecuritySettingsModal({
                   width: '100%',
                   padding: '0.65rem 0.8rem',
                   borderRadius: '8px',
-                  backgroundColor: '#0a0d14',
-                  border: '1px solid #334155',
-                  color: '#f8fafc',
+                  backgroundColor: 'var(--plomo-950)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--plomo-50)',
                   fontSize: '1.1rem',
                   letterSpacing: '4px'
                 }}
-                autoFocus
               />
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '4px' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                 Nuevo PIN (4 a 6 dígitos):
               </label>
               <input
@@ -450,9 +448,9 @@ export default function SecuritySettingsModal({
                   width: '100%',
                   padding: '0.65rem 0.8rem',
                   borderRadius: '8px',
-                  backgroundColor: '#0a0d14',
-                  border: '1px solid #334155',
-                  color: '#f8fafc',
+                  backgroundColor: 'var(--plomo-950)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--plomo-50)',
                   fontSize: '1.1rem',
                   letterSpacing: '4px'
                 }}
@@ -460,7 +458,7 @@ export default function SecuritySettingsModal({
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.85rem', color: '#94a3b8', marginBottom: '4px' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
                 Confirma el nuevo PIN:
               </label>
               <input
@@ -474,9 +472,9 @@ export default function SecuritySettingsModal({
                   width: '100%',
                   padding: '0.65rem 0.8rem',
                   borderRadius: '8px',
-                  backgroundColor: '#0a0d14',
-                  border: '1px solid #334155',
-                  color: '#f8fafc',
+                  backgroundColor: 'var(--plomo-950)',
+                  border: '1px solid var(--border-color)',
+                  color: 'var(--plomo-50)',
                   fontSize: '1.1rem',
                   letterSpacing: '4px'
                 }}
@@ -491,8 +489,8 @@ export default function SecuritySettingsModal({
                   flex: 1,
                   padding: '0.65rem',
                   borderRadius: '8px',
-                  backgroundColor: '#1e293b',
-                  color: '#94a3b8',
+                  backgroundColor: 'var(--bg-surface-elevated)',
+                  color: 'var(--text-secondary)',
                   border: 'none',
                   fontWeight: 600,
                   cursor: 'pointer'
@@ -507,7 +505,7 @@ export default function SecuritySettingsModal({
                   flex: 1,
                   padding: '0.65rem',
                   borderRadius: '8px',
-                  backgroundColor: '#0284c7',
+                  backgroundColor: 'var(--color-accent-strong)',
                   color: '#ffffff',
                   border: 'none',
                   fontWeight: 600,
@@ -524,7 +522,7 @@ export default function SecuritySettingsModal({
         {/* MODO DESACTIVAR PIN */}
         {mode === 'disable' && (
           <form onSubmit={handleDisablePin} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-            <p style={{ fontSize: '0.85rem', color: '#fca5a5', margin: '0 0 0.5rem 0' }}>
+            <p style={{ fontSize: '0.85rem', color: 'var(--color-danger)', margin: '0 0 0.5rem 0' }}>
               Para desactivar la protección por PIN y huella, confirma tu PIN actual:
             </p>
             <div>
@@ -540,13 +538,12 @@ export default function SecuritySettingsModal({
                   width: '100%',
                   padding: '0.65rem 0.8rem',
                   borderRadius: '8px',
-                  backgroundColor: '#0a0d14',
-                  border: '1px solid #7f1d1d',
-                  color: '#f8fafc',
+                  backgroundColor: 'var(--plomo-950)',
+                  border: '1px solid var(--color-danger-border)',
+                  color: 'var(--plomo-50)',
                   fontSize: '1.1rem',
                   letterSpacing: '4px'
                 }}
-                autoFocus
               />
             </div>
 
@@ -558,8 +555,8 @@ export default function SecuritySettingsModal({
                   flex: 1,
                   padding: '0.65rem',
                   borderRadius: '8px',
-                  backgroundColor: '#1e293b',
-                  color: '#94a3b8',
+                  backgroundColor: 'var(--bg-surface-elevated)',
+                  color: 'var(--text-secondary)',
                   border: 'none',
                   fontWeight: 600,
                   cursor: 'pointer'
@@ -574,7 +571,7 @@ export default function SecuritySettingsModal({
                   flex: 1,
                   padding: '0.65rem',
                   borderRadius: '8px',
-                  backgroundColor: '#dc2626',
+                  backgroundColor: 'var(--color-danger-hover)',
                   color: '#ffffff',
                   border: 'none',
                   fontWeight: 600,

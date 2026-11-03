@@ -21,7 +21,7 @@ export default function CalculatorRateCard({
   calcBaseAmount,
   setCalcBaseAmount,
   activeAmountBs,
-  accentColor = '#10b981',
+  accentColor = 'var(--color-success)',
   tag,
   editableRate,
   onRateChange
@@ -37,16 +37,16 @@ export default function CalculatorRateCard({
   return (
     <div className="glass-card" style={{ padding: '0.9rem 1.1rem', borderRadius: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem' }}>
       <div style={{ minWidth: 0 }}>
-        <div style={{ color: '#f1f5f9', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+        <div style={{ color: 'var(--text-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
           <span>{title}</span>
           {tag}
           {isHistorical && (
-            <span style={{ fontSize: '0.65rem', padding: '1px 6px', borderRadius: '6px', background: '#14332b', color: accentColor }}>
+            <span style={{ fontSize: '0.65rem', padding: '1px 6px', borderRadius: '6px', background: 'var(--color-success-soft)', color: accentColor }}>
               Histórico
             </span>
           )}
         </div>
-        <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{subtitle}</div>
+        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{subtitle}</div>
       </div>
 
       <div
@@ -82,7 +82,7 @@ export default function CalculatorRateCard({
 
         {editableRate ? (
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.35rem', marginTop: '0.2rem' }}>
-            <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Tasa: Bs.</span>
+            <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>Tasa: Bs.</span>
             <input
               type="text"
               inputMode="decimal"
@@ -92,9 +92,9 @@ export default function CalculatorRateCard({
                 width: '75px',
                 padding: '2px 6px',
                 borderRadius: '6px',
-                border: '1px solid #3b82f6',
-                background: '#1e293b',
-                color: '#f1f5f9',
+                border: '1px solid var(--color-info)',
+                background: 'var(--bg-surface-elevated)',
+                color: 'var(--text-primary)',
                 fontSize: '0.74rem',
                 textAlign: 'right'
               }}
@@ -102,11 +102,11 @@ export default function CalculatorRateCard({
             />
           </div>
         ) : !rateValue ? (
-          <div style={{ fontSize: '0.74rem', color: '#f59e0b', fontWeight: 600 }}>
+          <div style={{ fontSize: '0.74rem', color: 'var(--color-warning)', fontWeight: 600 }}>
             Tasa: Sin tasa
           </div>
         ) : (
-          <div style={{ fontSize: '0.74rem', color: status.isStale ? '#f59e0b' : '#94a3b8', fontWeight: status.isStale ? 600 : 400 }}>
+          <div style={{ fontSize: '0.74rem', color: status.isStale ? 'var(--color-warning)' : 'var(--text-secondary)', fontWeight: status.isStale ? 600 : 400 }}>
             Tasa: Bs. {formatCalcNumber(rateValue, 2)} {status.label ? `• ${status.label}` : ''}
           </div>
         )}

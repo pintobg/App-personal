@@ -72,8 +72,8 @@ export default function PwaInstallPrompt() {
         left: '12px',
         right: '12px',
         zIndex: 90,
-        background: '#1b2230',
-        border: '1px solid #1f5143',
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--color-success-border)',
         borderRadius: '16px',
         padding: '10px 14px',
         display: 'flex',
@@ -89,12 +89,12 @@ export default function PwaInstallPrompt() {
             width: '38px',
             height: '38px',
             borderRadius: '10px',
-            background: '#14332b',
-            border: '1px solid #1f5143',
+            background: 'var(--color-success-soft)',
+            border: '1px solid var(--color-success-border)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#10b981',
+            color: 'var(--color-accent)',
             flexShrink: 0
           }}
         >
@@ -105,10 +105,10 @@ export default function PwaInstallPrompt() {
           </svg>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f1f5f9', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             Instalar Finanzas
           </div>
-          <div style={{ fontSize: '0.72rem', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             Acceso rápido y modo sin conexión
           </div>
         </div>
@@ -118,7 +118,7 @@ export default function PwaInstallPrompt() {
         <button
           onClick={handleInstallClick}
           style={{
-            background: '#10b981',
+            background: 'var(--color-accent-strong)',
             color: '#ffffff',
             border: 'none',
             borderRadius: '9999px',
@@ -128,8 +128,8 @@ export default function PwaInstallPrompt() {
             cursor: 'pointer',
             transition: 'all 0.15s ease'
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = '#059669'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = '#10b981'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--color-success-hover)'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--color-accent)'; }}
         >
           Instalar
         </button>
@@ -141,7 +141,7 @@ export default function PwaInstallPrompt() {
           style={{
             background: 'transparent',
             border: 'none',
-            color: '#94a3b8',
+            color: 'var(--text-secondary)',
             cursor: 'pointer',
             padding: '4px',
             display: 'flex',
@@ -151,7 +151,7 @@ export default function PwaInstallPrompt() {
             transition: 'color 0.15s'
           }}
           onMouseEnter={(e) => { e.currentTarget.style.color = '#ffffff'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.color = '#94a3b8'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; }}
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>

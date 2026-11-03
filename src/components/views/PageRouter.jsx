@@ -42,7 +42,8 @@ export default function PageRouter({
   onOpenReportsModal, getCategoryName, getSubcategoryName,
   planningSubTab, setPlanningSubTab,
   selectedShoppingListId, setSelectedShoppingListId,
-  onRegisterShoppingPurchase, appLock, onOpenSecurityModal
+  onRegisterShoppingPurchase, appLock, onOpenSecurityModal,
+  onAddAsset
 }) {
   const handleOpenPayObligation = (ob) => {
     setPayingOb(ob);
@@ -69,7 +70,7 @@ export default function PageRouter({
   return (
     <div className="content-area" key={currentPage}>
       <div className="page-enter">
-        <Suspense fallback={<div style={{ padding: '3rem 1rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>Cargando...</div>}>
+        <Suspense fallback={<div style={{ padding: '3rem 1rem', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Cargando...</div>}>
           {currentPage === 'dashboard' && (
             <DashboardView
               isBalanceHidden={isBalanceHidden}
@@ -156,6 +157,7 @@ export default function PageRouter({
               onExportBackup={exportBackup}
               onNavigateToCalculator={() => setCurrentPage('rates')}
               onOpenSettings={() => setCurrentPage('settings')}
+              onAddAsset={onAddAsset}
             />
           )}
 

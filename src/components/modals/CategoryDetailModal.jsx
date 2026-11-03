@@ -8,6 +8,7 @@ import {
   translateCategory
 } from '../../utils/formatters';
 import { toLocalDateString } from '../../utils/dates';
+import { tint } from '../../utils/colors';
 
 const CATEGORY_ICONS = {
   'Vivienda': '🏠',
@@ -44,7 +45,7 @@ function formatReadableDate(dateStr) {
 export default function CategoryDetailModal({
   onClose,
   categoryName,
-  categoryColor = '#10b981',
+  categoryColor = 'var(--color-accent)',
   timeFrame = 'monthly',
   transactions = [],
   assets = [],
@@ -158,7 +159,7 @@ export default function CategoryDetailModal({
           justifyContent: 'space-between',
           padding: '0.85rem 0',
           marginBottom: '1rem',
-          borderBottom: '1px solid #2a3447',
+          borderBottom: '1px solid var(--border-color)',
           gap: '0.5rem'
         }}
       >
@@ -177,7 +178,7 @@ export default function CategoryDetailModal({
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.45rem', flex: 1, minWidth: 0 }}>
           <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>{icon}</span>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f1f5f9', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {translateCategory(categoryName)}
           </h2>
         </div>
@@ -214,20 +215,20 @@ export default function CategoryDetailModal({
           style={{
             padding: '1.1rem 1.15rem',
             borderRadius: '16px',
-            background: '#1b2230',
-            border: `1px solid ${categoryColor}55`
+            background: 'var(--bg-surface)',
+            border: `1px solid ${tint(categoryColor, 0.33)}`
           }}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.75rem' }}>
             <div>
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Total Gastado en {translateCategory(categoryName)}
               </div>
-              <div style={{ fontSize: '1.75rem', fontWeight: 700, color: '#f1f5f9', marginTop: '0.25rem', lineHeight: 1.15 }}>
-                ${formatAmount(totalCategoryUsd, 'USD')} <span style={{ fontSize: '0.85rem', color: '#94a3b8', fontWeight: 500 }}>USD</span>
+              <div style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '0.25rem', lineHeight: 1.15 }}>
+                ${formatAmount(totalCategoryUsd, 'USD')} <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 }}>USD</span>
               </div>
               {bcvRate > 0 && (
-                <div style={{ fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
                   ≈ Bs. {formatAmount(totalCategoryBs, 'VES')} (Tasa BCV)
                 </div>
               )}
@@ -238,7 +239,7 @@ export default function CategoryDetailModal({
                 style={{
                   padding: '0.4rem 0.7rem',
                   borderRadius: '12px',
-                  background: '#232c3d',
+                  background: 'var(--bg-surface-elevated)',
                   border: `1px solid ${categoryColor}`,
                   color: categoryColor,
                   fontSize: '0.85rem',
@@ -248,7 +249,7 @@ export default function CategoryDetailModal({
                 }}
               >
                 <div>{shareOfTotal.toFixed(1)}%</div>
-                <div style={{ fontSize: '0.64rem', color: '#94a3b8', fontWeight: 500 }}>del total</div>
+                <div style={{ fontSize: '0.64rem', color: 'var(--text-secondary)', fontWeight: 500 }}>del total</div>
               </div>
             )}
           </div>
@@ -261,25 +262,25 @@ export default function CategoryDetailModal({
               gap: '0.5rem',
               marginTop: '0.95rem',
               paddingTop: '0.85rem',
-              borderTop: '1px solid #2a3447',
+              borderTop: '1px solid var(--border-color)',
               textAlign: 'center'
             }}
           >
             <div>
-              <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Movimientos</div>
-              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f1f5f9', marginTop: '2px' }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Movimientos</div>
+              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                 {txCount}
               </div>
             </div>
-            <div style={{ borderLeft: '1px solid #2a3447', borderRight: '1px solid #2a3447' }}>
-              <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Promedio</div>
-              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#f1f5f9', marginTop: '2px' }}>
+            <div style={{ borderLeft: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)' }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Promedio</div>
+              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
                 ${formatAmount(avgTxUsd, 'USD')}
               </div>
             </div>
             <div>
-              <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>Mayor Gasto</div>
-              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ef4444', marginTop: '2px' }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Mayor Gasto</div>
+              <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-danger)', marginTop: '2px' }}>
                 ${formatAmount(maxTxUsd, 'USD')}
               </div>
             </div>
@@ -287,16 +288,16 @@ export default function CategoryDetailModal({
 
           {/* Estado del presupuesto mensual si existe */}
           {monthlyBudgetLimit > 0 && (
-            <div style={{ marginTop: '0.9rem', paddingTop: '0.8rem', borderTop: '1px solid #2a3447' }}>
+            <div style={{ marginTop: '0.9rem', paddingTop: '0.8rem', borderTop: '1px solid var(--border-color)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', marginBottom: '0.4rem' }}>
-                <span style={{ color: '#94a3b8' }}>
-                  Presupuesto mensual asignado: <strong style={{ color: '#f1f5f9' }}>${formatAmount(monthlyBudgetLimit, 'USD')}</strong>
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  Presupuesto mensual asignado: <strong style={{ color: 'var(--text-primary)' }}>${formatAmount(monthlyBudgetLimit, 'USD')}</strong>
                 </span>
                 <span style={{ fontWeight: 700, color: getBudgetColor(budgetPercent) }}>
                   {budgetPercent.toFixed(0)}%
                 </span>
               </div>
-              <div style={{ width: '100%', height: '7px', borderRadius: '4px', background: '#232c3d', overflow: 'hidden' }}>
+              <div style={{ width: '100%', height: '7px', borderRadius: '4px', background: 'var(--bg-surface-elevated)', overflow: 'hidden' }}>
                 <div
                   style={{
                     width: `${Math.min(budgetPercent, 100)}%`,
@@ -314,7 +315,7 @@ export default function CategoryDetailModal({
         {subcategoryBreakdown.length > 0 && (
           <div className="glass-card" style={{ padding: '0.95rem 1.1rem', borderRadius: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f1f5f9' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                 Subcategorías ({subcategoryBreakdown.length})
               </span>
               {selectedSubcategory !== 'all' && (
@@ -324,7 +325,7 @@ export default function CategoryDetailModal({
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    color: '#10b981',
+                    color: 'var(--color-success)',
                     fontSize: '0.75rem',
                     fontWeight: 600,
                     cursor: 'pointer'
@@ -349,9 +350,9 @@ export default function CategoryDetailModal({
                       gap: '0.4rem',
                       padding: '0.4rem 0.7rem',
                       borderRadius: '10px',
-                      border: isActive ? `1px solid ${categoryColor}` : '1px solid #2a3447',
-                      background: isActive ? '#232c3d' : '#171d29',
-                      color: '#f1f5f9',
+                      border: isActive ? `1px solid ${categoryColor}` : '1px solid var(--border-color)',
+                      background: isActive ? 'var(--bg-surface-elevated)' : 'var(--plomo-800)',
+                      color: 'var(--text-primary)',
                       fontSize: '0.78rem',
                       cursor: 'pointer'
                     }}
@@ -360,7 +361,7 @@ export default function CategoryDetailModal({
                     <span style={{ color: categoryColor, fontWeight: 700 }}>
                       ${formatAmount(sub.usd, 'USD')}
                     </span>
-                    <span style={{ color: '#94a3b8', fontSize: '0.7rem' }}>
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>
                       ({sub.percent.toFixed(0)}%)
                     </span>
                   </button>
@@ -373,7 +374,7 @@ export default function CategoryDetailModal({
         {/* LISTA DE TRANSACCIONES DE LA CATEGORÍA */}
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-            <h3 style={{ fontSize: '1rem', fontWeight: 600, color: '#f1f5f9', margin: 0 }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
               Transacciones realizadas ({visibleTransactions.length})
             </h3>
           </div>
@@ -400,7 +401,7 @@ export default function CategoryDetailModal({
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       gap: '0.75rem',
-                      backgroundColor: '#1b2230'
+                      backgroundColor: 'var(--bg-surface)'
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0, flex: 1 }}>
@@ -409,8 +410,8 @@ export default function CategoryDetailModal({
                           width: '38px',
                           height: '38px',
                           borderRadius: '10px',
-                          background: '#232c3d',
-                          border: `1px solid ${categoryColor}55`,
+                          background: 'var(--bg-surface-elevated)',
+                          border: `1px solid ${tint(categoryColor, 0.33)}`,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -425,7 +426,7 @@ export default function CategoryDetailModal({
                           style={{
                             fontSize: '0.9rem',
                             fontWeight: 600,
-                            color: '#f1f5f9',
+                            color: 'var(--text-primary)',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis'
@@ -436,7 +437,7 @@ export default function CategoryDetailModal({
                         <div
                           style={{
                             fontSize: '0.74rem',
-                            color: '#94a3b8',
+                            color: 'var(--text-secondary)',
                             marginTop: '2px',
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
@@ -449,10 +450,10 @@ export default function CategoryDetailModal({
                     </div>
 
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#ef4444' }}>
+                      <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-danger)' }}>
                         -{getCurrencySymbol(tx.currency)}{formatAmount(tx.amount, tx.currency)} {tx.currency}
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
                         {tx.currency !== 'USD' && tx.currency !== 'USDT'
                           ? `≈ $${formatAmount(tx.usdEquivalent, 'USD')} USD • `
                           : ''}

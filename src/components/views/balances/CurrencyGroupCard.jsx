@@ -21,9 +21,9 @@ export default function CurrencyGroupCard({
         borderRadius: '16px',
         padding: '1rem 1.15rem',
         border: isExpanded
-          ? '1px solid rgba(16, 185, 129, 0.35)'
+          ? '1px solid color-mix(in srgb, var(--color-success) 35%, transparent)'
           : group.isUnrecognized
-            ? '1px solid rgba(245, 158, 11, 0.45)'
+            ? '1px solid color-mix(in srgb, var(--color-warning) 45%, transparent)'
             : undefined,
         transition: 'border-color 0.2s ease'
       }}
@@ -139,7 +139,7 @@ export default function CurrencyGroupCard({
                       width: '3px',
                       height: '28px',
                       borderRadius: '999px',
-                      background: 'var(--color-accent)',
+                      background: 'var(--color-accent-strong)',
                       opacity: 0.75,
                       flexShrink: 0
                     }}

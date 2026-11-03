@@ -36,18 +36,18 @@ export default function VerifyBalancesModal({
           padding: '0.85rem 1rem',
           borderRadius: '12px',
           marginBottom: '1rem',
-          backgroundColor: allMatched ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-          border: `1px solid ${allMatched ? '#10b981' : '#ef4444'}`,
+          backgroundColor: allMatched ? 'color-mix(in srgb, var(--color-success) 15%, transparent)' : 'color-mix(in srgb, var(--color-danger) 15%, transparent)',
+          border: `1px solid ${allMatched ? 'var(--color-success)' : 'var(--color-danger)'}`,
           display: 'flex',
           alignItems: 'center',
           gap: '0.65rem'
         }}>
           <span style={{ fontSize: '1.25rem' }}>{allMatched ? '✅' : '⚠️'}</span>
           <div>
-            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: allMatched ? '#10b981' : '#ef4444' }}>
+            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: allMatched ? 'var(--color-success)' : 'var(--color-danger)' }}>
               {allMatched ? 'Todos los saldos coinciden' : `${mismatchesCount} cuenta(s) con diferencias`}
             </div>
-            <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
               {allMatched
                 ? 'El saldo actual de cada cuenta concuerda exactamente con su saldo inicial y movimientos.'
                 : 'El saldo registrado difiere del total calculado a partir de los movimientos.'}
@@ -63,8 +63,8 @@ export default function VerifyBalancesModal({
               <div
                 key={result.assetId}
                 style={{
-                  background: '#1b2230',
-                  border: `1px solid ${result.isMatch ? '#2a3447' : 'rgba(239, 68, 68, 0.4)'}`,
+                  background: 'var(--bg-surface)',
+                  border: `1px solid ${result.isMatch ? 'var(--border-color)' : 'color-mix(in srgb, var(--color-danger) 40%, transparent)'}`,
                   borderRadius: '12px',
                   padding: '0.85rem 1rem',
                   display: 'flex',
@@ -73,13 +73,13 @@ export default function VerifyBalancesModal({
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontWeight: 600, color: '#f1f5f9', fontSize: '0.95rem' }}>
-                    {result.location} <span style={{ color: '#94a3b8', fontSize: '0.85rem' }}>({result.name})</span>
+                  <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+                    {result.location} <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>({result.name})</span>
                   </div>
                   {result.isMatch ? (
                     <span style={{
-                      backgroundColor: 'rgba(16, 185, 129, 0.15)',
-                      color: '#10b981',
+                      backgroundColor: 'color-mix(in srgb, var(--color-success) 15%, transparent)',
+                      color: 'var(--color-success)',
                       fontSize: '0.75rem',
                       fontWeight: 700,
                       padding: '0.2rem 0.55rem',
@@ -89,8 +89,8 @@ export default function VerifyBalancesModal({
                     </span>
                   ) : (
                     <span style={{
-                      backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                      color: '#ef4444',
+                      backgroundColor: 'color-mix(in srgb, var(--color-danger) 15%, transparent)',
+                      color: 'var(--color-danger)',
                       fontSize: '0.75rem',
                       fontWeight: 700,
                       padding: '0.2rem 0.55rem',
@@ -101,21 +101,21 @@ export default function VerifyBalancesModal({
                   )}
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem', color: '#94a3b8', marginTop: '0.2rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
                   <div>
-                    Saldo actual: <strong style={{ color: '#f1f5f9' }}>{formatAmount(result.currentAmount, result.name)} {result.name}</strong>
+                    Saldo actual: <strong style={{ color: 'var(--text-primary)' }}>{formatAmount(result.currentAmount, result.name)} {result.name}</strong>
                   </div>
                   <div>
-                    Saldo calculado: <strong style={{ color: result.isMatch ? '#10b981' : '#ef4444' }}>{formatAmount(result.calculatedAmount, result.name)} {result.name}</strong>
+                    Saldo calculado: <strong style={{ color: result.isMatch ? 'var(--color-success)' : 'var(--color-danger)' }}>{formatAmount(result.calculatedAmount, result.name)} {result.name}</strong>
                   </div>
                 </div>
 
-                <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                   Base: Inicial {formatAmount(result.initialAmount, result.name)} + {result.movementsCount} movimientos registrados
                 </div>
 
                 {!result.isMatch && onAdjustBalance && assetObj && (
-                  <div style={{ marginTop: '0.35rem', paddingTop: '0.45rem', borderTop: '1px solid #2a3447', display: 'flex', justifyContent: 'flex-end' }}>
+                  <div style={{ marginTop: '0.35rem', paddingTop: '0.45rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
                     <button
                       type="button"
                       className="btn"
@@ -127,9 +127,9 @@ export default function VerifyBalancesModal({
                         padding: '0.35rem 0.75rem',
                         fontSize: '0.78rem',
                         borderRadius: '8px',
-                        background: '#312615',
-                        border: '1px solid #f59e0b',
-                        color: '#f59e0b',
+                        background: 'var(--color-warning-soft)',
+                        border: '1px solid var(--color-warning)',
+                        color: 'var(--color-warning)',
                         fontWeight: 600,
                         cursor: 'pointer'
                       }}

@@ -1,5 +1,6 @@
 import React from 'react';
 import { formatAmount, getBudgetColor, translateCategory } from '../../../utils/formatters';
+import { tint } from '../../../utils/colors';
 
 const CATEGORY_ICONS = {
   'Vivienda': '🏠',
@@ -201,8 +202,8 @@ export default function DashboardBudgets({
                           width: '34px',
                           height: '34px',
                           borderRadius: '8px',
-                          backgroundColor: `${catBrandColor}25`,
-                          border: `1.5px solid ${catBrandColor}50`,
+                          backgroundColor: tint(catBrandColor, 0.15),
+                          border: `1.5px solid ${tint(catBrandColor, 0.31)}`,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',

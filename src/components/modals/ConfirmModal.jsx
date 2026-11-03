@@ -33,8 +33,8 @@ export default function ConfirmModal({
           maxWidth: '420px',
           padding: '1.5rem',
           borderRadius: '20px',
-          backgroundColor: '#1b2230',
-          border: '1px solid #2a3447'
+          backgroundColor: 'var(--bg-surface)',
+          border: '1px solid var(--border-color)'
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.85rem' }}>
@@ -43,9 +43,9 @@ export default function ConfirmModal({
               width: '38px',
               height: '38px',
               borderRadius: '10px',
-              backgroundColor: isDanger ? '#311b22' : '#14332b',
-              border: `1px solid ${isDanger ? '#4d2631' : '#1f5143'}`,
-              color: isDanger ? '#ef4444' : '#10b981',
+              backgroundColor: isDanger ? 'var(--color-danger-soft)' : 'var(--color-success-soft)',
+              border: `1px solid ${isDanger ? 'var(--color-danger-border)' : 'var(--color-accent-border)'}`,
+              color: isDanger ? 'var(--color-danger)' : 'var(--color-accent)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -65,7 +65,7 @@ export default function ConfirmModal({
               </svg>
             )}
           </div>
-          <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#f1f5f9' }}>
+          <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
             {title}
           </h2>
         </div>
@@ -74,7 +74,7 @@ export default function ConfirmModal({
           style={{
             margin: '0 0 1.5rem',
             fontSize: '0.9rem',
-            color: '#94a3b8',
+            color: 'var(--text-secondary)',
             lineHeight: 1.5,
             whiteSpace: 'pre-line'
           }}
@@ -95,7 +95,7 @@ export default function ConfirmModal({
             className="btn"
             onClick={handleConfirm}
             style={{
-              backgroundColor: isDanger ? '#ef4444' : '#10b981',
+              backgroundColor: isDanger ? 'var(--color-danger-strong)' : 'var(--color-accent-strong)',
               color: '#ffffff',
               border: 'none',
               fontWeight: 700

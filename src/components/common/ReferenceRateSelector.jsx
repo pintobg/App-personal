@@ -10,8 +10,8 @@ export default function ReferenceRateSelector({ referenceRate = 'bcv', setRefere
       style={{
         display: 'inline-flex',
         alignItems: 'center',
-        background: '#131b26',
-        border: '1px solid #253146',
+        background: 'var(--plomo-900)',
+        border: '1px solid var(--plomo-700)',
         borderRadius: '8px',
         padding: '2px',
         gap: '2px'
@@ -30,8 +30,8 @@ export default function ReferenceRateSelector({ referenceRate = 'bcv', setRefere
               if (setReferenceRate) setReferenceRate(opt.id);
             }}
             style={{
-              background: isActive ? '#10b981' : 'transparent',
-              color: isActive ? '#09241b' : '#94a3b8',
+              background: isActive ? 'var(--color-accent-strong)' : 'transparent',
+              color: isActive ? 'var(--color-success-soft)' : 'var(--text-secondary)',
               border: 'none',
               borderRadius: '6px',
               padding: '3px 8px',

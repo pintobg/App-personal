@@ -177,8 +177,8 @@ export default function BackupDataSection({
             style={{
               padding: '0.85rem 1rem',
               borderRadius: '12px',
-              border: '1px solid var(--color-danger-border, #4d2631)',
-              background: 'var(--color-danger-soft, #311b22)',
+              border: '1px solid var(--color-danger-border)',
+              background: 'var(--color-danger-soft)',
               color: 'var(--color-danger)',
               fontWeight: 600,
               fontSize: '0.9rem',

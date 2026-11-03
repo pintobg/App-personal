@@ -10,8 +10,8 @@ export default function ObligationPayInBsField({
   return (
     <div
       style={{
-        background: '#1b2230',
-        border: '1px solid #2a3447',
+        background: 'var(--bg-surface)',
+        border: '1px solid var(--border-color)',
         borderRadius: '12px',
         padding: '0.85rem 1rem',
         marginBottom: '1rem',
@@ -20,7 +20,7 @@ export default function ObligationPayInBsField({
         gap: '0.65rem'
       }}
     >
-      <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', margin: 0, fontSize: '0.88rem', fontWeight: 600, color: '#f1f5f9' }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', margin: 0, fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>
         <input
           type="checkbox"
           checked={Boolean(newOb.payInBs)}
@@ -32,14 +32,14 @@ export default function ObligationPayInBsField({
               indexRateType: checked ? (newOb.indexRateType || ((newOb.currency || '').toUpperCase() === 'EUR' ? 'BCV_EUR' : 'BCV_USD')) : ''
             });
           }}
-          style={{ accentColor: '#10b981', width: '18px', height: '18px', cursor: 'pointer' }}
+          style={{ accentColor: 'var(--color-accent)', width: '18px', height: '18px', cursor: 'pointer' }}
         />
         <span>Se paga en bolívares a tasa del día</span>
       </label>
 
       {newOb.payInBs && (
         <div style={{ marginTop: '0.25rem' }}>
-          <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '0.35rem' }}>
+          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.35rem' }}>
             Tasa de referencia para el pago en Bs.
           </label>
           <CustomSelect
@@ -53,7 +53,7 @@ export default function ObligationPayInBsField({
               { value: 'PARALELO', label: 'Paralelo' }
             ]}
           />
-          <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.35rem' }}>
+          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
             El monto en Bs. se recalculará automáticamente según la cotización oficial o paralela de cada día.
           </div>
         </div>

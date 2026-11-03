@@ -30,7 +30,6 @@ export default function NewCategoryModal({
             value={newCatName}
             onChange={(e) => setNewCatName(e.target.value)}
             required
-            autoFocus
           />
         </div>
 

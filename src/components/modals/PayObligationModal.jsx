@@ -76,12 +76,12 @@ export default function PayObligationModal({
           <div style={{ width: '64px' }} />
         </div>
         <form onSubmit={onSubmit}>
-          <div style={{ padding: '1rem', marginBottom: '1rem', background: '#232c3d', border: '1px solid #2a3447', borderRadius: '12px', textAlign: 'center' }}>
-            <div style={{ color: '#94a3b8', fontSize: '0.85rem' }}>Objetivo de la Obligación</div>
-            <div style={{ color: '#f1f5f9', fontSize: '1.25rem', fontWeight: 600 }}>{payingOb.title}</div>
+          <div style={{ padding: '1rem', marginBottom: '1rem', background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-color)', borderRadius: '12px', textAlign: 'center' }}>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Objetivo de la Obligación</div>
+            <div style={{ color: 'var(--text-primary)', fontSize: '1.25rem', fontWeight: 600 }}>{payingOb.title}</div>
             <div
               style={{
-                color: payingOb.type === 'pay' ? '#ef4444' : '#10b981',
+                color: payingOb.type === 'pay' ? 'var(--color-danger)' : 'var(--color-success)',
                 fontSize: '1.5rem',
                 fontWeight: 700,
                 marginBottom: '0.25rem'
@@ -173,11 +173,11 @@ export default function PayObligationModal({
                 required
               />
               {equivalenceText && (
-                <div style={{ fontSize: '0.8rem', color: '#10b981', marginTop: '0.35rem', fontWeight: 500 }}>
+                <div style={{ fontSize: '0.8rem', color: 'var(--color-success)', marginTop: '0.35rem', fontWeight: 500 }}>
                   {equivalenceText}
                 </div>
               )}
-              <div style={{ fontSize: '0.75rem', color: '#98989d', marginTop: '0.25rem', marginBottom: '0.25rem' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem', marginBottom: '0.25rem' }}>
                 {selectedAsset?.name !== payingOb.currency
                   ? 'El monto se calculó automáticamente según las tasas, pero puedes ajustarlo si la tasa real varió.'
                   : 'Ajusta esto si la cantidad real fue distinta.'}

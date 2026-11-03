@@ -32,32 +32,32 @@ export default function Chip({
 
   const variantStyles = {
     default: {
-      backgroundColor: active ? 'var(--color-accent)' : 'var(--bg-surface-elevated)',
+      backgroundColor: active ? 'var(--color-accent-strong)' : 'var(--bg-surface-elevated)',
       color: active ? 'var(--text-on-accent)' : 'var(--text-secondary)',
       border: `1px solid ${active ? 'var(--color-accent)' : 'var(--border-color)'}`
     },
     accent: {
-      backgroundColor: active ? 'var(--color-accent)' : 'var(--color-accent-soft)',
+      backgroundColor: active ? 'var(--color-accent-strong)' : 'var(--color-accent-soft)',
       color: active ? 'var(--text-on-accent)' : 'var(--color-accent)',
       border: `1px solid ${active ? 'var(--color-accent)' : 'var(--color-accent-border)'}`
     },
     success: {
-      backgroundColor: active ? 'var(--color-success)' : 'var(--color-success-soft)',
+      backgroundColor: active ? 'var(--color-success-strong)' : 'var(--color-success-soft)',
       color: active ? 'var(--text-on-accent)' : 'var(--color-success)',
       border: `1px solid ${active ? 'var(--color-success)' : 'var(--color-success-border)'}`
     },
     warning: {
-      backgroundColor: active ? 'var(--color-warning)' : 'var(--color-warning-soft)',
+      backgroundColor: active ? 'var(--color-warning-strong)' : 'var(--color-warning-soft)',
       color: active ? 'var(--text-on-accent)' : 'var(--color-warning)',
       border: `1px solid ${active ? 'var(--color-warning)' : 'var(--color-warning-border)'}`
     },
     danger: {
-      backgroundColor: active ? 'var(--color-danger)' : 'var(--color-danger-soft)',
+      backgroundColor: active ? 'var(--color-danger-strong)' : 'var(--color-danger-soft)',
       color: active ? 'var(--text-on-accent)' : 'var(--color-danger)',
       border: `1px solid ${active ? 'var(--color-danger)' : 'var(--color-danger-border)'}`
     },
     info: {
-      backgroundColor: active ? 'var(--color-info)' : 'var(--color-info-soft)',
+      backgroundColor: active ? 'var(--color-info-strong)' : 'var(--color-info-soft)',
       color: active ? 'var(--text-on-accent)' : 'var(--color-info)',
       border: `1px solid ${active ? 'var(--color-info)' : 'var(--color-info-border)'}`
     }

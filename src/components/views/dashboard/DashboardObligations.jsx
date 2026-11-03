@@ -1,8 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { EmptyState } from '../../ui';
 import { formatAmount, getCurrencySymbol, translateFrequency } from '../../../utils/formatters';
 
+const PREVIEW_COUNT = 3;
+
+function MoreToggle({ total, expanded, onToggle }) {
+  if (total <= PREVIEW_COUNT) return null;
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      style={{ background: 'transparent', border: 'none', color: 'var(--color-accent)', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', padding: '0.25rem 0', alignSelf: 'flex-start' }}
+    >
+      {expanded ? 'Ver menos' : `Ver ${total - PREVIEW_COUNT} más`}
+    </button>
+  );
+}
+
 export default function DashboardObligations({ nextPayments = [], nextCollections = [] }) {
+  // Solo se muestran los 3 más próximos; el resto queda a un toque.
+  const [showAllPayments, setShowAllPayments] = useState(false);
+  const [showAllCollections, setShowAllCollections] = useState(false);
+  const visiblePayments = showAllPayments ? nextPayments : nextPayments.slice(0, PREVIEW_COUNT);
+  const visibleCollections = showAllCollections ? nextCollections : nextCollections.slice(0, PREVIEW_COUNT);
   return (
     <>
       {/* PROXIMOS PAGOS */}
@@ -10,7 +30,7 @@ export default function DashboardObligations({ nextPayments = [], nextCollection
         <h2 className="section-title" style={{ padding: 0, color: 'var(--text-primary)', fontSize: 'clamp(1rem, 4vw, 1.2rem)', marginBottom: '1rem' }}>Próximos Pagos</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
           {nextPayments.length === 0 && <EmptyState icon="💸" message="No hay pagos próximos" />}
-          {nextPayments.map(ob => (
+          {visiblePayments.map(ob => (
             <div
               key={ob.id}
               className="glass-card"
@@ -52,6 +72,7 @@ export default function DashboardObligations({ nextPayments = [], nextCollection
               </div>
             </div>
           ))}
+          <MoreToggle total={nextPayments.length} expanded={showAllPayments} onToggle={() => setShowAllPayments(v => !v)} />
         </div>
       </div>
 
@@ -60,7 +81,7 @@ export default function DashboardObligations({ nextPayments = [], nextCollection
         <h2 className="section-title" style={{ padding: 0, color: 'var(--text-primary)', fontSize: 'clamp(1rem, 4vw, 1.2rem)', marginBottom: '1rem' }}>Próximos Cobros</h2>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
           {nextCollections.length === 0 && <EmptyState icon="🤝" message="No hay cobros próximos" />}
-          {nextCollections.map(ob => (
+          {visibleCollections.map(ob => (
             <div
               key={ob.id}
               className="glass-card"
@@ -102,6 +123,7 @@ export default function DashboardObligations({ nextPayments = [], nextCollection
               </div>
             </div>
           ))}
+          <MoreToggle total={nextCollections.length} expanded={showAllCollections} onToggle={() => setShowAllCollections(v => !v)} />
         </div>
       </div>
     </>

@@ -9,15 +9,15 @@ export default function TransactionsViewHeader({
   selectedCount,
   onOpenReportsModal,
   exchangeMonthStats,
-  hasActiveFilters,
-  filteredCount,
-  onClearFilters
+  hasActiveFilters: _hasActiveFilters,
+  filteredCount: _filteredCount,
+  onClearFilters: _onClearFilters
 }) {
   return (
     <>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '0.5rem', flexWrap: 'wrap' }}>
         <h2 className="section-title" style={{ padding: 0, color: 'var(--text-primary)', fontSize: 'clamp(1rem, 4vw, 1.2rem)', margin: 0 }}>
-          Historial de Transacciones
+          Movimientos
         </h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           {onOpenReportsModal && (
@@ -26,6 +26,7 @@ export default function TransactionsViewHeader({
               className="btn"
               onClick={onOpenReportsModal}
               title="Exportar reportes (CSV y PDF)"
+              aria-label="Reportes"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -72,7 +73,7 @@ export default function TransactionsViewHeader({
       {/* TYPE FILTER TABS */}
       <div style={{
         display: 'flex',
-        gap: '1.25rem',
+        gap: '1rem',
         borderBottom: '1px solid var(--border-color)',
         marginBottom: '1rem',
         overflowX: 'auto',
@@ -85,9 +86,7 @@ export default function TransactionsViewHeader({
           { id: 'all', label: 'Todas' },
           { id: 'income', label: 'Ingresos' },
           { id: 'spent', label: 'Gastos' },
-          { id: 'transfer', label: 'Transferencias' },
-          { id: 'exchanges', label: 'Mis cambios' },
-          { id: 'adjustment', label: 'Ajustes' }
+          { id: 'transfer', label: 'Transferencias' }
         ].map(tab => (
           <button
             key={tab.id}
@@ -117,8 +116,8 @@ export default function TransactionsViewHeader({
           style={{
             padding: '0.85rem 1rem',
             borderRadius: '14px',
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(30, 41, 59, 0.5) 100%)',
-            border: '1px solid rgba(16, 185, 129, 0.25)',
+            background: 'var(--color-accent-soft)',
+            border: '1px solid var(--color-accent-border)',
             marginBottom: '1rem',
             display: 'flex',
             justifyContent: 'space-between',
@@ -147,19 +146,6 @@ export default function TransactionsViewHeader({
         </div>
       )}
 
-      {/* FILTER SUMMARY & RESET ACTION */}
-      {hasActiveFilters && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-          <span>{filteredCount} movimiento{filteredCount === 1 ? '' : 's'} encontrado{filteredCount === 1 ? '' : 's'}</span>
-          <button
-            type="button"
-            onClick={onClearFilters}
-            style={{ background: 'transparent', border: 'none', color: 'var(--color-accent)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, padding: 0 }}
-          >
-            Limpiar filtros
-          </button>
-        </div>
-      )}
     </>
   );
 }

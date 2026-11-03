@@ -44,7 +44,7 @@ export default function Modal({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(9, 12, 18, 0.78)',
+        backgroundColor: 'var(--bg-overlay)',
         zIndex: 2000,
         display: 'flex',
         alignItems: 'center',

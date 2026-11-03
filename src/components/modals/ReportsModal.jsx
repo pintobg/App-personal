@@ -154,7 +154,7 @@ export default function ReportsModal({
         {/* PESTAÑA 1: CSV DE MOVIMIENTOS */}
         {activeTab === 'csv' && (
           <div>
-            <div style={{ fontSize: '0.85rem', color: '#cbd5e1', marginBottom: '1rem', lineHeight: '1.4' }}>
+            <div style={{ fontSize: '0.85rem', color: 'var(--plomo-200)', marginBottom: '1rem', lineHeight: '1.4' }}>
               Exporta tus movimientos con formato optimizado para <strong>Excel en español</strong> (delimitador punto y coma <code>;</code> y coma decimal <code>,</code>).
             </div>
 
@@ -163,28 +163,28 @@ export default function ReportsModal({
               <button
                 type="button"
                 onClick={() => handleQuickDateFilter('this_month')}
-                style={{ background: '#1e293b', border: '1px solid #334155', color: '#cbd5e1', fontSize: '0.74rem', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer' }}
+                style={{ background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-color)', color: 'var(--plomo-200)', fontSize: '0.74rem', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer' }}
               >
                 Este mes
               </button>
               <button
                 type="button"
                 onClick={() => handleQuickDateFilter('last_month')}
-                style={{ background: '#1e293b', border: '1px solid #334155', color: '#cbd5e1', fontSize: '0.74rem', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer' }}
+                style={{ background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-color)', color: 'var(--plomo-200)', fontSize: '0.74rem', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer' }}
               >
                 Mes anterior
               </button>
               <button
                 type="button"
                 onClick={() => handleQuickDateFilter('last_90')}
-                style={{ background: '#1e293b', border: '1px solid #334155', color: '#cbd5e1', fontSize: '0.74rem', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer' }}
+                style={{ background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-color)', color: 'var(--plomo-200)', fontSize: '0.74rem', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer' }}
               >
                 Últimos 90 días
               </button>
               <button
                 type="button"
                 onClick={() => handleQuickDateFilter('all')}
-                style={{ background: '#1e293b', border: '1px solid #334155', color: '#cbd5e1', fontSize: '0.74rem', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer' }}
+                style={{ background: 'var(--bg-surface-elevated)', border: '1px solid var(--border-color)', color: 'var(--plomo-200)', fontSize: '0.74rem', padding: '4px 8px', borderRadius: '6px', cursor: 'pointer' }}
               >
                 Historial completo
               </button>
@@ -213,7 +213,7 @@ export default function ReportsModal({
 
             <div style={{
               background: 'rgba(255, 255, 255, 0.04)',
-              border: '1px solid #2a3447',
+              border: '1px solid var(--border-color)',
               borderRadius: '10px',
               padding: '0.75rem 1rem',
               marginBottom: '1.25rem',
@@ -221,8 +221,8 @@ export default function ReportsModal({
               justifyContent: 'space-between',
               alignItems: 'center'
             }}>
-              <span style={{ fontSize: '0.82rem', color: '#94a3b8' }}>Movimientos a exportar:</span>
-              <strong style={{ fontSize: '0.95rem', color: '#10b981' }}>{filteredTxsCount}</strong>
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Movimientos a exportar:</span>
+              <strong style={{ fontSize: '0.95rem', color: 'var(--color-success)' }}>{filteredTxsCount}</strong>
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem' }}>
@@ -245,7 +245,7 @@ export default function ReportsModal({
         {/* PESTAÑA 2: RESUMEN MENSUAL EN PDF */}
         {activeTab === 'monthly_pdf' && (
           <div>
-            <div style={{ fontSize: '0.85rem', color: '#cbd5e1', marginBottom: '1rem', lineHeight: '1.4' }}>
+            <div style={{ fontSize: '0.85rem', color: 'var(--plomo-200)', marginBottom: '1rem', lineHeight: '1.4' }}>
               Genera una vista imprimible y descargable en PDF con ingresos, gastos por categoría, presupuestos y saldos al cierre.
             </div>
 
@@ -282,7 +282,7 @@ export default function ReportsModal({
             {/* Tarjeta de vista previa rápida */}
             <div style={{
               background: 'rgba(255, 255, 255, 0.03)',
-              border: '1px solid #2a3447',
+              border: '1px solid var(--border-color)',
               borderRadius: '12px',
               padding: '0.85rem 1rem',
               marginBottom: '1.25rem',
@@ -290,30 +290,30 @@ export default function ReportsModal({
               flexDirection: 'column',
               gap: '0.6rem'
             }}>
-              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#f1f5f9' }}>
+              <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
                 Resumen de {MONTH_NAMES[selectedMonth]} {selectedYear}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.5rem', fontSize: '0.78rem' }}>
                 <div>
-                  <span style={{ color: '#94a3b8' }}>Ingresos: </span>
-                  <strong style={{ color: '#10b981' }}>${formatAmount(monthlyData.totalIncomeUsd, 'USD')}</strong>
+                  <span style={{ color: 'var(--text-secondary)' }}>Ingresos: </span>
+                  <strong style={{ color: 'var(--color-success)' }}>${formatAmount(monthlyData.totalIncomeUsd, 'USD')}</strong>
                 </div>
                 <div>
-                  <span style={{ color: '#94a3b8' }}>Gastos: </span>
-                  <strong style={{ color: '#ef4444' }}>${formatAmount(monthlyData.totalSpentUsd, 'USD')}</strong>
+                  <span style={{ color: 'var(--text-secondary)' }}>Gastos: </span>
+                  <strong style={{ color: 'var(--color-danger)' }}>${formatAmount(monthlyData.totalSpentUsd, 'USD')}</strong>
                 </div>
                 <div>
-                  <span style={{ color: '#94a3b8' }}>Ahorro: </span>
-                  <strong style={{ color: monthlyData.netSavingsUsd >= 0 ? '#10b981' : '#ef4444' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>Ahorro: </span>
+                  <strong style={{ color: monthlyData.netSavingsUsd >= 0 ? 'var(--color-success)' : 'var(--color-danger)' }}>
                     ${formatAmount(monthlyData.netSavingsUsd, 'USD')}
                   </strong>
                 </div>
                 <div>
-                  <span style={{ color: '#94a3b8' }}>Saldos Cierre: </span>
-                  <strong style={{ color: '#0284c7' }}>${formatAmount(monthlyData.totalBalancesUsd, 'USD')}</strong>
+                  <span style={{ color: 'var(--text-secondary)' }}>Saldos Cierre: </span>
+                  <strong style={{ color: 'var(--color-accent-strong)' }}>${formatAmount(monthlyData.totalBalancesUsd, 'USD')}</strong>
                 </div>
               </div>
-              <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '2px' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                 {monthlyData.transactionsCount} movimientos en el período • {monthlyData.expensesByCategory.length} categorías de gasto
               </div>
             </div>

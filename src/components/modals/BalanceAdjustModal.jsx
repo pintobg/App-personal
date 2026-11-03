@@ -87,7 +87,6 @@ export default function BalanceAdjustModal({ asset, onClose, onAdjustBalance }) 
                 setNewAdjustedAmount(e.target.value);
                 if (error) setError('');
               }}
-              autoFocus
               required
             />
             {error && (
@@ -98,15 +97,15 @@ export default function BalanceAdjustModal({ asset, onClose, onAdjustBalance }) 
           </div>
 
           {/* Configuración de comisiones e IGTF */}
-          <div style={{ marginTop: '1rem', padding: '0.85rem', background: '#151b26', borderRadius: '12px', border: '1px solid #2a3447' }}>
-            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f1f5f9', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <div style={{ marginTop: '1rem', padding: '0.85rem', background: 'var(--plomo-900)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
               <span>⚙️</span>
               <span>Costos y Comisiones configuradas</span>
             </div>
 
             {/* Transferencia saliente */}
             <div style={{ marginBottom: '0.85rem' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: '#cbd5e1' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--plomo-200)' }}>
                 <input
                   type="checkbox"
                   checked={hasTransferCommission}
@@ -119,7 +118,7 @@ export default function BalanceAdjustModal({ asset, onClose, onAdjustBalance }) 
               {hasTransferCommission && (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginTop: '0.5rem' }}>
                   <div>
-                    <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>% Comisión</label>
+                    <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>% Comisión</label>
                     <input
                       type="text"
                       inputMode="decimal"
@@ -131,7 +130,7 @@ export default function BalanceAdjustModal({ asset, onClose, onAdjustBalance }) 
                     />
                   </div>
                   <div>
-                    <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>Monto fijo ({asset.name})</label>
+                    <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>Monto fijo ({asset.name})</label>
                     <input
                       type="text"
                       inputMode="decimal"
@@ -148,8 +147,8 @@ export default function BalanceAdjustModal({ asset, onClose, onAdjustBalance }) 
 
             {/* IGTF para divisas */}
             {asset.name !== 'VES' && (
-              <div style={{ paddingTop: '0.65rem', borderTop: '1px solid #232c3d' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: '#cbd5e1' }}>
+              <div style={{ paddingTop: '0.65rem', borderTop: '1px solid var(--bg-surface-elevated)' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--plomo-200)' }}>
                   <input
                     type="checkbox"
                     checked={appliesIgtf}
@@ -161,7 +160,7 @@ export default function BalanceAdjustModal({ asset, onClose, onAdjustBalance }) 
 
                 {appliesIgtf && (
                   <div style={{ marginTop: '0.5rem' }}>
-                    <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>Porcentaje de IGTF (%)</label>
+                    <label style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.2rem' }}>Porcentaje de IGTF (%)</label>
                     <input
                       type="text"
                       inputMode="decimal"

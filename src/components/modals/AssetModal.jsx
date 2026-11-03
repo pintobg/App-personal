@@ -216,6 +216,28 @@ export default function AssetModal({
             )}
 
             {assetStep === 2 && (
+              <div className="input-group">
+                <label>Tipo de activo</label>
+                <div className="segmented-control">
+                  <button
+                    type="button"
+                    className={`segmented-btn ${newAsset.type === 'fiat' ? 'active-success' : ''}`}
+                    onClick={() => { if (newAsset.type !== 'fiat') { setNewAsset({ ...newAsset, type: 'fiat', name: '' }); setIsCustomAsset(false); setAssetValidationError(''); } }}
+                  >
+                    Moneda fiat
+                  </button>
+                  <button
+                    type="button"
+                    className={`segmented-btn ${newAsset.type === 'crypto' ? 'active-success' : ''}`}
+                    onClick={() => { if (newAsset.type !== 'crypto') { setNewAsset({ ...newAsset, type: 'crypto', name: '' }); setIsCustomAsset(false); setAssetValidationError(''); } }}
+                  >
+                    Cripto
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {assetStep === 2 && (
               <AssetCurrencyStep
                 newAsset={newAsset}
                 setNewAsset={setNewAsset}

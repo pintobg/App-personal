@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import CustomSelect from '../common/CustomSelect';
 import CategoryPicker from '../common/CategoryPicker';
 import { todayLocal, toLocalDateString } from '../../utils/dates';
-import { calculateAssetFees, getCurrencyOptions, sortAssetsByCurrency, findMatchingAssetForCurrency } from './transaction/transactionCalculations';
+import { calculateAssetFees, getCurrencyOptions, filterAssetsByCurrency, findMatchingAssetForCurrency } from './transaction/transactionCalculations';
 import TransactionTypeSelector from './transaction/TransactionTypeSelector';
 import TransactionVesDetails from './transaction/TransactionVesDetails';
 import TransactionAccountSection from './transaction/TransactionAccountSection';
@@ -14,8 +14,6 @@ export default function TransactionModal({
   validationError, setValidationError,
   onSubmit, onSaveAndAddAnother
 }) {
-  const amountInputRef = useRef(null);
-
   const todayStr = todayLocal();
   const yesterdayDate = new Date();
   yesterdayDate.setDate(yesterdayDate.getDate() - 1);
@@ -31,7 +29,8 @@ export default function TransactionModal({
   const oldTx = isEditing ? transactions.find(t => t.id === newTx.id) : null;
 
   const currencyOptions = useMemo(() => getCurrencyOptions(assets), [assets]);
-  const availableAssetsForTx = useMemo(() => sortAssetsByCurrency(assets, newTx?.currency), [assets, newTx?.currency]);
+  // Solo se ofrecen como origen/destino las cuentas que manejan la moneda o activo elegido.
+  const availableAssetsForTx = useMemo(() => filterAssetsByCurrency(assets, newTx?.currency), [assets, newTx?.currency]);
 
   const selectedAsset = assets.find(a => a.id === newTx?.assetId) ||
     assets.find(a => (a.name || '').toUpperCase() === (newTx?.currency || '').toUpperCase() && a.location === newTx?.origin) || null;
@@ -52,15 +51,7 @@ export default function TransactionModal({
     }
   };
 
-  useEffect(() => {
-    if (mode === 'form') {
-      const timer = setTimeout(() => {
-        amountInputRef.current?.focus();
-        amountInputRef.current?.select?.();
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-  }, [mode]);
+  // No se enfoca ningún campo al abrir: el teclado solo aparece cuando el usuario toca un campo.
 
   useEffect(() => {
     if (mode === 'form' && !isEditing && newTx) {
@@ -142,12 +133,7 @@ export default function TransactionModal({
   const handleSaveAndAddAnotherClick = (e) => {
     e.preventDefault();
     if (onSaveAndAddAnother) {
-      const ok = onSaveAndAddAnother(e);
-      if (ok) {
-        setTimeout(() => {
-          amountInputRef.current?.focus();
-        }, 50);
-      }
+      onSaveAndAddAnother(e);
     } else if (onSubmit) {
       onSubmit(e);
     }
@@ -201,12 +187,11 @@ export default function TransactionModal({
             </div>
           </div>
 
-          {/* 2. Monto con autofocus y Moneda */}
+          {/* 2. Monto y Moneda */}
           <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', marginBottom: '1rem' }}>
             <div className="input-group" style={{ flex: 1.6, marginBottom: 0 }}>
               <label>Monto</label>
               <input
-                ref={amountInputRef}
                 type="text"
                 inputMode="decimal"
                 className="input-field"
@@ -214,7 +199,6 @@ export default function TransactionModal({
                 value={newTx.amount}
                 onChange={e => handleAmountChange(e.target.value)}
                 required
-                autoFocus
                 style={{ fontSize: '1.2rem', fontWeight: 700 }}
               />
             </div>

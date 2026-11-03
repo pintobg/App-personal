@@ -1,6 +1,7 @@
 import React from 'react';
 import { translateCategory } from '../../../utils/formatters';
 import { COLORS } from '../../../utils/constants';
+import { tint } from '../../../utils/colors';
 
 const CATEGORY_ICONS = {
   'Vivienda': '🏠',
@@ -57,8 +58,8 @@ export default function ExpenseCategoryBreakdown({
                     width: '32px',
                     height: '32px',
                     borderRadius: '8px',
-                    backgroundColor: `${color}25`,
-                    border: `1.5px solid ${color}50`,
+                    backgroundColor: tint(color, 0.15),
+                    border: `1.5px solid ${tint(color, 0.31)}`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',

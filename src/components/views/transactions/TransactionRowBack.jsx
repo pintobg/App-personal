@@ -11,8 +11,41 @@ export default function TransactionRowBack({
   usdVal,
   rateStr,
   getCategoryName,
-  getSubcategoryName
+  getSubcategoryName,
+  deleteMode = false,
+  onEdit,
+  onDelete
 }) {
+  const btn = (bg, border, color) => ({
+    background: bg, border: `1px solid ${border}`, color, borderRadius: '10px',
+    padding: '0.4rem 0.9rem', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer',
+    display: 'inline-flex', alignItems: 'center', gap: '0.35rem'
+  });
+  const isTransfer = tx.type === 'transfer';
+  const actions = !deleteMode && (
+    <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.6rem' }}>
+      {tx.type !== 'adjustment' && (
+        <button
+          type="button"
+          title={isTransfer ? 'Editar transferencia' : 'Editar transacción'}
+          aria-label={isTransfer ? 'Editar transferencia' : 'Editar transacción'}
+          onClick={(e) => { e.stopPropagation(); onEdit && onEdit(tx); }}
+          style={btn('var(--bg-surface-elevated)', 'var(--border-color)', 'var(--text-primary)')}
+        >
+          Editar
+        </button>
+      )}
+      <button
+        type="button"
+        title="Eliminar"
+        aria-label="Eliminar transacción"
+        onClick={(e) => { e.stopPropagation(); onDelete && onDelete(tx); }}
+        style={btn('var(--color-danger-soft)', 'var(--color-danger-border)', 'var(--color-danger)')}
+      >
+        Eliminar
+      </button>
+    </div>
+  );
   return (
     <div className="tx-flip-back glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '1rem 1.15rem', borderRadius: '16px', gap: '0.25rem' }}>
       {tx.type === 'transfer' ? (
@@ -95,6 +128,7 @@ export default function TransactionRowBack({
           </div>
         </>
       )}
+      {actions}
     </div>
   );
 }
