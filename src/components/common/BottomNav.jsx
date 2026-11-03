@@ -1,6 +1,7 @@
 export default function BottomNav({ currentPage, onSelectPage }) {
   return (
     <nav className="floating-nav bottom-nav">
+      {/* 1. INICIO */}
       <button
         className={`nav-item ${currentPage === 'dashboard' ? 'active' : ''}`}
         onClick={() => onSelectPage('dashboard')}
@@ -13,6 +14,20 @@ export default function BottomNav({ currentPage, onSelectPage }) {
         Inicio
       </button>
 
+      {/* 2. MOVIMIENTOS */}
+      <button
+        className={`nav-item ${currentPage === 'transactions' ? 'active' : ''}`}
+        onClick={() => onSelectPage('transactions')}
+        type="button"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M7 20V4m0 0L3 8m4-4 4 4" />
+          <path d="M17 4v16m0 0 4-4m-4 4-4-4" />
+        </svg>
+        Movimientos
+      </button>
+
+      {/* 3. CUENTAS */}
       <button
         className={`nav-item ${currentPage === 'balances' ? 'active' : ''}`}
         onClick={() => onSelectPage('balances')}
@@ -26,34 +41,26 @@ export default function BottomNav({ currentPage, onSelectPage }) {
         Cuentas
       </button>
 
+      {/* 4. PLANIFICAR */}
       <button
-        className={`nav-item ${currentPage === 'transactions' ? 'active' : ''}`}
-        onClick={() => onSelectPage('transactions')}
+        className={`nav-item ${currentPage === 'planning' || currentPage === 'obligations' ? 'active' : ''}`}
+        onClick={() => onSelectPage('planning')}
         type="button"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M7 20V4m0 0L3 8m4-4 4 4" />
-          <path d="M17 4v16m0 0 4-4m-4 4-4-4" />
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+          <path d="m9 16 2 2 4-4"></path>
         </svg>
-        Movimientos
+        Planificar
       </button>
 
+      {/* 5. TASAS */}
       <button
-        className={`nav-item ${currentPage === 'obligations' ? 'active' : ''}`}
-        onClick={() => onSelectPage('obligations')}
-        type="button"
-      >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M6 2h12a2 2 0 0 1 2 2v17l-3-2-3 2-3-2-3 2-3-2V4a2 2 0 0 1 2-2z" />
-          <path d="M12 6.5v8" />
-          <path d="M14.2 8.5a1.8 1.3 0 0 0-2.2-1.2h-.8a1.3 1.3 0 0 0 0 2.6h1.6a1.3 1.3 0 0 1 0 2.6H12a1.8 1.3 0 0 1-2.2-1.2" />
-        </svg>
-        Deudas
-      </button>
-
-      <button
-        className={`nav-item ${currentPage === 'calculator' ? 'active' : ''}`}
-        onClick={() => onSelectPage('calculator')}
+        className={`nav-item ${currentPage === 'rates' || currentPage === 'calculator' ? 'active' : ''}`}
+        onClick={() => onSelectPage('rates')}
         type="button"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -64,7 +71,7 @@ export default function BottomNav({ currentPage, onSelectPage }) {
           <path d="M12 8.5v7" />
           <path d="M13.8 10.2a1.5 1.1 0 0 0-1.8-.9h-.7a1.1 1.1 0 0 0 0 2.2h1.4a1.1 1.1 0 0 1 0 2.2H12a1.5 1.1 0 0 1-1.8-.9" />
         </svg>
-        Cambio
+        Tasas
       </button>
     </nav>
   );

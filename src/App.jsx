@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { App as CapApp } from '@capacitor/app';
 import { FinanceProvider, useFinance } from './context/FinanceContext';
 
 import Toast from './components/common/Toast';
@@ -12,10 +11,18 @@ import PageRouter from './components/views/PageRouter';
 import { useAppModalsState } from './hooks/useAppModalsState';
 import { useFinanceMetrics } from './hooks/useFinanceMetrics';
 import { useAppLock } from './hooks/useAppLock';
+import { useAppGesturesAndBack } from './hooks/useAppGesturesAndBack';
 import { generateTestData, TEST_DATA_SEED_KEY } from './utils/testData';
 import './App.css';
 
-const MAIN_TABS = ['dashboard', 'balances', 'transactions', 'obligations', 'calculator'];
+const MAIN_TABS = ['dashboard', 'transactions', 'balances', 'planning', 'rates'];
+
+function normalizePageName(page) {
+  if (!page) return 'dashboard';
+  if (page === 'debts' || page === 'obligations') return 'planning';
+  if (page === 'calculator') return 'rates';
+  return page;
+}
 
 function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm }) {
   const finance = useFinance();
@@ -26,6 +33,7 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
     obligations,
     budgets,
     goals,
+    categories,
     rates,
     ratesDetails,
     veRates,
@@ -50,7 +58,32 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
   } = finance;
 
   // Navegación y filtros (Inicio por defecto)
-  const [currentPage, setCurrentPage] = useState('dashboard');
+  const [currentPage, setCurrentPageState] = useState(() => {
+    try {
+      const saved = localStorage.getItem('active_page') || localStorage.getItem('last_tab') || localStorage.getItem('currentPage');
+      return normalizePageName(saved);
+    } catch {
+      return 'dashboard';
+    }
+  });
+  const previousPageRef = useRef('dashboard');
+  const [planningSubTab, setPlanningSubTab] = useState('presupuestos');
+  const [selectedShoppingListId, setSelectedShoppingListId] = useState(null);
+
+  const setCurrentPage = useCallback((page) => {
+    const normalized = normalizePageName(page);
+    setCurrentPageState(prev => {
+      if (prev !== normalized) {
+        previousPageRef.current = prev;
+      }
+      return normalized;
+    });
+    try {
+      localStorage.setItem('active_page', normalized);
+    } catch {
+      // Ignore storage errors
+    }
+  }, []);
   const [timeFrame, setTimeFrame] = useState('monthly');
   const [isBalanceHidden, setIsBalanceHidden] = useState(false);
   const [txFilter, setTxFilter] = useState('all');
@@ -85,14 +118,14 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
     rates,
     timeFrame,
     activeFilter,
-    selectedFilters
+    selectedFilters,
+    categories
   });
 
   useEffect(() => {
     modalState.setIsFabExpanded(false);
   }, [currentPage]);
 
-  // Bloquear scroll de fondo cuando cualquier modal esté abierto
   const isAnyModalActive = Boolean(
     modalState.isAssetModalOpen ||
     modalState.adjustingAsset ||
@@ -117,138 +150,20 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
     }
   }, [isAnyModalActive]);
 
-  // Manejo del gesto / botón Volver del teléfono (Android Back Button y PWA)
-  const closeModalIfOpen = useCallback(() => {
-    if (confirmConfig?.isOpen) {
-      if (confirmConfig.onCancel) confirmConfig.onCancel();
-      else if (setConfirmConfig) setConfirmConfig(null);
-      return true;
-    }
-    if (modalState.isFabExpanded) {
-      modalState.setIsFabExpanded(false);
-      return true;
-    }
-    if (modalState.deleteMode) {
-      modalState.setDeleteMode(false);
-      modalState.setSelectedTxs([]);
-      return true;
-    }
-    if (modalState.isReportsModalOpen) {
-      modalState.setIsReportsModalOpen(false);
-      return true;
-    }
-    if (modalState.isSecurityModalOpen) {
-      modalState.setIsSecurityModalOpen(false);
-      return true;
-    }
-    if (modalState.isAuthModalOpen) {
-      modalState.setIsAuthModalOpen(false);
-      return true;
-    }
-    if (modalState.isBudgetModalOpen) {
-      modalState.setIsBudgetModalOpen(false);
-      return true;
-    }
-    if (modalState.isGoalModalOpen || modalState.editingGoal) {
-      modalState.setIsGoalModalOpen(false);
-      modalState.setEditingGoal(null);
-      return true;
-    }
-    if (modalState.payingOb) {
-      modalState.setPayingOb(null);
-      return true;
-    }
-    if (modalState.isObModalOpen) {
-      modalState.setIsObModalOpen(false);
-      return true;
-    }
-    if (modalState.isTransferModalOpen) {
-      modalState.setIsTransferModalOpen(false);
-      return true;
-    }
-    if (modalState.txModalMode) {
-      modalState.setTxModalMode(null);
-      return true;
-    }
-    if (modalState.adjustingAsset) {
-      modalState.setAdjustingAsset(null);
-      return true;
-    }
-    if (modalState.isAssetModalOpen) {
-      modalState.setIsAssetModalOpen(false);
-      return true;
-    }
-    return false;
-  }, [confirmConfig, modalState, setConfirmConfig]);
-
-  useEffect(() => {
-    let listenerHandle = null;
-
-    try {
-      if (CapApp && typeof CapApp.addListener === 'function') {
-        CapApp.addListener('backButton', () => {
-          if (closeModalIfOpen()) return;
-          if (currentPage !== 'dashboard') {
-            setCurrentPage('dashboard');
-            return;
-          }
-          if (typeof CapApp.exitApp === 'function') {
-            CapApp.exitApp();
-          }
-        }).then(handle => {
-          listenerHandle = handle;
-        }).catch(() => {});
-      }
-    } catch {
-      // Entorno no nativo
-    }
-
-    return () => {
-      if (listenerHandle) {
-        listenerHandle.remove();
-      }
-    };
-  }, [currentPage, isAnyModalActive, confirmConfig, modalState, closeModalIfOpen]);
-
-  // Gesto de desplazamiento horizontal (Swipe) entre pestañas principales
-  const touchStartX = useRef(null);
-  const touchStartY = useRef(null);
-  const touchStartTime = useRef(0);
-
-  const handleTouchStart = (e) => {
-    if (isAnyModalActive) return;
-    const target = e.target;
-    if (target.closest('input, textarea, select, button, .recharts-wrapper, [data-no-swipe]')) return;
-    const touch = e.touches[0];
-    touchStartX.current = touch.clientX;
-    touchStartY.current = touch.clientY;
-    touchStartTime.current = Date.now();
-  };
-
-  const handleTouchEnd = (e) => {
-    if (touchStartX.current === null || touchStartY.current === null) return;
-    const touch = e.changedTouches[0];
-    const deltaX = touch.clientX - touchStartX.current;
-    const deltaY = touch.clientY - touchStartY.current;
-    const elapsedTime = Date.now() - touchStartTime.current;
-
-    touchStartX.current = null;
-    touchStartY.current = null;
-
-    // Desplazamiento horizontal claro: más de 50px, horizontal domina sobre vertical por 1.5x, en menos de 500ms
-    if (elapsedTime < 500 && Math.abs(deltaX) >= 50 && Math.abs(deltaX) > Math.abs(deltaY) * 1.5) {
-      const currentIndex = MAIN_TABS.indexOf(currentPage);
-      if (currentIndex !== -1) {
-        if (deltaX < 0 && currentIndex < MAIN_TABS.length - 1) {
-          // Desplazar a la izquierda -> siguiente pantalla
-          setCurrentPage(MAIN_TABS[currentIndex + 1]);
-        } else if (deltaX > 0 && currentIndex > 0) {
-          // Desplazar a la derecha -> pantalla anterior
-          setCurrentPage(MAIN_TABS[currentIndex - 1]);
-        }
-      }
-    }
-  };
+  const { handleTouchStart, handleTouchEnd } = useAppGesturesAndBack({
+    isAnyModalActive,
+    confirmConfig,
+    setConfirmConfig,
+    modalState,
+    currentPage,
+    setCurrentPage,
+    previousPageRef,
+    planningSubTab,
+    setPlanningSubTab,
+    selectedShoppingListId,
+    setSelectedShoppingListId,
+    mainTabs: MAIN_TABS
+  });
 
   const injectAdvancedTestData = () => {
     requestConfirm({
@@ -369,6 +284,15 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
         setFlippedTxId={modalState.setFlippedTxId}
         handleEditTransaction={modalState.handleEditTransaction}
         onOpenReportsModal={() => modalState.setIsReportsModalOpen(true)}
+        getCategoryName={finance.getCategoryName}
+        getSubcategoryName={finance.getSubcategoryName}
+        planningSubTab={planningSubTab}
+        setPlanningSubTab={setPlanningSubTab}
+        selectedShoppingListId={selectedShoppingListId}
+        setSelectedShoppingListId={setSelectedShoppingListId}
+        onRegisterShoppingPurchase={modalState.handleRegisterShoppingPurchase}
+        appLock={appLock}
+        onOpenSecurityModal={() => modalState.setIsSecurityModalOpen(true)}
       />
 
       <FabOverlay
@@ -387,6 +311,16 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
         setIsObModalOpen={modalState.setIsObModalOpen}
         setAssetInitialType={modalState.setAssetInitialType}
         setIsAssetModalOpen={modalState.setIsAssetModalOpen}
+        onAddShoppingItem={() => {
+          setCurrentPage('planning');
+          setPlanningSubTab('compras');
+          const active = (finance.shoppingLists || []).filter(l => l.status !== 'done' && !l.deleted_at);
+          if (active.length === 1) {
+            setSelectedShoppingListId(active[0].id);
+          } else {
+            setSelectedShoppingListId(null);
+          }
+        }}
       />
 
       <BottomNav
@@ -418,6 +352,7 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
         txValidationError={modalState.txValidationError}
         setTxValidationError={modalState.setTxValidationError}
         handleAddTransaction={modalState.handleAddTransaction}
+        handleSaveAndAddAnother={modalState.handleSaveAndAddAnother}
         isTransferModalOpen={modalState.isTransferModalOpen}
         setIsTransferModalOpen={modalState.setIsTransferModalOpen}
         newTransfer={modalState.newTransfer}
@@ -441,6 +376,7 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
         updateAllBudgets={updateAllBudgets}
         isAuthModalOpen={modalState.isAuthModalOpen}
         setIsAuthModalOpen={modalState.setIsAuthModalOpen}
+        onNavigateCategories={() => setCurrentPage('categories')}
         auth={auth}
         syncNow={syncNow}
         obligations={obligations}
@@ -470,16 +406,23 @@ export default function App() {
   const [confirmConfig, setConfirmConfig] = useState(null);
   const toastTimerRef = useRef(null);
 
-  const showToast = (msg, type = 'success') => {
+  const showToast = (msg, type = 'success', duration) => {
     if (toastTimerRef.current) {
       clearTimeout(toastTimerRef.current);
       toastTimerRef.current = null;
     }
-    setToast(typeof msg === 'string' && type !== 'success' ? { message: msg, type } : msg);
+    const isObj = typeof msg === 'object' && msg !== null;
+    const toastPayload = isObj
+      ? msg
+      : (type !== 'success' ? { message: msg, type } : msg);
+    const toastDuration = (isObj && msg.duration)
+      || (typeof duration === 'number' ? duration : 3000);
+
+    setToast(toastPayload);
     toastTimerRef.current = setTimeout(() => {
       setToast(null);
       toastTimerRef.current = null;
-    }, 3000);
+    }, toastDuration);
   };
 
   const requestConfirm = (options) => {
@@ -507,7 +450,7 @@ export default function App() {
         setConfirmConfig={setConfirmConfig}
         requestConfirm={requestConfirm}
       />
-      <Toast message={toast} />
+      <Toast message={toast} onClose={() => setToast(null)} />
     </FinanceProvider>
   );
 }

@@ -1,11 +1,10 @@
 import FabAction from './FabAction';
 import { todayLocal } from '../../utils/dates';
-import { DEFAULT_INSTALLMENTS } from '../../domain/installmentPurchase';
 
 export default function FabOverlay({
   currentPage,
   deleteMode,
-  selectedTxs,
+  selectedTxs = [],
   handleBulkDelete,
   setDeleteMode,
   setSelectedTxs,
@@ -14,15 +13,8 @@ export default function FabOverlay({
   setTxModalMode,
   setNewTx,
   setIsTransferModalOpen,
-  setNewOb,
-  setIsObModalOpen,
-  setAssetInitialType,
-  setIsAssetModalOpen
+  onAddShoppingItem
 }) {
-  if (currentPage === 'dashboard' || currentPage === 'calculator') {
-    return null;
-  }
-
   if (deleteMode) {
     return (
       <div className="bulk-delete-bar">
@@ -60,15 +52,53 @@ export default function FabOverlay({
         />
       )}
 
-      {currentPage === 'transactions' && isFabExpanded && (
+      {isFabExpanded && (
         <div className="fab-menu">
+          {/* 1. Gasto */}
+          <FabAction
+            variant="danger"
+            label="Gasto"
+            onClick={() => {
+              setTxModalMode?.('form');
+              setNewTx?.({
+                id: '',
+                assetId: '',
+                type: 'spent',
+                currency: '',
+                amount: '',
+                origin: '',
+                category: '',
+                subcategory: '',
+                date: todayLocal()
+              });
+              setIsFabExpanded?.(false);
+            }}
+            icon={
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <polyline points="19 12 12 19 5 12"></polyline>
+              </svg>
+            }
+          />
+
+          {/* 2. Ingreso */}
           <FabAction
             variant="success"
             label="Ingreso"
             onClick={() => {
-              setTxModalMode('form');
-              setNewTx({ id: '', assetId: '', type: 'income', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
-              setIsFabExpanded(false);
+              setTxModalMode?.('form');
+              setNewTx?.({
+                id: '',
+                assetId: '',
+                type: 'income',
+                currency: '',
+                amount: '',
+                origin: '',
+                category: '',
+                subcategory: '',
+                date: todayLocal()
+              });
+              setIsFabExpanded?.(false);
             }}
             icon={
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -78,9 +108,10 @@ export default function FabOverlay({
             }
           />
 
+          {/* 3. Transferencia o cambio */}
           <FabAction
             variant="info"
-            label="Transferencia / Cambio"
+            label="Transferencia o cambio"
             onClick={() => {
               setIsTransferModalOpen(true);
               setIsFabExpanded(false);
@@ -95,87 +126,21 @@ export default function FabOverlay({
             }
           />
 
+          {/* 4. Artículo a lista de compras */}
           <FabAction
-            variant="danger"
-            label="Gasto"
+            variant="warning"
+            label="Artículo a lista de compras"
             onClick={() => {
-              setTxModalMode('form');
-              setNewTx({ id: '', assetId: '', type: 'spent', currency: '', amount: '', origin: '', category: '', subcategory: '', date: todayLocal() });
               setIsFabExpanded(false);
+              if (onAddShoppingItem) {
+                onAddShoppingItem();
+              }
             }}
             icon={
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"></line>
-                <polyline points="19 12 12 19 5 12"></polyline>
-              </svg>
-            }
-          />
-        </div>
-      )}
-
-      {currentPage === 'obligations' && isFabExpanded && (
-        <div className="fab-menu">
-          <FabAction
-            variant="danger"
-            label="Deuda por pagar"
-            onClick={() => {
-              setNewOb({ id: '', type: 'pay', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: todayLocal(), totalInstallments: '', paidInstallments: 0, installmentsCount: String(DEFAULT_INSTALLMENTS) });
-              setIsObModalOpen(true);
-              setIsFabExpanded(false);
-            }}
-            icon={
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-              </svg>
-            }
-          />
-
-          <FabAction
-            variant="success"
-            label="Cobro pendiente"
-            onClick={() => {
-              setNewOb({ id: '', type: 'receive', title: '', amount: '', currency: 'USD', frequency: 'monthly', category: 'Otros', dueDate: todayLocal(), totalInstallments: '', paidInstallments: 0 });
-              setIsObModalOpen(true);
-              setIsFabExpanded(false);
-            }}
-            icon={
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-              </svg>
-            }
-          />
-        </div>
-      )}
-
-      {currentPage === 'balances' && isFabExpanded && (
-        <div className="fab-menu">
-          <FabAction
-            variant="success"
-            label="Cuenta Bancaria / Efectivo"
-            onClick={() => {
-              setAssetInitialType('fiat');
-              setIsAssetModalOpen(true);
-              setIsFabExpanded(false);
-            }}
-            icon={
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="2" x2="12" y2="22"></line>
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-              </svg>
-            }
-          />
-
-          <FabAction
-            variant="info"
-            label="Criptomoneda / Token"
-            onClick={() => {
-              setAssetInitialType('crypto');
-              setIsAssetModalOpen(true);
-              setIsFabExpanded(false);
-            }}
-            icon={
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M11.767 19.089c4.924.868 6.14-6.025 1.216-6.894m-1.216 6.894L5.86 18.047m5.908 1.042-.347 1.97m1.563-8.864c4.924.869 6.14-6.025 1.215-6.893m-1.215 6.893-3.94-.694m5.155-6.2-5.155-.909m5.155.91-.348 1.97M7.076 11.153l-3.94-.694m3.94.694 1.216-6.894m-1.216 6.894L5.86 18.047m1.216-6.894L4.86 6.279"></path>
+                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <path d="M16 10a4 4 0 0 1-8 0"></path>
               </svg>
             }
           />
@@ -193,7 +158,20 @@ export default function FabOverlay({
           zIndex: 80
         }}
       >
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'transform 0.25s ease', transform: isFabExpanded ? 'rotate(45deg)' : 'none' }}>
+        <svg
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{
+            transition: 'transform 0.25s ease',
+            transform: isFabExpanded ? 'rotate(45deg)' : 'none'
+          }}
+        >
           <line x1="12" y1="5" x2="12" y2="19"></line>
           <line x1="5" y1="12" x2="19" y2="12"></line>
         </svg>

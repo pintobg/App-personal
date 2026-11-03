@@ -1,6 +1,6 @@
 import EmptyState from '../common/EmptyState';
 import { translateCategory, translateFrequency, getCurrencySymbol, formatAmount } from '../../utils/formatters';
-import { convertForPayment } from '../../domain/money';
+import { isObligationCompleted, getIndexedBsInfo as getIndexedInfoUtil } from '../../domain/obligations';
 
 export default function ObligationsView({
   obligations,
@@ -12,47 +12,12 @@ export default function ObligationsView({
   onPay,
   onDelete
 }) {
-  const isCompleted = ob => ob.status === 'paid' || (Boolean(ob.totalInstallments) && Number(ob.paidInstallments) >= Number(ob.totalInstallments));
+  const isCompleted = isObligationCompleted;
   const pendingPay = obligations.filter(ob => ob.type === 'pay' && !isCompleted(ob));
   const pendingReceive = obligations.filter(ob => ob.type === 'receive' && !isCompleted(ob));
   const completedHistory = obligations.filter(isCompleted);
 
-  const getIndexedBsInfo = (ob) => {
-    if (!ob.payInBs || (ob.currency || '').toUpperCase() === 'VES') return null;
-
-    const chosenRate = ob.indexRateType || ((ob.currency || '').toUpperCase() === 'EUR' ? 'BCV_EUR' : 'BCV_USD');
-    let activeRate = null;
-    let label = 'BCV hoy';
-
-    if (chosenRate === 'PARALELO') {
-      activeRate = veRates?.paralelo;
-      label = 'Paralelo hoy';
-    } else if (chosenRate === 'BCV_EUR' || chosenRate === 'EUR') {
-      activeRate = veRates?.bcvEur || veRates?.bcvUsd;
-      label = 'BCV EUR hoy';
-    } else {
-      activeRate = veRates?.bcvUsd || rates?.bcvUsd || rates?.VES;
-      label = 'BCV hoy';
-    }
-
-    if (!activeRate || activeRate <= 0) return null;
-
-    const bsAmount = convertForPayment(
-      ob.amount,
-      ob.currency,
-      'VES',
-      { ...rates, ...veRates },
-      activeRate
-    );
-
-    if (bsAmount == null) return null;
-
-    return {
-      bsAmount,
-      label,
-      text: `${getCurrencySymbol(ob.currency)}${formatAmount(ob.amount, ob.currency)} = Bs. ${formatAmount(bsAmount, 'VES')} (${label})`
-    };
-  };
+  const getIndexedBsInfo = (ob) => getIndexedInfoUtil(ob, rates, veRates);
 
   return (
     <div className="view-container" style={{ padding: '0 1rem', marginTop: '2rem' }}>

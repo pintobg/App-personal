@@ -3,7 +3,7 @@ import { add, convert } from '../domain/money';
 import { getTxUsdEquivalent, translateCategory } from '../utils/formatters';
 import { parseLocalDate, toLocalDateString } from '../utils/dates';
 
-export function useFinanceMetrics({ assets, transactions, obligations, rates, timeFrame, activeFilter, selectedFilters }) {
+export function useFinanceMetrics({ assets, transactions, obligations, rates, timeFrame, activeFilter, selectedFilters, categories = [] }) {
   const grandTotalUsd = useMemo(() => {
     return assets.reduce((total, asset) => {
       const sym = (asset.name || 'USD').toUpperCase();
@@ -88,10 +88,19 @@ export function useFinanceMetrics({ assets, transactions, obligations, rates, ti
     const spentUsd = spents.reduce((acc, t) => add(acc, getTxUsdEquivalent(t, rates)), 0);
     const incomeUsd = incomes.reduce((acc, t) => add(acc, getTxUsdEquivalent(t, rates)), 0);
 
+    const categoryMap = new Map();
+    (categories || []).forEach(c => {
+      if (c && c.id) categoryMap.set(c.id, c.name);
+    });
+
     const aggregatedData = {};
     spents.forEach(t => {
       const usdAmount = getTxUsdEquivalent(t, rates);
-      const cat = translateCategory(t.category) || 'Sin categoría';
+      let catName = t.category;
+      if (t.category_id && categoryMap.has(t.category_id)) {
+        catName = categoryMap.get(t.category_id);
+      }
+      const cat = translateCategory(catName) || 'Sin categoría';
       aggregatedData[cat] = (aggregatedData[cat] || 0) + usdAmount;
     });
 
@@ -106,7 +115,7 @@ export function useFinanceMetrics({ assets, transactions, obligations, rates, ti
       totalIncomeUsd: incomeUsd,
       pieData: pie
     };
-  }, [transactions, timeFrame, rates]);
+  }, [transactions, timeFrame, rates, categories]);
 
   return {
     grandTotalUsd,

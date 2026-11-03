@@ -286,6 +286,10 @@ export function useAppModalsState(requestConfirm, showToast) {
     setTxValidationError('');
     const res = saveTransaction(newTx);
     if (res.success) {
+      if (newTx.shoppingListId && finance.completeShoppingListPurchase) {
+        const createdTxId = res.nextTransactions?.[0]?.id;
+        finance.completeShoppingListPurchase(newTx.shoppingListId, createdTxId);
+      }
       setTxModalMode(null);
       setTxValidationError('');
       setNewTx({
@@ -310,6 +314,28 @@ export function useAppModalsState(requestConfirm, showToast) {
       });
     } else {
       setTxValidationError(res.error);
+    }
+  };
+
+  const handleSaveAndAddAnother = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setTxValidationError('');
+    const res = saveTransaction(newTx);
+    if (res.success) {
+      if (showToast) showToast('Transacción guardada');
+      setNewTx(prev => ({
+        ...prev,
+        id: '',
+        amount: '',
+        notes: '',
+        igtfAmount: '',
+        commissionAmount: '',
+        referenceNumber: ''
+      }));
+      return true;
+    } else {
+      setTxValidationError(res.error);
+      return false;
     }
   };
 
@@ -361,6 +387,26 @@ export function useAppModalsState(requestConfirm, showToast) {
     } else {
       setSelectedTxs([...selectedTxs, tx]);
     }
+  };
+
+  const handleRegisterShoppingPurchase = ({ list, totalAmount, _checkedItems }) => {
+    setNewTx({
+      id: '',
+      assetId: '',
+      type: 'spent',
+      currency: list.currency || 'USD',
+      amount: String(totalAmount || ''),
+      origin: '',
+      category_id: 'exp.food',
+      category: 'Alimentación',
+      subcategory_id: 'exp.food.supermarket',
+      subcategory: 'Supermercado',
+      notes: `Compra: ${list.name}${list.store ? ` (${list.store})` : ''}`,
+      date: todayLocal(),
+      shoppingListId: list.id
+    });
+    setTxValidationError('');
+    setTxModalMode('form');
   };
 
   return {
@@ -419,10 +465,12 @@ export function useAppModalsState(requestConfirm, showToast) {
     handlePayObligationSubmit,
     handleEditTransaction,
     handleAddTransaction,
+    handleSaveAndAddAnother,
     handleTransferSubmit,
     handleBulkDelete,
     toggleSelectTx,
     handleSaveGoal,
-    handleDeleteGoal
+    handleDeleteGoal,
+    handleRegisterShoppingPurchase
   };
 }

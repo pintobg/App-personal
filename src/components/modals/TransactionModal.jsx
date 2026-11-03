@@ -1,8 +1,11 @@
-import CustomSelect from '../common/CustomSelect';
-import { SPENT_CATEGORIES } from '../../utils/constants';
-import { formatAmount, getCurrencySymbol } from '../../utils/formatters';
+import React, { useState, useEffect, useRef } from 'react';
+import CategoryPicker from '../common/CategoryPicker';
 import { todayLocal, toLocalDateString } from '../../utils/dates';
-import { parseAmount, add, sub, round } from '../../domain/money';
+import { calculateAssetFees } from './transaction/transactionCalculations';
+import TransactionTypeSelector from './transaction/TransactionTypeSelector';
+import TransactionVesDetails from './transaction/TransactionVesDetails';
+import TransactionAccountSection from './transaction/TransactionAccountSection';
+import TransactionFormFooter from './transaction/TransactionFormFooter';
 
 export default function TransactionModal({
   mode, // 'select' | 'form' | null
@@ -10,159 +13,79 @@ export default function TransactionModal({
   newTx,
   setNewTx,
   setMode,
-  assets,
+  assets = [],
   transactions = [],
   validationError,
   setValidationError,
-  onSubmit
+  onSubmit,
+  onSaveAndAddAnother
 }) {
-  if (!mode) return null;
+  const amountInputRef = useRef(null);
 
-  const uniqueAssetNames = Array.from(new Set(assets.map(a => a.name)));
-  const availableAssetsForTx = newTx.currency
+  const todayStr = todayLocal();
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterdayStr = toLocalDateString(yesterdayDate);
+
+  const txDateStr = newTx?.date ? toLocalDateString(newTx.date) : todayStr;
+  const isToday = txDateStr === todayStr;
+  const isYesterday = txDateStr === yesterdayStr;
+  const isCustomDate = !isToday && !isYesterday;
+  const [showCustomDatePicker, setShowCustomDatePicker] = useState(isCustomDate);
+
+  const isEditing = Boolean(newTx?.id);
+  const oldTx = isEditing ? transactions.find(t => t.id === newTx.id) : null;
+
+  const availableAssetsForTx = newTx?.currency
     ? assets.filter(a => (a.name || '').toUpperCase() === newTx.currency.toUpperCase())
     : assets;
 
-  if (mode === 'select') {
-    return (
-      <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-content" onClick={e => e.stopPropagation()}>
-          <div className="modal-header">
-            <button type="button" className="modal-back-btn" onClick={onClose} aria-label="Atrás">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
-              <span>Atrás</span>
-            </button>
-            <h2>Tipo de Transacción</h2>
-            <div style={{ width: '64px' }} />
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', marginTop: '0.5rem' }}>
-            <button
-              type="button"
-              className="btn"
-              style={{
-                padding: '1.15rem',
-                fontSize: '1.05rem',
-                borderRadius: '14px',
-                border: '1px solid #1f5143',
-                color: '#10b981',
-                background: '#14332b',
-                fontWeight: 700
-              }}
-              onClick={() => {
-                setNewTx({
-                  id: '',
-                  assetId: '',
-                  type: 'income',
-                  currency: '',
-                  amount: '',
-                  origin: '',
-                  category: '',
-                  subcategory: '',
-                  date: todayLocal(),
-                  includeIgtf: false,
-                  igtfAmount: '',
-                  includeCommission: false,
-                  commissionAmount: '',
-                  paymentMethod: '',
-                  referenceNumber: '',
-                  bank: '',
-                  recipientId: ''
-                });
-                setMode('form');
-              }}
-            >
-              Ingreso (+)
-            </button>
-            <button
-              type="button"
-              className="btn"
-              style={{
-                padding: '1.15rem',
-                fontSize: '1.05rem',
-                borderRadius: '14px',
-                border: '1px solid #4d2631',
-                color: '#ef4444',
-                background: '#311b22',
-                fontWeight: 700
-              }}
-              onClick={() => {
-                setNewTx({
-                  id: '',
-                  assetId: '',
-                  type: 'spent',
-                  currency: '',
-                  amount: '',
-                  origin: '',
-                  category: '',
-                  subcategory: '',
-                  date: todayLocal(),
-                  includeIgtf: false,
-                  igtfAmount: '',
-                  includeCommission: false,
-                  commissionAmount: '',
-                  paymentMethod: '',
-                  referenceNumber: '',
-                  bank: '',
-                  recipientId: ''
-                });
-                setMode('form');
-              }}
-            >
-              Gasto (-)
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const selectedAsset = assets.find(a => a.id === newTx?.assetId) ||
+    assets.find(a => (a.name || '').toUpperCase() === (newTx?.currency || '').toUpperCase() && a.location === newTx?.origin) || null;
 
-  const isEditing = Boolean(newTx.id);
-  const oldTx = isEditing ? transactions.find(t => t.id === newTx.id) : null;
+  useEffect(() => {
+    if (mode === 'form') {
+      const timer = setTimeout(() => {
+        amountInputRef.current?.focus();
+        amountInputRef.current?.select?.();
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [mode]);
 
-  const selectedAsset = assets.find(a => a.id === newTx.assetId) ||
-    assets.find(a => (a.name || '').toUpperCase() === (newTx.currency || '').toUpperCase() && a.location === newTx.origin) || null;
-
-  const handleAmountChange = (val) => {
-    const parsedAmt = parseAmount(val);
-    let nextIgtf = newTx.igtfAmount;
-    let nextIncludeIgtf = newTx.includeIgtf;
-    let nextComm = newTx.commissionAmount;
-    let nextIncludeComm = newTx.includeCommission;
-
-    if (selectedAsset && newTx.type === 'spent') {
-      if (selectedAsset.name !== 'VES' && selectedAsset.appliesIgtf) {
-        if (parsedAmt !== null && parsedAmt > 0) {
-          const igtfRate = selectedAsset.igtfPercent != null ? Number(selectedAsset.igtfPercent) : 3;
-          const calcIgtf = round((parsedAmt * igtfRate) / 100, selectedAsset.name);
-          nextIgtf = calcIgtf.toString();
-          if (nextIncludeIgtf === undefined || nextIncludeIgtf === false) nextIncludeIgtf = true;
-        } else {
-          nextIgtf = '';
-        }
+  useEffect(() => {
+    if (mode === 'form' && !isEditing && newTx) {
+      if (!newTx.date) {
+        setNewTx(prev => ({ ...prev, date: todayStr }));
       }
-
-      if (selectedAsset.hasTransferCommission || selectedAsset.commissionPercent > 0 || selectedAsset.commissionFixed > 0) {
-        if (parsedAmt !== null && parsedAmt > 0) {
-          const pct = Number(selectedAsset.commissionPercent) || 0;
-          const fix = Number(selectedAsset.commissionFixed) || 0;
-          const calcComm = round((parsedAmt * (pct / 100)) + fix, selectedAsset.name);
-          if (calcComm > 0) {
-            nextComm = calcComm.toString();
-            if (nextIncludeComm === undefined || nextIncludeComm === false) nextIncludeComm = true;
-          }
-        } else {
-          nextComm = '';
+      if (!newTx.assetId && Array.isArray(transactions) && Array.isArray(assets) && assets.length > 0) {
+        const lastTx = transactions.slice().reverse().find(t => t.type === newTx.type && (t.assetId || t.currency));
+        let matchedAsset = null;
+        if (lastTx) {
+          matchedAsset = assets.find(a => (lastTx.assetId && a.id === lastTx.assetId) ||
+            ((a.name || '').toUpperCase() === (lastTx.currency || '').toUpperCase() && a.location === lastTx.origin));
+        }
+        if (!matchedAsset) {
+          matchedAsset = assets[0];
+        }
+        if (matchedAsset) {
+          handleAssetSelect(matchedAsset.id);
         }
       }
     }
+  }, [mode, newTx?.type, isEditing]);
 
+  if (!mode) return null;
+
+  const handleAmountChange = (val) => {
+    const fees = calculateAssetFees(val, selectedAsset, newTx.type === 'spent');
     setNewTx(prev => ({
       ...prev,
       amount: val,
-      igtfAmount: nextIgtf,
-      includeIgtf: nextIncludeIgtf ?? prev.includeIgtf,
-      commissionAmount: nextComm,
-      includeCommission: nextIncludeComm ?? prev.includeCommission
+      igtfAmount: fees.igtfAmount || (val ? prev.igtfAmount : ''),
+      includeIgtf: fees.includeIgtf ? true : prev.includeIgtf,
+      commissionAmount: fees.commissionAmount || (val ? prev.commissionAmount : ''),
+      includeCommission: fees.includeCommission ? true : prev.includeCommission
     }));
   };
 
@@ -172,44 +95,65 @@ export default function TransactionModal({
       setNewTx(prev => ({ ...prev, assetId: '', origin: '' }));
       return;
     }
-    const parsedAmt = parseAmount(newTx.amount);
-    let nextIgtf = '';
-    let nextIncludeIgtf = false;
-    let nextComm = '';
-    let nextIncludeComm = false;
-
-    if (newTx.type === 'spent') {
-      if (target.name !== 'VES' && target.appliesIgtf) {
-        nextIncludeIgtf = true;
-        if (parsedAmt !== null && parsedAmt > 0) {
-          const igtfRate = target.igtfPercent != null ? Number(target.igtfPercent) : 3;
-          nextIgtf = round((parsedAmt * igtfRate) / 100, target.name).toString();
-        }
-      }
-      if (target.hasTransferCommission || target.commissionPercent > 0 || target.commissionFixed > 0) {
-        if (parsedAmt !== null && parsedAmt > 0) {
-          const pct = Number(target.commissionPercent) || 0;
-          const fix = Number(target.commissionFixed) || 0;
-          const calcComm = round((parsedAmt * (pct / 100)) + fix, target.name);
-          if (calcComm > 0) {
-            nextIncludeComm = true;
-            nextComm = calcComm.toString();
-          }
-        }
-      }
-    }
+    const fees = calculateAssetFees(newTx?.amount, target, newTx?.type === 'spent');
 
     setNewTx(prev => ({
       ...prev,
       assetId: target.id,
       currency: target.name,
       origin: target.location,
-      includeIgtf: nextIncludeIgtf,
-      igtfAmount: nextIgtf,
-      includeCommission: nextIncludeComm,
-      commissionAmount: nextComm
+      includeIgtf: fees.includeIgtf,
+      igtfAmount: fees.igtfAmount,
+      includeCommission: fees.includeCommission,
+      commissionAmount: fees.commissionAmount
     }));
   };
+
+  const handleTypeChange = (nextType) => {
+    const lastTx = transactions.slice().reverse().find(t => t.type === nextType && (t.assetId || t.currency));
+    let matchedAsset = null;
+    if (lastTx) {
+      matchedAsset = assets.find(a => (lastTx.assetId && a.id === lastTx.assetId) ||
+        ((a.name || '').toUpperCase() === (lastTx.currency || '').toUpperCase() && a.location === lastTx.origin));
+    }
+    if (!matchedAsset) matchedAsset = selectedAsset || assets[0];
+
+    setNewTx(prev => ({
+      ...prev,
+      type: nextType,
+      category: '',
+      category_id: null,
+      subcategory: '',
+      subcategory_id: null,
+      assetId: matchedAsset ? matchedAsset.id : prev.assetId,
+      currency: matchedAsset ? matchedAsset.name : prev.currency,
+      origin: matchedAsset ? matchedAsset.location : prev.origin
+    }));
+  };
+
+  const handleSaveAndAddAnotherClick = (e) => {
+    e.preventDefault();
+    if (onSaveAndAddAnother) {
+      const ok = onSaveAndAddAnother(e);
+      if (ok) {
+        setTimeout(() => {
+          amountInputRef.current?.focus();
+        }, 50);
+      }
+    } else if (onSubmit) {
+      onSubmit(e);
+    }
+  };
+
+  if (mode === 'select') {
+    return (
+      <TransactionTypeSelector
+        onClose={onClose}
+        setNewTx={setNewTx}
+        setMode={setMode}
+      />
+    );
+  }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -226,62 +170,34 @@ export default function TransactionModal({
           </h2>
           <div style={{ width: '64px' }} />
         </div>
+
         <form onSubmit={onSubmit}>
+          {/* 1. Selector de Tipo */}
           <div className="input-group">
             <label>Tipo de Transacción</label>
             <div className="segmented-control">
               <button
                 type="button"
                 className={`segmented-btn ${newTx.type === 'income' ? 'active-success' : ''}`}
-                onClick={() => setNewTx({ ...newTx, type: 'income', category: '', subcategory: '' })}
+                onClick={() => handleTypeChange('income')}
               >
                 Ingreso (+)
               </button>
               <button
                 type="button"
                 className={`segmented-btn ${newTx.type === 'spent' ? 'active-danger' : ''}`}
-                onClick={() => setNewTx({ ...newTx, type: 'spent' })}
+                onClick={() => handleTypeChange('spent')}
               >
                 Gasto (-)
               </button>
             </div>
           </div>
 
-          <div className="input-group">
-            <label>Moneda</label>
-            <CustomSelect
-              placeholder="Seleccionar Moneda"
-              title="Seleccionar Moneda"
-              value={newTx.currency}
-              onChange={e => {
-                const newCurrency = e.target.value;
-                const currentAsset = assets.find(a => a.id === newTx.assetId);
-                const isStillValid = currentAsset && (currentAsset.name || '').toUpperCase() === newCurrency.toUpperCase();
-                setNewTx({
-                  ...newTx,
-                  currency: newCurrency,
-                  assetId: isStillValid ? newTx.assetId : '',
-                  origin: isStillValid ? newTx.origin : ''
-                });
-              }}
-              options={uniqueAssetNames.map(name => ({ value: name, label: name }))}
-            />
-          </div>
-
-          <div className="input-group">
-            <label>Descripción / Concepto (Opcional)</label>
-            <input
-              type="text"
-              className="input-field"
-              placeholder="ej. Almuerzo, Zapatos, Mercado, Salario quincenal..."
-              value={newTx.notes || ''}
-              onChange={e => setNewTx({ ...newTx, notes: e.target.value })}
-            />
-          </div>
-
+          {/* 2. Monto con autofocus */}
           <div className="input-group">
             <label>Monto</label>
             <input
+              ref={amountInputRef}
               type="text"
               inputMode="decimal"
               className="input-field"
@@ -289,292 +205,66 @@ export default function TransactionModal({
               value={newTx.amount}
               onChange={e => handleAmountChange(e.target.value)}
               required
+              autoFocus
+              style={{ fontSize: '1.2rem', fontWeight: 700 }}
             />
           </div>
 
-          <div className="input-group">
-            <label>{newTx.type === 'income' ? 'Destino (Cuenta Bancaria / Billetera)' : 'Origen (Cuenta Bancaria / Billetera)'}</label>
-            <CustomSelect
-              placeholder={newTx.type === 'income' ? 'Seleccionar Destino' : 'Seleccionar Origen'}
-              title={newTx.type === 'income' ? 'Seleccionar Cuenta Destino' : 'Seleccionar Cuenta Origen'}
-              value={newTx.assetId || ''}
-              onChange={e => handleAssetSelect(e.target.value)}
-              options={availableAssetsForTx.map(a => ({
-                value: a.id,
-                label: `${a.location} (${a.name}) - Saldo: ${formatAmount(a.amount, a.name)}`
-              }))}
-            />
-
-            {(newTx.assetId || (newTx.currency && newTx.origin)) && (
-              <div style={{ marginTop: '0.75rem', padding: '0.75rem', backgroundColor: '#232c3d', border: '1px solid #2a3447', borderRadius: '8px', fontSize: '0.875rem' }}>
-                {(() => {
-                  const asset = assets.find(a => a.id === newTx.assetId) ||
-                                assets.find(a => (a.name || '').toUpperCase() === (newTx.currency || '').toUpperCase() && a.location === newTx.origin);
-                  const currentBalance = asset ? Number(asset.amount) : 0;
-                  const parsedEntered = parseAmount(newTx.amount);
-                  const amountEntered = parsedEntered !== null ? parsedEntered : 0;
-                  const igtfEntered = (newTx.type === 'spent' && newTx.includeIgtf && newTx.igtfAmount) ? (parseAmount(newTx.igtfAmount) || 0) : 0;
-                  const commEntered = (newTx.type === 'spent' && newTx.includeCommission && newTx.commissionAmount) ? (parseAmount(newTx.commissionAmount) || 0) : 0;
-                  const totalDeducted = add(add(amountEntered, igtfEntered), commEntered);
-
-                  const isSameAccount = oldTx && (
-                    (oldTx.assetId && newTx.assetId ? oldTx.assetId === newTx.assetId : false) ||
-                    ((oldTx.currency || '').toUpperCase() === (newTx.currency || '').toUpperCase() && oldTx.origin === newTx.origin)
-                  );
-                  let newBalance = 0;
-                  if (isSameAccount) {
-                    const oldAmount = Number(oldTx.amount) || 0;
-                    if (oldTx.type === 'spent' && newTx.type === 'spent') {
-                      newBalance = sub(add(currentBalance, oldAmount), totalDeducted);
-                    } else if (oldTx.type === 'income' && newTx.type === 'income') {
-                      newBalance = add(sub(currentBalance, oldAmount), amountEntered);
-                    } else if (oldTx.type === 'spent' && newTx.type === 'income') {
-                      newBalance = add(add(currentBalance, oldAmount), amountEntered);
-                    } else {
-                      newBalance = sub(sub(currentBalance, oldAmount), totalDeducted);
-                    }
-                  } else {
-                    newBalance = newTx.type === 'income' ? add(currentBalance, amountEntered) : sub(currentBalance, totalDeducted);
-                  }
-                  newBalance = round(newBalance, newTx.currency);
-                  return (
-                    <>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                        <span style={{ color: 'var(--text-secondary)' }}>Balance Actual:</span>
-                        <span>{getCurrencySymbol(newTx.currency)}{formatAmount(currentBalance, newTx.currency)} {newTx.currency}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', color: newBalance < 0 ? 'var(--danger-color)' : 'var(--success-color)' }}>
-                        <span>Balance Final:</span>
-                        <span>{getCurrencySymbol(newTx.currency)}{formatAmount(newBalance, newTx.currency)} {newTx.currency}</span>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-            )}
-          </div>
-
-          {/* Comisiones bancarias e IGTF vinculados opcionales para gastos */}
-          {newTx.type === 'spent' && (
-            <div style={{ marginBottom: '1rem', padding: '0.85rem', background: '#151b26', borderRadius: '12px', border: '1px solid #2a3447' }}>
-              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f1f5f9', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span>🧾</span>
-                <span>Comisión bancaria e impuestos (Opcional)</span>
-              </div>
-
-              {/* Comisión bancaria */}
-              <div style={{ marginBottom: (selectedAsset && selectedAsset.name !== 'VES' && selectedAsset.appliesIgtf) ? '0.75rem' : '0' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.82rem', color: '#cbd5e1' }}>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(newTx.includeCommission)}
-                      onChange={e => {
-                        const checked = e.target.checked;
-                        let autoComm = newTx.commissionAmount;
-                        if (checked && !autoComm && selectedAsset) {
-                          const pct = Number(selectedAsset.commissionPercent) || 0;
-                          const fix = Number(selectedAsset.commissionFixed) || 0;
-                          const parsedAmt = parseAmount(newTx.amount) || 0;
-                          if (pct > 0 || fix > 0) {
-                            autoComm = round((parsedAmt * (pct / 100)) + fix, selectedAsset.name).toString();
-                          }
-                        }
-                        setNewTx(prev => ({ ...prev, includeCommission: checked, commissionAmount: autoComm }));
-                      }}
-                      style={{ width: '16px', height: '16px', accentColor: '#10b981' }}
-                    />
-                    <span>Agregar comisión bancaria {newTx.currency ? `(${newTx.currency})` : ''}</span>
-                  </label>
-                  {newTx.includeCommission && (
-                    <div style={{ width: '110px' }}>
-                      <input
-                        type="text"
-                        inputMode="decimal"
-                        className="input-field"
-                        placeholder="0,00"
-                        style={{ padding: '0.35rem 0.5rem', fontSize: '0.85rem', textAlign: 'right' }}
-                        value={newTx.commissionAmount || ''}
-                        onChange={e => setNewTx(prev => ({ ...prev, commissionAmount: e.target.value }))}
-                      />
-                    </div>
-                  )}
-                </div>
-                {newTx.includeCommission && (
-                  <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.3rem', marginLeft: '1.6rem' }}>
-                    Se deducirá del saldo de la cuenta y se registrará como gasto de comisión.
-                  </div>
-                )}
-              </div>
-
-              {/* IGTF (si aplica a divisas) */}
-              {selectedAsset && selectedAsset.name !== 'VES' && selectedAsset.appliesIgtf && (
-                <div style={{ paddingTop: '0.65rem', borderTop: '1px solid #232c3d', marginTop: '0.65rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.82rem', color: '#cbd5e1' }}>
-                      <input
-                        type="checkbox"
-                        checked={Boolean(newTx.includeIgtf)}
-                        onChange={e => setNewTx(prev => ({ ...prev, includeIgtf: e.target.checked }))}
-                        style={{ width: '16px', height: '16px', accentColor: '#10b981' }}
-                      />
-                      <span>Cobrar IGTF ({selectedAsset.igtfPercent || 3}%)</span>
-                    </label>
-                    {newTx.includeIgtf && (
-                      <div style={{ width: '110px' }}>
-                        <input
-                          type="text"
-                          inputMode="decimal"
-                          className="input-field"
-                          placeholder="0,00"
-                          style={{ padding: '0.35rem 0.5rem', fontSize: '0.85rem', textAlign: 'right' }}
-                          value={newTx.igtfAmount || ''}
-                          onChange={e => setNewTx(prev => ({ ...prev, igtfAmount: e.target.value }))}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+          {/* 3. CategoryPicker */}
+          {(newTx.type === 'spent' || newTx.type === 'income') && (
+            <div className="input-group">
+              <label>Categoría</label>
+              <CategoryPicker
+                kind={newTx.type === 'income' ? 'income' : 'expense'}
+                selectedCategoryId={newTx.category_id}
+                selectedSubcategoryId={newTx.subcategory_id}
+                transactions={transactions}
+                onChange={({ categoryId, categoryName, subcategoryId, subcategoryName }) => {
+                  setNewTx({
+                    ...newTx,
+                    category: categoryName,
+                    category_id: categoryId,
+                    subcategory: subcategoryName || '',
+                    subcategory_id: subcategoryId || null
+                  });
+                }}
+              />
             </div>
           )}
 
-          {/* Detalles opcionales para movimientos en Bs. */}
-          {newTx.currency === 'VES' && (
-            <div style={{ marginBottom: '1rem', padding: '0.85rem', background: '#151b26', borderRadius: '12px', border: '1px solid #2a3447' }}>
-              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f1f5f9', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <span>🇻🇪</span>
-                <span>Detalles de pago en Bolívares (Opcional)</span>
-              </div>
+          {/* 4. Cuenta y comisiones */}
+          <TransactionAccountSection
+            newTx={newTx}
+            setNewTx={setNewTx}
+            assets={assets}
+            availableAssetsForTx={availableAssetsForTx}
+            selectedAsset={selectedAsset}
+            handleAssetSelect={handleAssetSelect}
+            oldTx={oldTx}
+          />
 
-              {/* Tipo de pago */}
-              <div style={{ marginBottom: '0.65rem' }}>
-                <label style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'block', marginBottom: '0.35rem' }}>Tipo de pago</label>
-                <div className="segmented-control" style={{ flexWrap: 'wrap' }}>
-                  {['Pago Móvil', 'Transferencia', 'Punto de venta', 'Efectivo'].map(method => (
-                    <button
-                      key={method}
-                      type="button"
-                      className={`segmented-btn ${newTx.paymentMethod === method ? 'active-success' : ''}`}
-                      onClick={() => setNewTx(prev => ({
-                        ...prev,
-                        paymentMethod: prev.paymentMethod === method ? '' : method
-                      }))}
-                      style={{ fontSize: '0.75rem', padding: '0.35rem 0.5rem' }}
-                    >
-                      {method}
-                    </button>
-                  ))}
-                </div>
-              </div>
+          {/* Detalles opcionales VES */}
+          <TransactionVesDetails
+            newTx={newTx}
+            setNewTx={setNewTx}
+          />
 
-              {/* Nro Referencia y Banco */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.65rem' }}>
-                <div>
-                  <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>
-                    Nro. de Referencia
-                  </label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    placeholder="Ej. 849201"
-                    style={{ padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
-                    value={newTx.referenceNumber || ''}
-                    onChange={e => setNewTx(prev => ({ ...prev, referenceNumber: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>
-                    Banco
-                  </label>
-                  <input
-                    type="text"
-                    className="input-field"
-                    placeholder="Ej. Banesco, BDV..."
-                    style={{ padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
-                    value={newTx.bank || ''}
-                    onChange={e => setNewTx(prev => ({ ...prev, bank: e.target.value }))}
-                  />
-                </div>
-              </div>
-
-              {/* Destinatario */}
-              <div>
-                <label style={{ fontSize: '0.72rem', color: '#94a3b8', display: 'block', marginBottom: '0.2rem' }}>
-                  Teléfono o Cédula / RIF del destinatario
-                </label>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="Ej. V-12345678 o 0414-1234567"
-                  style={{ padding: '0.45rem 0.6rem', fontSize: '0.85rem' }}
-                  value={newTx.recipientId || ''}
-                  onChange={e => setNewTx(prev => ({ ...prev, recipientId: e.target.value }))}
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="input-group">
-            <label>Fecha</label>
-            <input
-              type="date"
-              className="input-field"
-              value={newTx.date ? toLocalDateString(newTx.date) : ''}
-              onChange={e => setNewTx({ ...newTx, date: e.target.value })}
-              required
-            />
-          </div>
-
-          {newTx.type === 'spent' && (
-            <>
-              <div className="input-group">
-                <label>Categoría</label>
-                <CustomSelect
-                  placeholder="Seleccionar Categoría"
-                  title="Seleccionar Categoría"
-                  value={newTx.category}
-                  onChange={e => setNewTx({ ...newTx, category: e.target.value, subcategory: '' })}
-                  options={Object.keys(SPENT_CATEGORIES).map(cat => ({ value: cat, label: cat }))}
-                />
-              </div>
-
-              {newTx.category && SPENT_CATEGORIES[newTx.category] && (
-                <div className="input-group">
-                  <label>Subcategoría</label>
-                  <CustomSelect
-                    placeholder="Seleccionar Subcategoría"
-                    title={`Subcategoría de ${newTx.category}`}
-                    value={newTx.subcategory}
-                    onChange={e => setNewTx({ ...newTx, subcategory: e.target.value })}
-                    options={(SPENT_CATEGORIES[newTx.category] || []).map(sub => ({ value: sub, label: sub }))}
-                  />
-                </div>
-              )}
-            </>
-          )}
-
-          {validationError && (
-            <div style={{ color: 'var(--danger-color)', fontSize: '0.875rem', marginBottom: '1rem', textAlign: 'center' }}>
-              {validationError}
-            </div>
-          )}
-
-          <div className="modal-actions">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => {
-                onClose();
-                if (setValidationError) setValidationError('');
-              }}
-            >
-              Cancelar
-            </button>
-            <button type="submit" className="btn btn-primary">
-              {isEditing ? 'Actualizar Transacción' : 'Guardar Transacción'}
-            </button>
-          </div>
+          {/* 5 y 6. Fecha, Nota y Acciones */}
+          <TransactionFormFooter
+            newTx={newTx}
+            setNewTx={setNewTx}
+            todayStr={todayStr}
+            yesterdayStr={yesterdayStr}
+            isToday={isToday}
+            isYesterday={isYesterday}
+            showCustomDatePicker={showCustomDatePicker}
+            setShowCustomDatePicker={setShowCustomDatePicker}
+            validationError={validationError}
+            setValidationError={setValidationError}
+            isEditing={isEditing}
+            onClose={onClose}
+            handleSaveAndAddAnotherClick={handleSaveAndAddAnotherClick}
+          />
         </form>
       </div>
     </div>

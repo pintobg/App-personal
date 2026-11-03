@@ -1,810 +1,136 @@
-import { useState, useMemo } from 'react';
-import { Card, SectionHeader, Button, IconButton, Chip, Amount, EmptyState } from '../ui';
-import CustomSelect from '../common/CustomSelect';
-import {
-  formatAmount,
-  translateCategory,
-  translateSubcategory,
-  getTxRateSnapshot,
-  getTxUsdEquivalent,
-  formatTxRate
-} from '../../utils/formatters';
-import { toLocalDateString, parseLocalDate, formatTxDateTime } from '../../utils/dates';
-import { calculateEffectiveExchangeRate } from '../../domain/rates';
+import { useContext, useCallback } from 'react';
+import { FinanceContext } from '../../context/FinanceContext';
+import TransactionsViewHeader from './transactions/TransactionsViewHeader';
+import TransactionFilters from './transactions/TransactionFilters';
+import TransactionsVirtualList from './transactions/TransactionsVirtualList';
+import { useTransactionFiltering } from './transactions/useTransactionFiltering';
 
 export default function TransactionsView({
-  transactions,
+  transactions = [],
   assets = [],
-  txFilter,
-  setTxFilter,
-  deleteMode,
-  setDeleteMode,
-  selectedTxs,
-  toggleSelectTx,
-  flippedTxId,
-  setFlippedTxId,
+  txFilter = 'all',
+  setTxFilter = () => {},
+  deleteMode = false,
+  setDeleteMode = () => {},
+  selectedTxs = [],
+  toggleSelectTx = () => {},
+  flippedTxId = null,
+  setFlippedTxId = () => {},
   rates = {},
   onEdit,
-  onOpenReportsModal
+  onOpenReportsModal,
+  getCategoryName,
+  getSubcategoryName,
+  deleteTransactionWithUndo: propDeleteTransactionWithUndo
 }) {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [dateRangeFilter, setDateRangeFilter] = useState('all'); // 'all' | 'this_month' | 'last_month' | 'custom'
-  const [customStartDate, setCustomStartDate] = useState('');
-  const [customEndDate, setCustomEndDate] = useState('');
-  const [accountFilter, setAccountFilter] = useState('all');
+  const finance = useContext(FinanceContext);
+  const handleDeleteWithUndo = propDeleteTransactionWithUndo || finance?.deleteTransactionWithUndo;
+  const categoriesMap = finance?.categoriesMap;
+  const categories = finance?.categories || [];
 
-  const uniqueAccounts = useMemo(() => {
-    const accs = new Set();
-    if (Array.isArray(assets)) {
-      assets.forEach(a => {
-        if (a && a.location) accs.add(a.location);
-      });
-    }
-    if (Array.isArray(transactions)) {
-      transactions.forEach(t => {
-        if (t && t.origin) accs.add(t.origin);
-        if (t && t.destOrigin) accs.add(t.destOrigin);
-      });
-    }
-    return Array.from(accs).filter(Boolean).sort();
-  }, [assets, transactions]);
+  const {
+    searchQuery,
+    setSearchQuery,
+    dateRangeFilter,
+    setDateRangeFilter,
+    customStartDate,
+    setCustomStartDate,
+    customEndDate,
+    setCustomEndDate,
+    accountFilter,
+    setAccountFilter,
+    categoryFilter,
+    setCategoryFilter,
+    currencyFilter,
+    setCurrencyFilter,
+    dateOptions,
+    accountOptions,
+    categoryOptions,
+    currencyOptions,
+    exchangeMonthStats,
+    filteredTransactions,
+    filteredTotals,
+    hasActiveFilters,
+    handleClearFilters
+  } = useTransactionFiltering({
+    transactions,
+    assets,
+    rates,
+    txFilter,
+    setTxFilter,
+    getCategoryName,
+    getSubcategoryName
+  });
 
-  const dateOptions = [
-    { value: 'all', label: 'Todo' },
-    { value: 'this_month', label: 'Este mes' },
-    { value: 'last_month', label: 'Mes anterior' },
-    { value: 'custom', label: 'Rango personalizado' }
-  ];
+  const handleFlip = useCallback((id) => {
+    setFlippedTxId(prev => (prev === id ? null : id));
+  }, [setFlippedTxId]);
 
-  const accountOptions = [
-    { value: 'all', label: 'Todas las cuentas' },
-    ...uniqueAccounts.map(acc => ({ value: acc, label: acc }))
-  ];
-
-  // Estadísticas del mes para "Mis cambios"
-  const exchangeMonthStats = useMemo(() => {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-
-    const monthExchanges = (transactions || []).filter(tx => {
-      if (tx.type !== 'transfer' || tx.currency === tx.destCurrency) return false;
-      const d = parseLocalDate(toLocalDateString(tx.date));
-      return d >= startOfMonth && d <= endOfMonth;
-    });
-
-    if (monthExchanges.length === 0) {
-      return { count: 0, averageRate: 0, hasData: false };
-    }
-
-    const vesExchanges = monthExchanges.map(tx => {
-      if (tx.effectiveRate != null && Number(tx.effectiveRate) > 0) {
-        return Number(tx.effectiveRate);
-      }
-      const calculated = calculateEffectiveExchangeRate({
-        fromCurrency: tx.currency,
-        fromAmount: tx.amount,
-        toCurrency: tx.destCurrency,
-        toAmount: tx.destAmount,
-        commission: tx.commission || 0,
-        ratesSnapshot: {
-          bcvUsd: rates.bcvUsd || rates.VES,
-          paralelo: rates.paralelo || rates.VES_PARALELO
-        }
-      });
-      return calculated ? calculated.rate : null;
-    }).filter(r => r != null && r > 0);
-
-    if (vesExchanges.length === 0) {
-      return { count: monthExchanges.length, averageRate: 0, hasData: false };
-    }
-
-    const sumRates = vesExchanges.reduce((acc, r) => acc + r, 0);
-    const avg = Number((sumRates / vesExchanges.length).toFixed(2));
-
-    return {
-      count: monthExchanges.length,
-      averageRate: avg,
-      hasData: true
-    };
-  }, [transactions, rates]);
-
-  const filteredTransactions = useMemo(() => {
-    return transactions.filter(tx => {
-      // 1. Type filter (Todas, Ingresos, Gastos, Transferencias, Ajustes, Mis cambios)
-      if (txFilter === 'exchanges') {
-        const isExchange = tx.type === 'transfer' && tx.currency !== tx.destCurrency;
-        if (!isExchange) return false;
-      } else if (txFilter !== 'all' && tx.type !== txFilter) {
-        return false;
-      }
-
-      // 2. Account filter
-      if (accountFilter !== 'all') {
-        const matchesAccount = tx.origin === accountFilter || tx.destOrigin === accountFilter;
-        if (!matchesAccount) return false;
-      }
-
-      // 3. Date range filter
-      if (dateRangeFilter !== 'all') {
-        const txDateLocalStr = toLocalDateString(tx.date);
-        const txDate = parseLocalDate(txDateLocalStr);
-        const now = new Date();
-
-        if (dateRangeFilter === 'this_month') {
-          const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
-          const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-          if (txDate < start || txDate > end) return false;
-        } else if (dateRangeFilter === 'last_month') {
-          const start = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
-          const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-          if (txDate < start || txDate > end) return false;
-        } else if (dateRangeFilter === 'custom') {
-          if (customStartDate && txDateLocalStr < customStartDate) return false;
-          if (customEndDate && txDateLocalStr > customEndDate) return false;
-        }
-      }
-
-      // 4. Quick text search
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase().trim();
-        const cat = (tx.category || '').toLowerCase();
-        const translatedCat = (translateCategory(tx.category) || '').toLowerCase();
-        const subcat = (tx.subcategory || '').toLowerCase();
-        const translatedSubcat = (translateSubcategory(tx.subcategory) || '').toLowerCase();
-        const origin = (tx.origin || '').toLowerCase();
-        const destOrigin = (tx.destOrigin || '').toLowerCase();
-        const notes = (tx.notes || tx.description || tx.title || '').toLowerCase();
-        const currency = (tx.currency || '').toLowerCase();
-        const ref = (tx.referenceNumber || '').toLowerCase();
-        const bank = (tx.bank || '').toLowerCase();
-        const recipient = (tx.recipientId || '').toLowerCase();
-        const paymentMethod = (tx.paymentMethod || '').toLowerCase();
-
-        const matches =
-          cat.includes(q) ||
-          translatedCat.includes(q) ||
-          subcat.includes(q) ||
-          translatedSubcat.includes(q) ||
-          origin.includes(q) ||
-          destOrigin.includes(q) ||
-          notes.includes(q) ||
-          currency.includes(q) ||
-          ref.includes(q) ||
-          bank.includes(q) ||
-          recipient.includes(q) ||
-          paymentMethod.includes(q);
-
-        if (!matches) return false;
-      }
-
-      return true;
-    }).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
-  }, [transactions, txFilter, accountFilter, dateRangeFilter, customStartDate, customEndDate, searchQuery]);
-
-  const hasActiveFilters = Boolean(
-    searchQuery.trim() ||
-    dateRangeFilter !== 'all' ||
-    accountFilter !== 'all' ||
-    customStartDate ||
-    customEndDate ||
-    txFilter !== 'all'
-  );
-
-  const handleClearFilters = () => {
-    setSearchQuery('');
-    setDateRangeFilter('all');
-    setAccountFilter('all');
-    setCustomStartDate('');
-    setCustomEndDate('');
-    setTxFilter('all');
-  };
+  const handleDelete = useCallback((tx) => {
+    handleDeleteWithUndo?.(tx);
+  }, [handleDeleteWithUndo]);
 
   return (
     <div className="view-container" style={{ padding: '0 1rem', marginTop: '2rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', gap: '0.5rem', flexWrap: 'wrap' }}>
-        <h2 className="section-title" style={{ padding: 0, color: 'var(--text-primary)', fontSize: 'clamp(1rem, 4vw, 1.2rem)', margin: 0 }}>Historial de Transacciones</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          {onOpenReportsModal && (
-            <button
-              type="button"
-              className="btn"
-              onClick={onOpenReportsModal}
-              title="Exportar reportes (CSV y PDF)"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                background: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border-color)',
-                color: 'var(--color-info)',
-                borderRadius: '8px',
-                padding: '4px 10px',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                cursor: 'pointer'
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                <polyline points="7 10 12 15 17 10"></polyline>
-                <line x1="12" y1="15" x2="12" y2="3"></line>
-              </svg>
-              <span>Exportar</span>
-            </button>
-          )}
-          {!deleteMode && (
-            <button
-              className="btn"
-              style={{ padding: '0.25rem', display: 'flex', alignItems: 'center', background: 'transparent', color: 'var(--color-danger)', opacity: 0.9 }}
-              onClick={() => setDeleteMode(true)}
-              title="Borrado múltiple" aria-label="Borrado múltiple"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-            </button>
-          )}
-        </div>
-      </div>
+      {/* Encabezado y pestañas de tipo */}
+      <TransactionsViewHeader
+        txFilter={txFilter}
+        setTxFilter={setTxFilter}
+        deleteMode={deleteMode}
+        setDeleteMode={setDeleteMode}
+        selectedCount={selectedTxs.length}
+        onOpenReportsModal={onOpenReportsModal}
+        exchangeMonthStats={exchangeMonthStats}
+        hasActiveFilters={hasActiveFilters}
+        filteredCount={filteredTransactions.length}
+        onClearFilters={handleClearFilters}
+      />
 
-      {/* SEARCH BAR */}
-      <div style={{ position: 'relative', marginBottom: '0.875rem' }}>
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)', pointerEvents: 'none' }}
-        >
-          <circle cx="11" cy="11" r="8"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </svg>
-        <input
-          type="text"
-          className="input-field"
-          placeholder="Buscar por categoría, cuenta, referencia, banco..."
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          style={{
-            paddingLeft: '2.5rem',
-            paddingRight: searchQuery ? '2.5rem' : '1rem',
-            borderRadius: '12px',
-            fontSize: '16px',
-            height: '48px',
-            width: '100%'
-          }}
-        />
-        {searchQuery && (
-          <button
-            type="button"
-            onClick={() => setSearchQuery('')}
-            aria-label="Limpiar búsqueda"
-            style={{
-              position: 'absolute',
-              right: '0.75rem',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-color)',
-              color: 'var(--text-secondary)',
-              borderRadius: '50%',
-              width: '20px',
-              height: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              fontSize: '0.75rem',
-              lineHeight: 1
-            }}
-          >
-            ✕
-          </button>
-        )}
-      </div>
+      {/* Buscador, selectores y totales */}
+      <TransactionFilters
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
+        dateRangeFilter={dateRangeFilter}
+        setDateRangeFilter={setDateRangeFilter}
+        customStartDate={customStartDate}
+        setCustomStartDate={setCustomStartDate}
+        customEndDate={customEndDate}
+        setCustomEndDate={setCustomEndDate}
+        accountFilter={accountFilter}
+        setAccountFilter={setAccountFilter}
+        categoryFilter={categoryFilter}
+        setCategoryFilter={setCategoryFilter}
+        currencyFilter={currencyFilter}
+        setCurrencyFilter={setCurrencyFilter}
+        txFilter={txFilter}
+        setTxFilter={setTxFilter}
+        dateOptions={dateOptions}
+        accountOptions={accountOptions}
+        categoryOptions={categoryOptions}
+        currencyOptions={currencyOptions}
+        hasActiveFilters={hasActiveFilters}
+        onClearFilters={handleClearFilters}
+        filteredTotals={filteredTotals}
+        getCategoryName={getCategoryName}
+      />
 
-      {/* FILTER CONTROLS: PERIODO & CUENTA */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.875rem' }}>
-        <div>
-          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.35rem', fontWeight: 500 }}>
-            Periodo
-          </label>
-          <CustomSelect
-            value={dateRangeFilter}
-            onChange={e => setDateRangeFilter(e.target.value)}
-            options={dateOptions}
-            placeholder="Periodo"
-            title="Filtrar por Periodo"
-          />
-        </div>
-        <div>
-          <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.35rem', fontWeight: 500 }}>
-            Cuenta
-          </label>
-          <CustomSelect
-            value={accountFilter}
-            onChange={e => setAccountFilter(e.target.value)}
-            options={accountOptions}
-            placeholder="Cuenta"
-            title="Filtrar por Cuenta"
-          />
-        </div>
-      </div>
-
-      {/* CUSTOM DATE RANGE PICKER */}
-      {dateRangeFilter === 'custom' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '0.875rem', background: 'var(--bg-surface)', padding: '0.75rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-          <div>
-            <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Fecha inicio</label>
-            <input
-              type="date"
-              className="input-field"
-              value={customStartDate}
-              onChange={e => setCustomStartDate(e.target.value)}
-              style={{ padding: '0.5rem 0.75rem', fontSize: '16px', height: '48px', borderRadius: '8px' }}
-            />
-          </div>
-          <div>
-            <label style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.25rem' }}>Fecha fin</label>
-            <input
-              type="date"
-              className="input-field"
-              value={customEndDate}
-              onChange={e => setCustomEndDate(e.target.value)}
-              style={{ padding: '0.5rem 0.75rem', fontSize: '16px', height: '48px', borderRadius: '8px' }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* TYPE FILTER TABS */}
-      <div style={{
-        display: 'flex',
-        gap: '1.25rem',
-        borderBottom: '1px solid var(--border-color)',
-        marginBottom: '1rem',
-        overflowX: 'auto',
-        WebkitOverflowScrolling: 'touch',
-        scrollbarWidth: 'none',
-        msOverflowStyle: 'none',
-        paddingBottom: '2px'
-      }}>
-        <button
-          onClick={() => setTxFilter('all')}
-          style={{ background: 'transparent', border: 'none', padding: '0.5rem 0', color: txFilter === 'all' ? 'var(--color-accent)' : 'var(--text-secondary)', borderBottom: txFilter === 'all' ? '2px solid var(--color-accent)' : '2px solid transparent', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
-        >
-          Todas
-        </button>
-        <button
-          onClick={() => setTxFilter('income')}
-          style={{ background: 'transparent', border: 'none', padding: '0.5rem 0', color: txFilter === 'income' ? 'var(--color-accent)' : 'var(--text-secondary)', borderBottom: txFilter === 'income' ? '2px solid var(--color-accent)' : '2px solid transparent', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
-        >
-          Ingresos
-        </button>
-        <button
-          onClick={() => setTxFilter('spent')}
-          style={{ background: 'transparent', border: 'none', padding: '0.5rem 0', color: txFilter === 'spent' ? 'var(--color-accent)' : 'var(--text-secondary)', borderBottom: txFilter === 'spent' ? '2px solid var(--color-accent)' : '2px solid transparent', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
-        >
-          Gastos
-        </button>
-        <button
-          onClick={() => setTxFilter('transfer')}
-          style={{ background: 'transparent', border: 'none', padding: '0.5rem 0', color: txFilter === 'transfer' ? 'var(--color-accent)' : 'var(--text-secondary)', borderBottom: txFilter === 'transfer' ? '2px solid var(--color-accent)' : '2px solid transparent', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
-        >
-          Transferencias
-        </button>
-        <button
-          onClick={() => setTxFilter('exchanges')}
-          style={{ background: 'transparent', border: 'none', padding: '0.5rem 0', color: txFilter === 'exchanges' ? 'var(--color-accent)' : 'var(--text-secondary)', borderBottom: txFilter === 'exchanges' ? '2px solid var(--color-accent)' : '2px solid transparent', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
-        >
-          Mis cambios
-        </button>
-        <button
-          onClick={() => setTxFilter('adjustment')}
-          style={{ background: 'transparent', border: 'none', padding: '0.5rem 0', color: txFilter === 'adjustment' ? 'var(--color-accent)' : 'var(--text-secondary)', borderBottom: txFilter === 'adjustment' ? '2px solid var(--color-accent)' : '2px solid transparent', fontSize: '0.875rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}
-        >
-          Ajustes
-        </button>
-      </div>
-
-      {/* BANNER SECCIÓN MIS CAMBIOS CON TASA PROMEDIO DEL MES */}
-      {txFilter === 'exchanges' && (
-        <div
-          className="glass-card"
-          style={{
-            padding: '0.85rem 1rem',
-            borderRadius: '14px',
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(30, 41, 59, 0.5) 100%)',
-            border: '1px solid rgba(16, 185, 129, 0.25)',
-            marginBottom: '1rem',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: '0.5rem'
-          }}
-        >
-          <div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
-              Mis cambios • Mes en curso
-            </div>
-            <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', marginTop: '2px' }}>
-              {exchangeMonthStats.hasData ? (
-                <>
-                  Tasa promedio: <span style={{ color: 'var(--color-accent)' }}>{formatAmount(exchangeMonthStats.averageRate, 'VES')} Bs./$</span>
-                </>
-              ) : (
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Sin operaciones de cambio este mes</span>
-              )}
-            </div>
-          </div>
-          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', background: 'var(--bg-surface)', padding: '4px 10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            {exchangeMonthStats.count} {exchangeMonthStats.count === 1 ? 'operación' : 'operaciones'}
-          </div>
-        </div>
-      )}
-
-      {/* FILTER SUMMARY & RESET ACTION */}
-      {hasActiveFilters && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-          <span>{filteredTransactions.length} movimiento{filteredTransactions.length === 1 ? '' : 's'} encontrado{filteredTransactions.length === 1 ? '' : 's'}</span>
-          <button
-            type="button"
-            onClick={handleClearFilters}
-            style={{ background: 'transparent', border: 'none', color: 'var(--color-accent)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, padding: 0 }}
-          >
-            Limpiar filtros
-          </button>
-        </div>
-      )}
-
-      {/* TRANSACTIONS LIST */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem' }}>
-        {filteredTransactions.length === 0 && (
-          <EmptyState
-            icon={hasActiveFilters ? "🔍" : "📊"}
-            message={hasActiveFilters ? "No se encontraron movimientos con los filtros seleccionados" : "No hay transacciones registradas"}
-          />
-        )}
-        {filteredTransactions.map(tx => {
-          const rateSnapshot = getTxRateSnapshot(tx, rates);
-          const usdVal = getTxUsdEquivalent(tx, rates);
-          const rateStr = formatTxRate(tx.currency, rateSnapshot);
-
-          const defaultTypeLabel = tx.type === 'transfer'
-            ? (tx.currency !== tx.destCurrency ? 'Cambio de divisa' : 'Transferencia')
-            : (tx.type === 'income' ? 'Ingreso' : (tx.type === 'adjustment' ? 'Ajuste de saldo' : 'Gasto'));
-
-          let txTitle = defaultTypeLabel;
-          let categorySubtext = '';
-
-          if (tx.notes && tx.notes.trim()) {
-            txTitle = tx.notes.trim();
-            const cat = translateCategory(tx.category);
-            const subcat = translateSubcategory(tx.subcategory);
-            if (cat && subcat && cat !== subcat) {
-              categorySubtext = `${cat} • ${subcat}`;
-            } else if (cat) {
-              categorySubtext = cat;
-            } else if (subcat) {
-              categorySubtext = subcat;
-            }
-          } else if (tx.subcategory && tx.subcategory.trim()) {
-            txTitle = translateSubcategory(tx.subcategory.trim());
-            const cat = translateCategory(tx.category);
-            if (cat && cat !== txTitle) {
-              categorySubtext = cat;
-            }
-          } else if (tx.category && tx.category.trim()) {
-            txTitle = translateCategory(tx.category.trim());
-            categorySubtext = defaultTypeLabel;
-          }
-
-          return (
-            <div
-              key={tx.id}
-              className={`tx-flip-container ${flippedTxId === tx.id ? 'flipped' : ''}`}
-              style={{ opacity: deleteMode && !selectedTxs.some(t => t.id === tx.id) ? 0.6 : 1 }}
-            >
-              <div className="tx-flip-inner" onClick={() => {
-                if (deleteMode) {
-                  toggleSelectTx(tx);
-                } else {
-                  setFlippedTxId(flippedTxId === tx.id ? null : tx.id);
-                }
-              }}>
-                <div className="tx-flip-front glass-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.15rem', borderRadius: '16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: 0, paddingRight: '0.5rem' }}>
-                    {deleteMode && (
-                      <input type="checkbox" checked={selectedTxs.some(t => t.id === tx.id)} readOnly style={{ transform: 'scale(1.2)', flexShrink: 0 }} />
-                    )}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: 0, flex: 1 }}>
-                      <div style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                        {tx.type === 'adjustment' && (
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                            <line x1="4" y1="21" x2="4" y2="14"></line>
-                            <line x1="4" y1="10" x2="4" y2="3"></line>
-                            <line x1="12" y1="21" x2="12" y2="12"></line>
-                            <line x1="12" y1="8" x2="12" y2="3"></line>
-                            <line x1="20" y1="21" x2="20" y2="16"></line>
-                            <line x1="20" y1="12" x2="20" y2="3"></line>
-                            <line x1="1" y1="14" x2="7" y2="14"></line>
-                            <line x1="9" y1="8" x2="15" y2="8"></line>
-                            <line x1="17" y1="16" x2="23" y2="16"></line>
-                          </svg>
-                        )}
-                        <span title={txTitle}>
-                          {txTitle}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
-                        {Boolean(categorySubtext) && (
-                          <div style={{ color: 'var(--text-primary)', fontSize: '0.78rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {categorySubtext}
-                          </div>
-                        )}
-                        <div style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tx.type === 'transfer' ? `${tx.origin} ➔ ${tx.destOrigin}` : tx.origin}</div>
-                        <div style={{ opacity: 0.7 }}>{tx.type === 'transfer' ? formatTxDateTime(tx.date) : toLocalDateString(tx.date)}</div>
-                        {tx.type === 'transfer' && tx.currency !== tx.destCurrency && (tx.effectiveRate || tx.effectiveRateData) && (
-                          <div style={{ fontSize: '0.7rem', color: 'var(--color-accent)', fontWeight: 600 }}>
-                            Tasa: {formatAmount(tx.effectiveRate || tx.effectiveRateData?.rate, 'VES')} Bs./$
-                          </div>
-                        )}
-                        {Boolean(tx.paymentMethod || tx.referenceNumber) && (
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.7rem', color: 'var(--color-info)', background: 'rgba(56, 189, 248, 0.1)', padding: '1px 6px', borderRadius: '4px', width: 'fit-content', marginTop: '2px' }}>
-                            <span>📱</span>
-                            <span>{tx.paymentMethod || 'Pago Móvil'}{tx.referenceNumber ? ` • Ref: ${tx.referenceNumber}` : ''}</span>
-                          </div>
-                        )}
-                        {Boolean(tx.parentTransactionId) && (
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.68rem', color: 'var(--color-warning)', background: 'rgba(245, 158, 11, 0.1)', padding: '1px 6px', borderRadius: '4px', width: 'fit-content', marginTop: '2px' }}>
-                            <span>🔗</span>
-                            <span>Vinculado a gasto</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                    {tx.type === 'transfer' ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem' }}>
-                          <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--color-info)' }}>
-                            -{formatAmount(tx.amount, tx.currency)} {tx.currency.toUpperCase()}
-                          </div>
-                          <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-accent)' }}>
-                            +{formatAmount(tx.destAmount, tx.destCurrency)} {tx.destCurrency?.toUpperCase()}
-                          </div>
-                        </div>
-                        {!deleteMode && (
-                          <button
-                            type="button"
-                            title="Editar transferencia"
-                            aria-label="Editar transferencia"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (onEdit) onEdit(tx);
-                            }}
-                            style={{
-                              background: 'var(--color-warning-soft)',
-                              border: '1px solid var(--color-warning-border)',
-                              color: 'var(--color-warning)',
-                              borderRadius: '6px',
-                              padding: '0.25rem',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                          </button>
-                        )}
-                      </div>
-                    ) : tx.type === 'adjustment' ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                          {(tx.delta != null ? tx.delta >= 0 : true) ? '+' : '-'}{formatAmount(tx.amount, tx.currency)} {tx.currency.toUpperCase()}
-                        </div>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                        <div style={{ fontSize: '1rem', fontWeight: 700, color: tx.type === 'income' ? 'var(--color-accent)' : 'var(--color-danger)' }}>
-                          {tx.type === 'income' ? '+' : '-'}{formatAmount(tx.amount, tx.currency)} {tx.currency.toUpperCase()}
-                        </div>
-                        {!deleteMode && (
-                          <button
-                            type="button"
-                            title="Editar transacción"
-                            aria-label="Editar transacción"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (onEdit) onEdit(tx);
-                            }}
-                            style={{
-                              background: 'var(--color-warning-soft)',
-                              border: '1px solid var(--color-warning-border)',
-                              color: 'var(--color-warning)',
-                              borderRadius: '6px',
-                              padding: '0.25rem',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="tx-flip-back glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '1rem 1.15rem', borderRadius: '16px', gap: '0.25rem' }}>
-                  {tx.type === 'transfer' ? (
-                    <>
-                      <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Detalles de Cambio</div>
-                      {tx.currency !== tx.destCurrency && Number(tx.amount) > 0 && Number(tx.destAmount) > 0 ? (() => {
-                        const effectiveInfo = tx.effectiveRateData || calculateEffectiveExchangeRate({
-                          fromCurrency: tx.currency,
-                          fromAmount: tx.amount,
-                          toCurrency: tx.destCurrency,
-                          toAmount: tx.destAmount,
-                          commission: tx.commission || 0,
-                          ratesSnapshot: {
-                            bcvUsd: rates.bcvUsd || rates.VES,
-                            paralelo: rates.paralelo || rates.VES_PARALELO
-                          }
-                        });
-
-                        const effRate = effectiveInfo?.rate ?? Number((Number(tx.destAmount) / Number(tx.amount)).toFixed(2));
-                        const unitText = effectiveInfo?.unitText || `Bs./${tx.currency.toUpperCase()}`;
-
-                        let bcvDiffText = '';
-                        if (effectiveInfo?.bcvDiffPct != null) {
-                          const diff = effectiveInfo.bcvDiffPct;
-                          const sign = diff >= 0 ? '+' : '';
-                          bcvDiffText = `${sign}${diff}% sobre BCV`;
-                        }
-
-                        let parDiffText = '';
-                        if (effectiveInfo?.paraleloDiffPct != null) {
-                          const diff = effectiveInfo.paraleloDiffPct;
-                          const sign = diff >= 0 ? '+' : '';
-                          parDiffText = `${sign}${diff}% vs Paralelo`;
-                        }
-
-                        return (
-                          <>
-                            <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--color-accent)', textAlign: 'center' }}>
-                              Cambiaste a {formatAmount(effRate, 'VES')} {unitText}{bcvDiffText ? `: ${bcvDiffText}` : ''}
-                            </div>
-                            {parDiffText && (
-                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
-                                ({parDiffText})
-                              </div>
-                            )}
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                              1 {tx.currency.toUpperCase()} = {(Number(tx.destAmount) / Number(tx.amount)).toLocaleString(undefined, { maximumFractionDigits: 4 })} {tx.destCurrency?.toUpperCase()}
-                            </div>
-                          </>
-                        );
-                      })() : (
-                        <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Transferencia del mismo activo ({tx.currency.toUpperCase()}).</div>
-                      )}
-                      {Number(tx.commission) > 0 && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-warning)', marginTop: '0.15rem' }}>
-                          Comisión bancaria: {formatAmount(tx.commission, tx.currency)} {tx.currency.toUpperCase()}
-                        </div>
-                      )}
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-                        Fecha y hora: {formatTxDateTime(tx.date)}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--color-accent)', marginTop: '0.25rem', fontWeight: 500 }}>
-                        Valor estimado: ~${formatAmount(usdVal, 'USD')} USD
-                      </div>
-                      <button
-                        type="button"
-                        title="Editar transferencia"
-                        aria-label="Editar transferencia"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onEdit) onEdit(tx);
-                        }}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                          background: 'var(--color-warning-soft)',
-                          border: '1px solid var(--color-warning)',
-                          color: 'var(--color-warning)',
-                          borderRadius: '8px',
-                          padding: '0.35rem 0.75rem',
-                          fontSize: '0.8rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          marginTop: '0.5rem'
-                        }}
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                        </svg>
-                        Editar
-                      </button>
-                    </>
-                  ) : tx.type === 'adjustment' ? (
-                    <>
-                      <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Detalles de Ajuste</div>
-                      <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Motivo: {tx.notes || tx.category || 'Ajuste manual de saldo'}</div>
-                      {tx.subcategory && <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Tipo: {translateSubcategory(tx.subcategory)}</div>}
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.35rem', fontWeight: 500 }}>
-                        Tasa de registro: {rateStr}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        Impacto estimado: ~${formatAmount(usdVal, 'USD')} USD
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.25rem' }}>Detalles de Transacción</div>
-                      {tx.notes && <div style={{ fontSize: '0.875rem', color: 'var(--color-info)', fontWeight: 600, marginBottom: '0.25rem' }}>Concepto: {tx.notes}</div>}
-                      <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Categoría: {translateCategory(tx.category) || 'Sin categoría'}</div>
-                      {tx.subcategory && <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Subcategoría: {translateSubcategory(tx.subcategory)}</div>}
-                      <div style={{ fontSize: '0.8rem', color: 'var(--color-accent)', marginTop: '0.35rem', fontWeight: 500 }}>
-                        Tasa de registro: {rateStr}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        Valor original: ~${formatAmount(usdVal, 'USD')} USD
-                      </div>
-                      {Boolean(tx.paymentMethod || tx.referenceNumber || tx.bank || tx.recipientId) && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-primary)', marginTop: '0.35rem', textAlign: 'center', background: 'var(--bg-surface)', padding: '0.4rem 0.65rem', borderRadius: '8px', border: '1px solid var(--bg-surface-elevated)', width: '100%' }}>
-                          {tx.paymentMethod && <div><strong>Tipo:</strong> {tx.paymentMethod}</div>}
-                          {tx.referenceNumber && <div><strong>Referencia:</strong> {tx.referenceNumber}</div>}
-                          {tx.bank && <div><strong>Banco:</strong> {tx.bank}</div>}
-                          {tx.recipientId && <div><strong>Destinatario:</strong> {tx.recipientId}</div>}
-                        </div>
-                      )}
-                      <button
-                        type="button"
-                        title="Editar transacción"
-                        aria-label="Editar transacción"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (onEdit) onEdit(tx);
-                        }}
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                          background: 'var(--color-warning-soft)',
-                          border: '1px solid var(--color-warning)',
-                          color: 'var(--color-warning)',
-                          borderRadius: '8px',
-                          padding: '0.35rem 0.75rem',
-                          fontSize: '0.8rem',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          marginTop: '0.5rem'
-                        }}
-                      >
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                        </svg>
-                        Editar
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+      {/* Lista virtualizada de transacciones con filas memoizadas */}
+      <TransactionsVirtualList
+        transactions={filteredTransactions}
+        rates={rates}
+        flippedTxId={flippedTxId}
+        onFlip={handleFlip}
+        deleteMode={deleteMode}
+        selectedTxs={selectedTxs}
+        onToggleSelect={toggleSelectTx}
+        onEdit={onEdit}
+        onDelete={handleDelete}
+        getCategoryName={getCategoryName}
+        getSubcategoryName={getSubcategoryName}
+        categoriesMap={categoriesMap}
+        categories={categories}
+        hasActiveFilters={hasActiveFilters}
+      />
     </div>
   );
 }

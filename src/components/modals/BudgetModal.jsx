@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { SPENT_CATEGORIES } from '../../utils/constants';
+import CategoryPicker from '../common/CategoryPicker';
+import { useCategories } from '../../hooks/useCategories';
 import { parseAmount, round, add } from '../../domain/money';
 
 const CATEGORY_ICONS = {
@@ -23,6 +24,8 @@ export default function BudgetModal({
   showToast
 }) {
   const [formData, setFormData] = useState({});
+  const [selectedPickerCategory, setSelectedPickerCategory] = useState(null);
+  const { activeExpenseCategories } = useCategories();
 
   useEffect(() => {
     if (isOpen) {
@@ -33,7 +36,7 @@ export default function BudgetModal({
   if (!isOpen) return null;
 
   const allCategories = Array.from(new Set([
-    ...Object.keys(SPENT_CATEGORIES),
+    ...activeExpenseCategories.map(c => c.name),
     ...Object.keys(budgets)
   ]));
 
@@ -148,6 +151,20 @@ export default function BudgetModal({
         </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+          <div style={{ marginBottom: '0.65rem' }}>
+            <CategoryPicker
+              kind="expense"
+              selectedCategoryId={selectedPickerCategory}
+              onChange={({ categoryId, categoryName }) => {
+                setSelectedPickerCategory(categoryId);
+                if (formData[categoryName] == null && formData[categoryId] == null) {
+                  setFormData(prev => ({ ...prev, [categoryName]: '' }));
+                }
+              }}
+              showCreate={true}
+            />
+          </div>
+
           <div
             style={{
               overflowY: 'auto',
@@ -160,7 +177,10 @@ export default function BudgetModal({
             }}
           >
             {allCategories.map(cat => {
-              const icon = CATEGORY_ICONS[cat] || '🏷️';
+              const catObj = activeExpenseCategories.find(c => c.name === cat || c.id === cat);
+              const icon = catObj?.icon || CATEGORY_ICONS[cat] || '🏷️';
+              const color = catObj?.color || 'var(--color-accent)';
+              const isHighlighted = selectedPickerCategory && (catObj?.id === selectedPickerCategory || cat === selectedPickerCategory);
               const val = formData[cat] != null ? formData[cat] : '';
               const hasValue = val !== '' && Number(val) > 0;
 
@@ -174,8 +194,10 @@ export default function BudgetModal({
                     gap: '0.4rem',
                     padding: '0.55rem 0.65rem',
                     borderRadius: '12px',
-                    background: '#1b2230',
-                    border: hasValue ? '1px solid #1f5143' : '1px solid #2a3447'
+                    background: isHighlighted ? 'var(--bg-surface-elevated)' : '#1b2230',
+                    border: isHighlighted ? `1.5px solid ${color}` : (hasValue ? '1px solid #1f5143' : '1px solid #2a3447'),
+                    boxShadow: isHighlighted ? `0 0 0 1px ${color}` : 'none',
+                    transition: 'all 0.15s ease'
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.35rem', minWidth: 0 }}>

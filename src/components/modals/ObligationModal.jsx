@@ -1,8 +1,11 @@
+import React from 'react';
 import CustomSelect from '../common/CustomSelect';
-import { SPENT_CATEGORIES } from '../../utils/constants';
+import CategoryPicker from '../common/CategoryPicker';
 import { calculateInstallmentPlan, DEFAULT_INSTALLMENTS } from '../../domain/installmentPurchase';
-import { formatAmount, getCurrencySymbol } from '../../utils/formatters';
 import { parseAmount } from '../../domain/money';
+import InstallmentPurchaseFields from './obligation/InstallmentPurchaseFields';
+import ObligationPayInBsField from './obligation/ObligationPayInBsField';
+import ObligationReminderField from './obligation/ObligationReminderField';
 
 export default function ObligationModal({
   isOpen,
@@ -24,7 +27,6 @@ export default function ObligationModal({
   const parsedTotal = parseAmount(newOb.totalPurchaseAmount) || 0;
   const isDownPaymentTooHigh = Boolean(newOb.totalPurchaseAmount && parsedDown > parsedTotal);
 
-  // Cálculo en vivo si es compra en cuotas
   let installmentPlan = null;
   let planError = null;
 
@@ -53,7 +55,6 @@ export default function ObligationModal({
       if (!hasValidCount || isDownPaymentTooHigh || !installmentPlan) {
         return;
       }
-      // Ajustar amount y totalInstallments según el plan antes de enviar
       const updatedOb = {
         ...newOb,
         amount: String(installmentPlan.installmentAmount),
@@ -101,7 +102,7 @@ export default function ObligationModal({
             </div>
           </div>
 
-          {/* PLANTILLA DE COMPRA EN CUOTAS (ESTILO CASHEA) */}
+          {/* Plantilla cuotas */}
           {isNewDebt && (
             <div
               style={{
@@ -154,132 +155,15 @@ export default function ObligationModal({
             />
           </div>
 
-          {/* CAMPOS SI ES COMPRA EN CUOTAS */}
           {isInstallment ? (
-            <>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <div className="input-group" style={{ flex: 2 }}>
-                  <label>Monto Total de la Compra</label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    className="input-field"
-                    placeholder="120,00"
-                    value={newOb.totalPurchaseAmount || ''}
-                    onChange={e => setNewOb({ ...newOb, totalPurchaseAmount: e.target.value })}
-                    required
-                  />
-                </div>
-                <div className="input-group" style={{ flex: 1.2 }}>
-                  <label>Moneda</label>
-                  <CustomSelect
-                    placeholder="Moneda"
-                    title="Moneda"
-                    value={newOb.currency}
-                    onChange={e => setNewOb({ ...newOb, currency: e.target.value })}
-                    options={[
-                      { value: 'USD', label: 'USD' },
-                      { value: 'VES', label: 'VES' },
-                      { value: 'EUR', label: 'EUR' },
-                      { value: 'USDT', label: 'USDT' }
-                    ]}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <div className="input-group" style={{ flex: 1 }}>
-                  <label>Inicial Pagada</label>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    className="input-field"
-                    placeholder="40,00"
-                    value={newOb.downPayment || ''}
-                    onChange={e => setNewOb({ ...newOb, downPayment: e.target.value })}
-                  />
-                </div>
-                <div className="input-group" style={{ flex: 1 }}>
-                  <label>Número de Cuotas</label>
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    className="input-field"
-                    placeholder={String(DEFAULT_INSTALLMENTS)}
-                    value={newOb.installmentsCount ?? ''}
-                    onChange={e => {
-                      const digits = e.target.value.replace(/\D/g, '');
-                      if (digits === '') {
-                        setNewOb({ ...newOb, installmentsCount: '' });
-                        return;
-                      }
-                      const num = parseInt(digits, 10);
-                      if (num > 24) return;
-                      setNewOb({ ...newOb, installmentsCount: String(num) });
-                    }}
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Selector de cuenta para pago de inicial si > 0 */}
-              {(parseAmount(newOb.downPayment) || 0) > 0 && (
-                <div className="input-group">
-                  <label>Cuenta de donde se pagó la inicial</label>
-                  <CustomSelect
-                    placeholder="Seleccionar cuenta para registrar gasto"
-                    title="Cuenta de pago inicial"
-                    value={newOb.downPaymentAssetId || ''}
-                    onChange={e => setNewOb({ ...newOb, downPaymentAssetId: e.target.value })}
-                    options={assets.map(a => ({
-                      value: a.id,
-                      label: `${a.location} (${a.name} - Saldo: ${a.amount})`
-                    }))}
-                  />
-                  <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.25rem' }}>
-                    Se descontará de esta cuenta y se guardará automáticamente como gasto.
-                  </div>
-                </div>
-              )}
-
-              {/* Resumen dinámico del plan de cuotas */}
-              {isInstallment && (
-                <div style={{
-                  background: planError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(2, 132, 199, 0.1)',
-                  border: planError ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(2, 132, 199, 0.3)',
-                  borderRadius: '10px',
-                  padding: '0.75rem 0.9rem',
-                  marginBottom: '1rem',
-                  fontSize: '0.82rem',
-                  color: planError ? '#f87171' : '#38bdf8',
-                  lineHeight: '1.45'
-                }}>
-                  {planError ? (
-                    <div>⚠️ {planError}</div>
-                  ) : (
-                    installmentPlan && (
-                      <>
-                        <div>Total: <strong>{getCurrencySymbol(newOb.currency)}{formatAmount(installmentPlan.total, newOb.currency)}</strong> — Inicial: <strong>{getCurrencySymbol(newOb.currency)}{formatAmount(installmentPlan.initial, newOb.currency)}</strong></div>
-                        <div>
-                          Restan: <strong>{getCurrencySymbol(newOb.currency)}{formatAmount(installmentPlan.remaining, newOb.currency)}</strong> en{' '}
-                          {installmentPlan.hasDifferentLast ? (
-                            <>
-                              <strong>{installmentPlan.installmentsCount - 1} cuotas de {getCurrencySymbol(newOb.currency)}{formatAmount(installmentPlan.installmentAmount, newOb.currency)}</strong> y <strong>1 cuota final de {getCurrencySymbol(newOb.currency)}{formatAmount(installmentPlan.lastInstallmentAmount, newOb.currency)}</strong>
-                            </>
-                          ) : (
-                            <>
-                              <strong>{installmentPlan.installmentsCount} cuotas de {getCurrencySymbol(newOb.currency)}{formatAmount(installmentPlan.installmentAmount, newOb.currency)}</strong> c/u
-                            </>
-                          )}
-                        </div>
-                      </>
-                    )
-                  )}
-                </div>
-              )}
-            </>
+            <InstallmentPurchaseFields
+              newOb={newOb}
+              setNewOb={setNewOb}
+              assets={assets}
+              installmentPlan={installmentPlan}
+              planError={planError}
+            />
           ) : (
-            /* CAMPOS ESTÁNDAR */
             <div style={{ display: 'flex', gap: '1rem' }}>
               <div className="input-group" style={{ flex: 2 }}>
                 <label>Monto</label>
@@ -311,60 +195,10 @@ export default function ObligationModal({
             </div>
           )}
 
-          {/* OPCIÓN: SE PAGA EN BOLÍVARES A TASA DEL DÍA */}
-          {(newOb.currency || '').toUpperCase() !== 'VES' && (
-            <div
-              style={{
-                background: '#1b2230',
-                border: '1px solid #2a3447',
-                borderRadius: '12px',
-                padding: '0.85rem 1rem',
-                marginBottom: '1rem',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.65rem'
-              }}
-            >
-              <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', margin: 0, fontSize: '0.88rem', fontWeight: 600, color: '#f1f5f9' }}>
-                <input
-                  type="checkbox"
-                  checked={Boolean(newOb.payInBs)}
-                  onChange={e => {
-                    const checked = e.target.checked;
-                    setNewOb({
-                      ...newOb,
-                      payInBs: checked,
-                      indexRateType: checked ? (newOb.indexRateType || ((newOb.currency || '').toUpperCase() === 'EUR' ? 'BCV_EUR' : 'BCV_USD')) : ''
-                    });
-                  }}
-                  style={{ accentColor: '#10b981', width: '18px', height: '18px', cursor: 'pointer' }}
-                />
-                <span>Se paga en bolívares a tasa del día</span>
-              </label>
-
-              {newOb.payInBs && (
-                <div style={{ marginTop: '0.25rem' }}>
-                  <label style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', marginBottom: '0.35rem' }}>
-                    Tasa de referencia para el pago en Bs.
-                  </label>
-                  <CustomSelect
-                    placeholder="Seleccionar tasa"
-                    title="Tasa para pago en Bs."
-                    value={newOb.indexRateType || ((newOb.currency || '').toUpperCase() === 'EUR' ? 'BCV_EUR' : 'BCV_USD')}
-                    onChange={e => setNewOb({ ...newOb, indexRateType: e.target.value })}
-                    options={[
-                      { value: 'BCV_USD', label: 'BCV USD' },
-                      { value: 'BCV_EUR', label: 'BCV EUR' },
-                      { value: 'PARALELO', label: 'Paralelo' }
-                    ]}
-                  />
-                  <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.35rem' }}>
-                    El monto en Bs. se recalculará automáticamente según la cotización oficial o paralela de cada día.
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+          <ObligationPayInBsField
+            newOb={newOb}
+            setNewOb={setNewOb}
+          />
 
           <div className="input-group">
             <label>Frecuencia</label>
@@ -392,12 +226,19 @@ export default function ObligationModal({
 
           <div className="input-group">
             <label>Categoría</label>
-            <CustomSelect
-              placeholder="Seleccionar Categoría"
-              title="Seleccionar Categoría"
-              value={newOb.category}
-              onChange={e => setNewOb({ ...newOb, category: e.target.value })}
-              options={Object.keys(SPENT_CATEGORIES).map(cat => ({ value: cat, label: cat }))}
+            <CategoryPicker
+              kind={newOb.type === 'receive' ? 'income' : 'expense'}
+              selectedCategoryId={newOb.category_id}
+              selectedSubcategoryId={newOb.subcategory_id}
+              onChange={({ categoryId, categoryName, subcategoryId, subcategoryName }) => {
+                setNewOb({
+                  ...newOb,
+                  category: categoryName,
+                  category_id: categoryId,
+                  subcategory: subcategoryName || '',
+                  subcategory_id: subcategoryId || null
+                });
+              }}
             />
           </div>
 
@@ -425,35 +266,10 @@ export default function ObligationModal({
             />
           </div>
 
-          {/* RECORDATORIOS LOCALES */}
-          <div
-            style={{
-              background: '#1b2230',
-              border: '1px solid #2a3447',
-              borderRadius: '12px',
-              padding: '0.75rem 1rem',
-              marginBottom: '1rem',
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '0.65rem'
-            }}
-          >
-            <input
-              type="checkbox"
-              id="reminderEnabledCheck"
-              checked={newOb.reminderEnabled !== false}
-              onChange={e => setNewOb({ ...newOb, reminderEnabled: e.target.checked })}
-              style={{ accentColor: '#10b981', width: '18px', height: '18px', marginTop: '2px', cursor: 'pointer' }}
-            />
-            <label htmlFor="reminderEnabledCheck" style={{ cursor: 'pointer', margin: 0 }}>
-              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f1f5f9' }}>
-                🔔 Recordatorios de vencimiento
-              </div>
-              <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
-                Aviso a las 9:00 a.m. del día anterior y el mismo día del vencimiento.
-              </div>
-            </label>
-          </div>
+          <ObligationReminderField
+            newOb={newOb}
+            setNewOb={setNewOb}
+          />
 
           <div className="modal-actions">
             <button type="button" className="btn btn-secondary" onClick={onClose}>

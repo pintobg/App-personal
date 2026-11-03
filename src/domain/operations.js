@@ -10,7 +10,7 @@ import { getNextDueDate } from '../utils/dates';
 /**
  * Busca una cuenta en la lista de activos primero por assetId, luego por moneda + ubicación.
  */
-export function findAsset(assets, assetId, currency, location) {
+function findAsset(assets, assetId, currency, location) {
   if (!assets || !Array.isArray(assets)) return null;
   if (assetId) {
     const foundById = assets.find((a) => a.id === assetId);
@@ -26,7 +26,7 @@ export function findAsset(assets, assetId, currency, location) {
  * Aplica un cambio de saldo (delta) a un activo específico dentro de una lista de activos.
  * Retorna { nextAssets, updatedAsset } o null si no se encuentra el activo.
  */
-export function applyBalanceDelta(assets, assetId, delta) {
+function applyBalanceDelta(assets, assetId, delta) {
   const index = assets.findIndex((a) => a.id === assetId);
   if (index === -1) return null;
 
@@ -152,6 +152,8 @@ export function executeAddOrEditTransaction({ assets, transactions, rates = {} }
       origin: targetAsset.location,
       category: txPayload.category,
       subcategory: txPayload.subcategory,
+      category_id: txPayload.category_id || txPayload.categoryId || oldTx.category_id || null,
+      subcategory_id: txPayload.subcategory_id || txPayload.subcategoryId || oldTx.subcategory_id || null,
       notes: txPayload.notes !== undefined ? (txPayload.notes ? String(txPayload.notes).trim() : null) : (oldTx.notes || null),
       paymentMethod: txPayload.paymentMethod !== undefined ? txPayload.paymentMethod : (oldTx.paymentMethod || null),
       referenceNumber: txPayload.referenceNumber !== undefined ? txPayload.referenceNumber : (oldTx.referenceNumber || null),
@@ -225,6 +227,8 @@ export function executeAddOrEditTransaction({ assets, transactions, rates = {} }
     amount: roundedAmount,
     category: txPayload.category,
     subcategory: txPayload.subcategory,
+    category_id: txPayload.category_id || txPayload.categoryId || null,
+    subcategory_id: txPayload.subcategory_id || txPayload.subcategoryId || null,
     notes: txPayload.notes ? String(txPayload.notes).trim() : null,
     paymentMethod: txPayload.paymentMethod || null,
     referenceNumber: txPayload.referenceNumber || null,
@@ -458,8 +462,10 @@ export function executeTransfer({ assets, transactions, rates = {} }, transferPa
       destAmount: roundedReceived,
       destOrigin: newDestAsset.location,
       commission: roundedCommission,
-      category: 'Transfer',
-      subcategory: `Hacia ${newDestAsset.location}`,
+      category: null,
+      subcategory: null,
+      category_id: null,
+      subcategory_id: null,
       rateSnapshot: srcRateSnapshot,
       usdEquivalent: transferUsdEquivalent,
       effectiveRate: effectiveRateData?.rate ?? null,
@@ -636,8 +642,10 @@ export function executeTransfer({ assets, transactions, rates = {} }, transferPa
     destAmount: roundedReceived,
     destOrigin: destAsset.location,
     commission: roundedCommission,
-    category: 'Transfer',
-    subcategory: `Hacia ${destAsset.location}`,
+    category: null,
+    subcategory: null,
+    category_id: null,
+    subcategory_id: null,
     rateSnapshot: srcRateSnapshot,
     usdEquivalent: transferUsdEquivalent,
     effectiveRate: effectiveRateData?.rate ?? null,
@@ -770,7 +778,9 @@ export function executePayObligation({ assets, transactions, obligations, rates 
     amount: roundedAmount,
     origin: asset.location,
     category: payingOb.category || 'Deudas/Préstamos',
+    category_id: payingOb.category_id || (payingOb.type === 'pay' ? 'exp.finance' : 'inc.other'),
     subcategory: payingOb.title,
+    subcategory_id: payingOb.subcategory_id || null,
     notes: `${payingOb.type === 'pay' ? 'Pago deuda' : 'Cobro'}: ${payingOb.title}${installmentText}`,
     rateSnapshot: payRateSnapshot,
     usdEquivalent: payUsdEquivalent,

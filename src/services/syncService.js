@@ -119,6 +119,8 @@ export function mapTxToDb(tx, userId) {
     dest_amount: toNullableNumber(tx.destAmount ?? tx.dest_amount),
     category: tx.category || null,
     subcategory: tx.subcategory || null,
+    category_id: tx.category_id || tx.categoryId || null,
+    subcategory_id: tx.subcategory_id || tx.subcategoryId || null,
     date: tx.date || new Date().toISOString(),
     notes: tx.notes || null,
     commission: toNullableNumber(tx.commission) ?? 0,
@@ -145,6 +147,8 @@ export function mapDbToTx(row) {
     destAmount: (row.destAmount ?? row.dest_amount) != null ? Number(row.destAmount ?? row.dest_amount) : undefined,
     category: row.category,
     subcategory: row.subcategory,
+    category_id: row.category_id || row.categoryId || undefined,
+    subcategory_id: row.subcategory_id || row.subcategoryId || undefined,
     date: row.date,
     notes: row.notes,
     commission: Number(row.commission) || 0,
@@ -190,6 +194,8 @@ export function mapObToDb(ob, userId) {
     title: ob.title || ob.person || '',
     person: ob.title || ob.person || '',
     category: ob.category || 'Otros',
+    category_id: ob.category_id || ob.categoryId || null,
+    subcategory_id: ob.subcategory_id || ob.subcategoryId || null,
     description: descString,
     amount: toNullableNumber(ob.amount) ?? 0,
     currency: ob.currency,
@@ -239,6 +245,8 @@ export function mapDbToOb(row) {
     type: row.type,
     title: row.title || row.person || '',
     category: row.category || 'Otros',
+    category_id: row.category_id || row.categoryId || undefined,
+    subcategory_id: row.subcategory_id || row.subcategoryId || undefined,
     description: meta.notes || (typeof row.description === 'string' && !row.description.startsWith('{') ? row.description : ''),
     payInBs,
     indexRateType,
@@ -319,13 +327,157 @@ export function mapDbToGoal(row) {
   };
 }
 
+export function mapCategoryToDb(cat, userId) {
+  const cleanId = (cat.id && String(cat.id).trim() !== '') ? cat.id : crypto.randomUUID();
+  return {
+    id: cleanId,
+    user_id: userId,
+    kind: cat.kind,
+    parent_id: cat.parent_id || cat.parentId || null,
+    name: cat.name,
+    icon: cat.icon || null,
+    color: cat.color || null,
+    sort_order: Number(cat.sort_order ?? cat.sortOrder) || 0,
+    is_active: (cat.is_active != null ? cat.is_active : cat.isActive) !== false,
+    is_custom: Boolean(cat.is_custom != null ? cat.is_custom : cat.isCustom),
+    base_id: cat.base_id || cat.baseId || null,
+    deleted_at: cat.deleted_at || cat.deletedAt || null,
+    updated_at: cat.updated_at || cat.updatedAt || new Date().toISOString()
+  };
+}
+
+export function mapDbToCategory(row) {
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    kind: row.kind,
+    parent_id: row.parent_id || null,
+    name: row.name,
+    icon: row.icon || null,
+    color: row.color || null,
+    sort_order: Number(row.sort_order) || 0,
+    is_active: Boolean(row.is_active),
+    is_custom: Boolean(row.is_custom),
+    base_id: row.base_id || null,
+    deleted_at: row.deleted_at || null,
+    updated_at: row.updated_at || row.created_at || new Date().toISOString()
+  };
+}
+
+export function mapListToDb(list, userId) {
+  const cleanId = (list.id && String(list.id).trim() !== '') ? list.id : crypto.randomUUID();
+  return {
+    id: cleanId,
+    user_id: userId,
+    name: list.name || '',
+    store: list.store || null,
+    status: list.status || 'active',
+    currency: list.currency || 'USD',
+    budget: toNullableNumber(list.budget),
+    transaction_id: list.transaction_id || list.transactionId || null,
+    completed_at: list.completed_at || list.completedAt || null,
+    deleted_at: list.deleted_at || list.deletedAt || null,
+    updated_at: list.updated_at || list.updatedAt || new Date().toISOString()
+  };
+}
+
+export function mapDbToList(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    store: row.store || null,
+    status: row.status || 'active',
+    currency: row.currency || 'USD',
+    budget: row.budget != null ? Number(row.budget) : null,
+    transaction_id: row.transaction_id || null,
+    completed_at: row.completed_at || null,
+    deleted_at: row.deleted_at || null,
+    created_at: row.created_at || new Date().toISOString(),
+    updated_at: row.updated_at || row.created_at || new Date().toISOString()
+  };
+}
+
+export function mapItemToDb(item, userId) {
+  const cleanId = (item.id && String(item.id).trim() !== '') ? item.id : crypto.randomUUID();
+  return {
+    id: cleanId,
+    user_id: userId,
+    list_id: item.list_id || item.listId,
+    product_id: item.product_id || item.productId || null,
+    name: item.name || '',
+    quantity: toNullableNumber(item.quantity) ?? 1,
+    unit: item.unit || 'und',
+    estimated_price: toNullableNumber(item.estimated_price ?? item.estimatedPrice) ?? 0,
+    price_currency: item.price_currency || item.priceCurrency || 'USD',
+    actual_price: toNullableNumber(item.actual_price ?? item.actualPrice),
+    is_checked: Boolean(item.is_checked ?? item.isChecked),
+    sort_order: Number(item.sort_order ?? item.sortOrder) || 0,
+    section: item.section || 'otros',
+    deleted_at: item.deleted_at || item.deletedAt || null,
+    updated_at: item.updated_at || item.updatedAt || new Date().toISOString()
+  };
+}
+
+export function mapDbToItem(row) {
+  return {
+    id: row.id,
+    list_id: row.list_id,
+    product_id: row.product_id || null,
+    name: row.name,
+    quantity: Number(row.quantity) || 1,
+    unit: row.unit || 'und',
+    estimated_price: Number(row.estimated_price) || 0,
+    price_currency: row.price_currency || 'USD',
+    actual_price: row.actual_price != null ? Number(row.actual_price) : null,
+    is_checked: Boolean(row.is_checked),
+    sort_order: Number(row.sort_order) || 0,
+    section: row.section || 'otros',
+    deleted_at: row.deleted_at || null,
+    created_at: row.created_at || new Date().toISOString(),
+    updated_at: row.updated_at || row.created_at || new Date().toISOString()
+  };
+}
+
+export function mapProductToDb(prod, userId) {
+  const cleanId = (prod.id && String(prod.id).trim() !== '') ? prod.id : crypto.randomUUID();
+  return {
+    id: cleanId,
+    user_id: userId,
+    name: prod.name || '',
+    default_unit: prod.default_unit || prod.defaultUnit || 'und',
+    section: prod.section || 'otros',
+    last_price: toNullableNumber(prod.last_price ?? prod.lastPrice) ?? 0,
+    last_price_currency: prod.last_price_currency || prod.lastPriceCurrency || 'USD',
+    last_bought_at: prod.last_bought_at || prod.lastBoughtAt || null,
+    price_history: Array.isArray(prod.price_history ?? prod.priceHistory) ? (prod.price_history ?? prod.priceHistory) : [],
+    deleted_at: prod.deleted_at || prod.deletedAt || null,
+    updated_at: prod.updated_at || prod.updatedAt || new Date().toISOString()
+  };
+}
+
+export function mapDbToProduct(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    default_unit: row.default_unit || 'und',
+    section: row.section || 'otros',
+    last_price: Number(row.last_price) || 0,
+    last_price_currency: row.last_price_currency || 'USD',
+    last_bought_at: row.last_bought_at || null,
+    price_history: Array.isArray(row.price_history) ? row.price_history : [],
+    deleted_at: row.deleted_at || null,
+    created_at: row.created_at || new Date().toISOString(),
+    updated_at: row.updated_at || row.created_at || new Date().toISOString()
+  };
+}
+
 // Demo / Mock Cloud Helpers
 function getDemoCloudData(userId) {
   try {
     const raw = localStorage.getItem(`${DEMO_CLOUD_PREFIX}${userId}`);
-    return raw ? JSON.parse(raw) : { assets: [], transactions: [], obligations: [], budgets: {}, goals: [] };
+    return raw ? JSON.parse(raw) : { assets: [], transactions: [], obligations: [], budgets: {}, goals: [], categories: [], shoppingLists: [], shoppingItems: [], shoppingProducts: [] };
   } catch {
-    return { assets: [], transactions: [], obligations: [], budgets: {}, goals: [] };
+    return { assets: [], transactions: [], obligations: [], budgets: {}, goals: [], categories: [], shoppingLists: [], shoppingItems: [], shoppingProducts: [] };
   }
 }
 
@@ -465,6 +617,54 @@ export const syncService = {
                 }).eq('id', payload.id).eq('user_id', userId);
                 if (error) throw error;
               }
+            } else if (table === 'user_categories') {
+              if (action === 'upsert') {
+                const dbCat = mapCategoryToDb(payload, userId);
+                const { error } = await resilientUpsert('user_categories', dbCat);
+                if (error) throw error;
+              } else if (action === 'delete') {
+                const { error } = await supabase.from('user_categories').update({
+                  deleted_at: payload.deleted_at || new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                }).eq('id', payload.id).eq('user_id', userId);
+                if (error) throw error;
+              }
+            } else if (table === 'shopping_lists') {
+              if (action === 'upsert') {
+                const dbList = mapListToDb(payload, userId);
+                const { error } = await resilientUpsert('shopping_lists', dbList);
+                if (error) throw error;
+              } else if (action === 'delete') {
+                const { error } = await supabase.from('shopping_lists').update({
+                  deleted_at: payload.deleted_at || new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                }).eq('id', payload.id).eq('user_id', userId);
+                if (error) throw error;
+              }
+            } else if (table === 'shopping_items') {
+              if (action === 'upsert') {
+                const dbItem = mapItemToDb(payload, userId);
+                const { error } = await resilientUpsert('shopping_items', dbItem);
+                if (error) throw error;
+              } else if (action === 'delete') {
+                const { error } = await supabase.from('shopping_items').update({
+                  deleted_at: payload.deleted_at || new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                }).eq('id', payload.id).eq('user_id', userId);
+                if (error) throw error;
+              }
+            } else if (table === 'shopping_products') {
+              if (action === 'upsert') {
+                const dbProd = mapProductToDb(payload, userId);
+                const { error } = await resilientUpsert('shopping_products', dbProd);
+                if (error) throw error;
+              } else if (action === 'delete') {
+                const { error } = await supabase.from('shopping_products').update({
+                  deleted_at: payload.deleted_at || new Date().toISOString(),
+                  updated_at: new Date().toISOString()
+                }).eq('id', payload.id).eq('user_id', userId);
+                if (error) throw error;
+              }
             }
           } catch (itemErr) {
             console.error('Error sync queue item:', itemErr);
@@ -537,6 +737,15 @@ export const syncService = {
             } else if (action === 'delete') {
               cloud.goals = cloud.goals.filter(g => g.id !== payload.id);
             }
+          } else if (table === 'user_categories') {
+            if (!cloud.categories) cloud.categories = [];
+            if (action === 'upsert') {
+              const idx = cloud.categories.findIndex(c => c.id === payload.id);
+              if (idx >= 0) cloud.categories[idx] = payload;
+              else cloud.categories.push(payload);
+            } else if (action === 'delete') {
+              cloud.categories = cloud.categories.filter(c => c.id !== payload.id);
+            }
           }
 
           saveDemoCloudData(userId, cloud);
@@ -567,12 +776,16 @@ export const syncService = {
     setSyncStatus('syncing');
     try {
       if (isSupabaseConfigured && supabase) {
-        const [assetsRes, txRes, obRes, bgRes, goalsRes] = await Promise.allSettled([
+        const [assetsRes, txRes, obRes, bgRes, goalsRes, catRes, listsRes, itemsRes, prodsRes] = await Promise.allSettled([
           supabase.from('assets').select('*').eq('user_id', userId),
           supabase.from('transactions').select('*').eq('user_id', userId).order('date', { ascending: false }),
           supabase.from('obligations').select('*').eq('user_id', userId),
           supabase.from('budgets').select('*').eq('user_id', userId),
-          supabase.from('goals').select('*').eq('user_id', userId)
+          supabase.from('goals').select('*').eq('user_id', userId),
+          supabase.from('user_categories').select('*').eq('user_id', userId),
+          supabase.from('shopping_lists').select('*').eq('user_id', userId),
+          supabase.from('shopping_items').select('*').eq('user_id', userId),
+          supabase.from('shopping_products').select('*').eq('user_id', userId)
         ]);
 
         const getResData = (res, name) => {
@@ -592,6 +805,10 @@ export const syncService = {
         const rawObs = getResData(obRes, 'obligations');
         const rawBg = getResData(bgRes, 'budgets');
         const rawGoals = getResData(goalsRes, 'goals');
+        const rawCats = getResData(catRes, 'user_categories');
+        const rawLists = getResData(listsRes, 'shopping_lists');
+        const rawItems = getResData(itemsRes, 'shopping_items');
+        const rawProds = getResData(prodsRes, 'shopping_products');
 
         // Si fallan todas las tablas principales consideramos error total de conexión
         if (rawAssets === null && rawTxs === null && rawObs === null) {
@@ -603,6 +820,10 @@ export const syncService = {
         const remoteTxs = (rawTxs || []).map(mapDbToTx);
         const remoteObs = (rawObs || []).map(mapDbToOb);
         const remoteGoals = (rawGoals || []).map(mapDbToGoal);
+        const remoteCategories = (rawCats || []).map(mapDbToCategory);
+        const remoteShoppingLists = (rawLists || []).map(mapDbToList);
+        const remoteShoppingItems = (rawItems || []).map(mapDbToItem);
+        const remoteShoppingProducts = (rawProds || []).map(mapDbToProduct);
         const remoteBudgets = {};
         (rawBg || []).forEach(b => {
           remoteBudgets[b.category] = {
@@ -619,7 +840,11 @@ export const syncService = {
           transactions: remoteTxs,
           obligations: remoteObs,
           budgets: remoteBudgets,
-          goals: remoteGoals
+          goals: remoteGoals,
+          categories: remoteCategories,
+          shoppingLists: remoteShoppingLists,
+          shoppingItems: remoteShoppingItems,
+          shoppingProducts: remoteShoppingProducts
         };
       } else if (!import.meta.env.PROD) {
         // Demo Cloud (solo en desarrollo)
@@ -638,7 +863,7 @@ export const syncService = {
   },
 
   // Upload complete local state to remote
-  async uploadLocalData(userId, { assets = [], transactions = [], obligations = [], budgets = {}, goals = [] }) {
+  async uploadLocalData(userId, { assets = [], transactions = [], obligations = [], budgets = {}, goals = [], categories = [], shoppingLists = [], shoppingItems = [], shoppingProducts = [] }) {
     if (!userId) return false;
 
     setSyncStatus('syncing');
@@ -681,6 +906,30 @@ export const syncService = {
           const { error } = await resilientUpsert('goals', dbGoals);
           if (error) throw error;
         }
+        // 6. User Categories
+        if (categories.length > 0) {
+          const dbCats = categories.map(c => mapCategoryToDb(c, userId));
+          const { error } = await resilientUpsert('user_categories', dbCats);
+          if (error) throw error;
+        }
+        // 7. Shopping Lists
+        if (shoppingLists.length > 0) {
+          const dbLists = shoppingLists.map(l => mapListToDb(l, userId));
+          const { error } = await resilientUpsert('shopping_lists', dbLists);
+          if (error) throw error;
+        }
+        // 8. Shopping Items
+        if (shoppingItems.length > 0) {
+          const dbItems = shoppingItems.map(i => mapItemToDb(i, userId));
+          const { error } = await resilientUpsert('shopping_items', dbItems);
+          if (error) throw error;
+        }
+        // 9. Shopping Products
+        if (shoppingProducts.length > 0) {
+          const dbProds = shoppingProducts.map(p => mapProductToDb(p, userId));
+          const { error } = await resilientUpsert('shopping_products', dbProds);
+          if (error) throw error;
+        }
       } else if (!import.meta.env.PROD) {
         // Demo Cloud (solo en desarrollo): combinar con datos remotos en vez de sobreescribir
         const currentCloud = getDemoCloudData(userId);
@@ -689,12 +938,20 @@ export const syncService = {
         const mergedObs = mergeById(currentCloud.obligations || [], obligations || []);
         const mergedBudgets = mergeBudgets(currentCloud.budgets || {}, budgets || {});
         const mergedGoals = mergeById(currentCloud.goals || [], goals || []);
+        const mergedCategories = mergeById(currentCloud.categories || [], categories || []);
+        const mergedLists = mergeById(currentCloud.shoppingLists || [], shoppingLists || []);
+        const mergedItems = mergeById(currentCloud.shoppingItems || [], shoppingItems || []);
+        const mergedProds = mergeById(currentCloud.shoppingProducts || [], shoppingProducts || []);
         saveDemoCloudData(userId, {
           assets: mergedAssets,
           transactions: mergedTxs,
           obligations: mergedObs,
           budgets: mergedBudgets,
-          goals: mergedGoals
+          goals: mergedGoals,
+          categories: mergedCategories,
+          shoppingLists: mergedLists,
+          shoppingItems: mergedItems,
+          shoppingProducts: mergedProds
         });
       } else {
         setSyncStatus('guest');

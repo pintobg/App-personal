@@ -46,7 +46,7 @@ describe('App - Pantalla por defecto y gestos de navegación', () => {
     expect(inicioBtn.className).toContain('active');
   });
 
-  it('Gesto swipe a la izquierda cambia de pantalla al siguiente tab y swipe a la derecha vuelve al anterior', () => {
+  it('Gesto swipe a la izquierda cambia al siguiente tab (Movimientos) y swipe a la derecha vuelve al anterior (Inicio)', () => {
     const { container } = render(<App />);
     const appContainer = container.querySelector('.app-container');
     expect(appContainer).toBeDefined();
@@ -59,9 +59,9 @@ describe('App - Pantalla por defecto y gestos de navegación', () => {
       changedTouches: [{ clientX: 50, clientY: 100 }]
     });
 
-    // Debe cambiar a la pestaña 'Cuentas' (balances)
-    const cuentasBtn = screen.getByRole('button', { name: /Cuentas/i });
-    expect(cuentasBtn.className).toContain('active');
+    // En el nuevo orden (Inicio, Movimientos, Cuentas, Planificar, Tasas), debe cambiar a 'Movimientos'
+    const movimientosBtn = screen.getByRole('button', { name: /Movimientos/i });
+    expect(movimientosBtn.className).toContain('active');
 
     // 2. Hacemos swipe a la derecha (startX: 50, endX: 200 -> deltaX = +150)
     fireEvent.touchStart(appContainer, {
@@ -100,5 +100,45 @@ describe('App - Pantalla por defecto y gestos de navegación', () => {
     });
 
     expect(CapApp.exitApp).toHaveBeenCalled();
+  });
+
+  it('Mapea valores viejos guardados ("debts", "calculator") a los nuevos tabs', () => {
+    localStorage.setItem('active_page', 'calculator');
+    const { unmount } = render(<App />);
+
+    const tasasBtn = screen.getByRole('button', { name: /Tasas/i });
+    expect(tasasBtn.className).toContain('active');
+
+    unmount();
+    localStorage.setItem('active_page', 'debts');
+    render(<App />);
+
+    const planificarBtn = screen.getByRole('button', { name: /Planificar/i });
+    expect(planificarBtn.className).toContain('active');
+  });
+
+  it('Botón atrás desde Ajustes regresa a la pantalla anterior sin cerrar la app', async () => {
+    const { App: CapApp } = await import('@capacitor/app');
+    render(<App />);
+
+    // Ir a Cuentas
+    const cuentasBtn = screen.getByRole('button', { name: /Cuentas/i });
+    fireEvent.click(cuentasBtn);
+    expect(cuentasBtn.className).toContain('active');
+
+    // Abrir Ajustes mediante el botón con aria-label "Ajustes"
+    const settingsBtns = screen.getAllByRole('button', { name: /Ajustes/i });
+    fireEvent.click(settingsBtns[0]);
+
+    // Verificar que estamos en Ajustes
+    expect(await screen.findByText('Preferencias, seguridad y respaldos')).toBeDefined();
+
+    // Disparar botón atrás de Android: debe regresar a Cuentas
+    act(() => {
+      CapApp.__triggerBackButton();
+    });
+
+    expect(cuentasBtn.className).toContain('active');
+    expect(CapApp.exitApp).not.toHaveBeenCalled();
   });
 });

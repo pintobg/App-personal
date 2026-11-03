@@ -13,6 +13,19 @@ db.version(2).stores({
   goals: '&id, currency, deadline, updated_at, deleted_at'
 });
 
+db.version(3).stores({
+  user_categories: '&id, kind, parent_id, is_active, updated_at, deleted_at',
+  transactions: '&id, type, date, assetId, category_id, subcategory_id, updated_at, deleted_at',
+  budgets: '&category, category_id, updated_at, deleted_at',
+  obligations: '&id, type, dueDate, category_id, subcategory_id, updated_at, deleted_at'
+});
+
+db.version(4).stores({
+  shopping_lists: '&id, status, created_at, updated_at, deleted_at',
+  shopping_items: '&id, list_id, is_checked, sort_order, updated_at, deleted_at',
+  shopping_products: '&id, name, updated_at, deleted_at'
+});
+
 export const MIGRATION_DONE_KEY = 'finanzas_dexie_migrated_v1';
 
 /**
@@ -138,6 +151,113 @@ export async function persistTransactionsToDB(transactions) {
 }
 
 /**
+ * Carga las categorías personalizadas desde IndexedDB con fallback a localStorage
+ */
+export async function loadCategoriesFromDB() {
+  try {
+    if (db.user_categories) {
+      const count = await db.user_categories.count();
+      if (count > 0) {
+        const items = await db.user_categories.toArray();
+        return items.filter(c => !c.deleted_at);
+      }
+    }
+  } catch (err) {
+    console.warn('[Dexie] Fallo al leer categorías de IndexedDB, usando fallback:', err);
+  }
+
+  try {
+    const saved = localStorage.getItem('personal_user_categories');
+    return saved ? JSON.parse(saved).filter(c => !c.deleted_at) : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Persiste las categorías de usuario en IndexedDB y localStorage
+ */
+export async function persistCategoriesToDB(categories) {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('personal_user_categories', JSON.stringify(categories));
+    }
+    if (Array.isArray(categories) && db.user_categories) {
+      await db.transaction('rw', db.user_categories, async () => {
+        await db.user_categories.clear();
+        if (categories.length > 0) {
+          await db.user_categories.bulkPut(categories);
+        }
+      });
+    }
+  } catch (err) {
+    console.warn('[Dexie] Error persistiendo categorías en IndexedDB:', err);
+  }
+}
+
+/**
+ * Carga listas, artículos y catálogo de compras desde IndexedDB con fallback a localStorage
+ */
+export async function loadShoppingDataFromDB() {
+  const result = { lists: [], items: [], products: [] };
+  try {
+    if (db.shopping_lists) {
+      result.lists = (await db.shopping_lists.toArray()).filter(l => !l.deleted_at);
+    }
+    if (db.shopping_items) {
+      result.items = (await db.shopping_items.toArray()).filter(i => !i.deleted_at);
+    }
+    if (db.shopping_products) {
+      result.products = (await db.shopping_products.toArray()).filter(p => !p.deleted_at);
+    }
+    if (result.lists.length > 0 || result.items.length > 0 || result.products.length > 0) {
+      return result;
+    }
+  } catch (err) {
+    console.warn('[Dexie] Fallo al leer compras de IndexedDB, usando fallback:', err);
+  }
+
+  try {
+    const rawLists = localStorage.getItem('personal_shopping_lists');
+    const rawItems = localStorage.getItem('personal_shopping_items');
+    const rawProducts = localStorage.getItem('personal_shopping_products');
+    result.lists = rawLists ? JSON.parse(rawLists).filter(l => !l.deleted_at) : [];
+    result.items = rawItems ? JSON.parse(rawItems).filter(i => !i.deleted_at) : [];
+    result.products = rawProducts ? JSON.parse(rawProducts).filter(p => !p.deleted_at) : [];
+  } catch {
+    // fallback vacío
+  }
+  return result;
+}
+
+/**
+ * Persiste datos de compras en IndexedDB y localStorage
+ */
+export async function persistShoppingDataToDB({ lists, items, products }) {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      if (lists !== undefined) localStorage.setItem('personal_shopping_lists', JSON.stringify(lists));
+      if (items !== undefined) localStorage.setItem('personal_shopping_items', JSON.stringify(items));
+      if (products !== undefined) localStorage.setItem('personal_shopping_products', JSON.stringify(products));
+    }
+    if (db.shopping_lists && Array.isArray(lists)) {
+      await db.shopping_lists.clear();
+      if (lists.length > 0) await db.shopping_lists.bulkPut(lists);
+    }
+    if (db.shopping_items && Array.isArray(items)) {
+      await db.shopping_items.clear();
+      if (items.length > 0) await db.shopping_items.bulkPut(items);
+    }
+    if (db.shopping_products && Array.isArray(products)) {
+      await db.shopping_products.clear();
+      if (products.length > 0) await db.shopping_products.bulkPut(products);
+    }
+  } catch (err) {
+    console.warn('[Dexie] Error persistiendo compras en IndexedDB:', err);
+  }
+}
+
+/**
  * Limpia todas las tablas de IndexedDB
  */
 export async function clearAllDB() {
@@ -147,7 +267,11 @@ export async function clearAllDB() {
       db.assets.clear(),
       db.obligations.clear(),
       db.budgets.clear(),
-      db.goals ? db.goals.clear() : Promise.resolve()
+      db.goals ? db.goals.clear() : Promise.resolve(),
+      db.user_categories ? db.user_categories.clear() : Promise.resolve(),
+      db.shopping_lists ? db.shopping_lists.clear() : Promise.resolve(),
+      db.shopping_items ? db.shopping_items.clear() : Promise.resolve(),
+      db.shopping_products ? db.shopping_products.clear() : Promise.resolve()
     ]);
   } catch (err) {
     console.warn('[Dexie] Error al limpiar tablas:', err);

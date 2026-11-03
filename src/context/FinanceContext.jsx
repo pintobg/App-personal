@@ -6,6 +6,13 @@ import { useTransactions } from '../hooks/useTransactions';
 import { useObligations } from '../hooks/useObligations';
 import { useBudgets } from '../hooks/useBudgets';
 import { useGoals } from '../hooks/useGoals';
+import { useCategories } from '../hooks/useCategories';
+import { useShopping } from '../hooks/useShopping';
+import {
+  migrateLegacyTransactions,
+  migrateLegacyBudgets,
+  migrateLegacyObligations
+} from '../domain/categories/migrateLegacy';
 import { syncService } from '../services/syncService';
 import { clearAllDB } from '../services/db';
 import { exportBackup } from '../utils/backup';
@@ -20,7 +27,9 @@ import {
 import { convert, round } from '../domain/money';
 import { scheduleObligationReminders } from '../services/notificationService';
 
-const FinanceContext = createContext(null);
+export const FinanceContext = createContext(null);
+export const FinanceStateContext = createContext(null);
+export const FinanceActionsContext = createContext(null);
 
 export function simplifyErrorMessage(rawError) {
   if (!rawError) return 'error desconocido';
@@ -102,6 +111,46 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     deleteGoal
   } = useGoals(user);
 
+  const {
+    categories,
+    setCategories,
+    activeExpenseCategories,
+    activeIncomeCategories,
+    allExpenseCategories,
+    allIncomeCategories,
+    getSubcategories,
+    getCategoryById,
+    getCategoryName,
+    getSubcategoryName,
+    createCategory,
+    renameCategory,
+    hideCategory,
+    toggleActiveCategory,
+    updateCategory,
+    reorderCategories,
+    deleteCategory,
+    seedInitialCategories
+  } = useCategories(user);
+
+  const {
+    shoppingLists,
+    setShoppingLists,
+    shoppingItems,
+    setShoppingItems,
+    shoppingProducts,
+    setShoppingProducts,
+    createList: createShoppingList,
+    updateList: updateShoppingList,
+    deleteListWithUndo: deleteShoppingListWithUndo,
+    duplicateList: duplicateShoppingList,
+    addItem: addShoppingItem,
+    updateItem: updateShoppingItem,
+    toggleItemCheck: toggleShoppingItemCheck,
+    deleteItem: deleteShoppingItem,
+    completeListPurchase: completeShoppingListPurchase,
+    searchProducts: searchShoppingProducts
+  } = useShopping(user, showToast);
+
   // Helper para aplicar resultados de operaciones de dominio y encolar cambios de sincronización
   const applyDomainResult = useCallback((result) => {
     if (!result) return false;
@@ -169,6 +218,44 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     return result;
   }, [assets, transactions, applyDomainResult]);
 
+  const deleteTransactionWithUndo = useCallback((tx) => {
+    if (!tx) return;
+    const prevAssets = [...assets];
+    const prevTransactions = [...transactions];
+    const result = runBulkDelete({ assets, transactions }, [tx]);
+    if (result.nextAssets) setAssets(result.nextAssets);
+    if (result.nextTransactions) setTransactions(result.nextTransactions);
+    if (user?.id && result.syncChanges?.length) {
+      result.syncChanges.forEach((change) => {
+        syncService.queueChange(change.table, change.type, change.record, user.id);
+      });
+    }
+
+    if (showToast) {
+      showToast({
+        message: 'Movimiento eliminado',
+        undoText: 'Deshacer',
+        duration: 5000,
+        onUndo: () => {
+          setAssets(prevAssets);
+          setTransactions(prevTransactions);
+          if (user?.id) {
+            syncService.queueChange('transactions', 'upsert', {
+              ...tx,
+              deleted_at: null,
+              updated_at: new Date().toISOString()
+            }, user.id);
+            prevAssets.forEach((a) => {
+              syncService.queueChange('assets', 'upsert', a, user.id);
+            });
+          }
+          showToast('Movimiento restaurado');
+        }
+      });
+    }
+    return result;
+  }, [assets, transactions, setAssets, setTransactions, user?.id, showToast]);
+
   const adjustAssetBalance = useCallback((asset, newAmount, difference, extraConfig = {}) => {
     const nowIso = new Date().toISOString();
     const roundedNew = round(newAmount, asset.name);
@@ -201,8 +288,10 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
         currency: asset.name,
         amount: roundedDiff,
         origin: asset.location,
-        category: 'Ajuste de saldo',
-        subcategory: roundedDiff >= 0 ? 'Ajuste positivo' : 'Ajuste negativo',
+        category: null,
+        subcategory: null,
+        category_id: null,
+        subcategory_id: null,
         date: nowIso,
         rateSnapshot,
         usdEquivalent,
@@ -231,6 +320,18 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
         setObligations((prev) => mergeById(prev, remote.obligations || []));
         setBudgets((prev) => mergeBudgets(prev, remote.budgets || {}));
         setGoals((prev) => mergeById(prev, remote.goals || []));
+        if (remote.categories && Array.isArray(remote.categories) && remote.categories.length > 0) {
+          setCategories((prev) => mergeById(prev, remote.categories));
+        }
+        if (remote.shoppingLists && Array.isArray(remote.shoppingLists)) {
+          setShoppingLists((prev) => mergeById(prev, remote.shoppingLists));
+        }
+        if (remote.shoppingItems && Array.isArray(remote.shoppingItems)) {
+          setShoppingItems((prev) => mergeById(prev, remote.shoppingItems));
+        }
+        if (remote.shoppingProducts && Array.isArray(remote.shoppingProducts)) {
+          setShoppingProducts((prev) => mergeById(prev, remote.shoppingProducts));
+        }
       }
 
       if (flushRes?.ok && remote !== null) {
@@ -276,12 +377,16 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
                 setObligations(mergeById([], remote.obligations || []));
                 setBudgets(mergeBudgets({}, remote.budgets || {}));
                 setGoals(mergeById([], remote.goals || []));
+                if (remote.categories) {
+                  setCategories(mergeById([], remote.categories));
+                }
               } else {
                 setAssets([]);
                 setTransactions([]);
                 setObligations([]);
                 setBudgets({});
                 setGoals([]);
+                seedInitialCategories(true);
               }
             }
           });
@@ -300,14 +405,18 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
         transactions,
         obligations,
         budgets,
-        goals
+        goals,
+        categories,
+        shoppingLists,
+        shoppingItems,
+        shoppingProducts
       });
       if (showToast) showToast('Respaldo exportado exitosamente');
     } catch (err) {
       console.error('Error al exportar respaldo:', err);
       if (showToast) showToast('No se pudo generar el respaldo', 'error');
     }
-  }, [assets, transactions, obligations, budgets, goals, showToast]);
+  }, [assets, transactions, obligations, budgets, goals, categories, shoppingLists, shoppingItems, shoppingProducts, showToast]);
 
   const clearLocalData = useCallback(() => {
     localStorage.removeItem('personal_assets');
@@ -315,6 +424,10 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     localStorage.removeItem('obligations');
     localStorage.removeItem('personal_budgets');
     localStorage.removeItem('personal_goals');
+    localStorage.removeItem('personal_user_categories');
+    localStorage.removeItem('personal_shopping_lists');
+    localStorage.removeItem('personal_shopping_items');
+    localStorage.removeItem('personal_shopping_products');
     localStorage.removeItem('finanzas_sync_queue');
     localStorage.removeItem('finanzas_data_owner');
     clearAllDB();
@@ -323,7 +436,71 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     setObligations([]);
     setBudgets({});
     setGoals([]);
-  }, [setAssets, setTransactions, setObligations, setBudgets, setGoals]);
+    setShoppingLists([]);
+    setShoppingItems([]);
+    setShoppingProducts([]);
+    seedInitialCategories(true);
+  }, [setAssets, setTransactions, setObligations, setBudgets, setGoals, setShoppingLists, setShoppingItems, setShoppingProducts, seedInitialCategories]);
+
+  // Reasignar movimientos de una categoría a otra antes de eliminar
+  const reassignCategoryTransactions = useCallback((fromCatId, toCatId) => {
+    if (!fromCatId || !toCatId || fromCatId === toCatId) return 0;
+    const targetCat = categories.find(c => c.id === toCatId);
+    if (!targetCat) return 0;
+
+    const nowIso = new Date().toISOString();
+    let updatedCount = 0;
+
+    const nextTxs = transactions.map(tx => {
+      if (tx.category_id === fromCatId || tx.category === fromCatId) {
+        updatedCount++;
+        const updated = {
+          ...tx,
+          category_id: targetCat.id,
+          category: targetCat.name,
+          subcategory_id: null,
+          subcategory: null,
+          updated_at: nowIso
+        };
+        if (user?.id) {
+          syncService.queueChange('transactions', 'upsert', updated, user.id);
+        }
+        return updated;
+      }
+      return tx;
+    });
+
+    if (updatedCount > 0) {
+      setTransactions(nextTxs);
+    }
+    return updatedCount;
+  }, [transactions, categories, user?.id, setTransactions]);
+
+  // Migración automática e idempotente de categorías legacy a category_id / subcategory_id
+  useEffect(() => {
+    const migrationKey = `finanzas_categories_migrated_v1_${user?.id || 'local'}`;
+    const alreadyMigrated = localStorage.getItem(migrationKey);
+
+    const needsTxMigration = !alreadyMigrated && transactions.some(t => !t.category_id && (t.type === 'spent' || t.type === 'income'));
+    const needsObMigration = !alreadyMigrated && obligations.some(o => !o.category_id);
+    const needsBgMigration = !alreadyMigrated && Object.values(budgets).some(b => typeof b === 'number' || (b && !b.category_id));
+
+    if (needsTxMigration || needsObMigration || needsBgMigration) {
+      if (needsTxMigration) {
+        const migratedTxs = migrateLegacyTransactions(transactions);
+        setTransactions(migratedTxs);
+      }
+      if (needsObMigration) {
+        const migratedObs = migrateLegacyObligations(obligations);
+        setObligations(migratedObs);
+      }
+      if (needsBgMigration) {
+        const migratedBg = migrateLegacyBudgets(budgets);
+        setBudgets(migratedBg);
+      }
+      localStorage.setItem(migrationKey, 'true');
+    }
+  }, [user?.id, transactions, obligations, budgets, setTransactions, setObligations, setBudgets]);
 
   useEffect(() => {
     if (assets.length > 0 && transactions.length > 0) {
@@ -339,7 +516,7 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     }
   }, [assets, transactions, setTransactions]);
 
-  const value = useMemo(() => ({
+  const stateValue = useMemo(() => ({
     // Auth
     auth,
     user,
@@ -349,17 +526,54 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     obligations,
     budgets,
     goals,
+    categories,
+    activeExpenseCategories,
+    activeIncomeCategories,
+    allExpenseCategories,
+    allIncomeCategories,
     rates,
     rawRates,
     ratesDetails,
     veRates,
     referenceRate,
-    setReferenceRate,
     rateHistory,
-    refreshRateHistory,
     binanceSymbols,
     knownFiatCurrencies,
     isFetchingRates,
+    // Lista de compras
+    shoppingLists,
+    shoppingItems,
+    shoppingProducts
+  }), [
+    auth,
+    user,
+    assets,
+    transactions,
+    obligations,
+    budgets,
+    goals,
+    categories,
+    activeExpenseCategories,
+    activeIncomeCategories,
+    allExpenseCategories,
+    allIncomeCategories,
+    rates,
+    rawRates,
+    ratesDetails,
+    veRates,
+    referenceRate,
+    rateHistory,
+    binanceSymbols,
+    knownFiatCurrencies,
+    isFetchingRates,
+    shoppingLists,
+    shoppingItems,
+    shoppingProducts
+  ]);
+
+  const actionsValue = useMemo(() => ({
+    setReferenceRate,
+    refreshRateHistory,
     // Setters
     setAssets,
     setTransactions,
@@ -388,29 +602,43 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     transferFunds,
     payObligation,
     bulkDeleteTransactions,
+    deleteTransactionWithUndo,
     adjustAssetBalance,
     syncNow,
     exportBackup: handleExportBackup,
-    clearLocalData
+    clearLocalData,
+    // Categorías y catálogo
+    getSubcategories,
+    getCategoryById,
+    getCategoryName,
+    getSubcategoryName,
+    createCategory,
+    renameCategory,
+    hideCategory,
+    toggleActiveCategory,
+    updateCategory,
+    reorderCategories,
+    deleteCategory,
+    reassignCategoryTransactions,
+    seedInitialCategories,
+    setCategories,
+    // Lista de compras
+    setShoppingLists,
+    setShoppingItems,
+    setShoppingProducts,
+    createShoppingList,
+    updateShoppingList,
+    deleteShoppingListWithUndo,
+    duplicateShoppingList,
+    addShoppingItem,
+    updateShoppingItem,
+    toggleShoppingItemCheck,
+    deleteShoppingItem,
+    completeShoppingListPurchase,
+    searchShoppingProducts
   }), [
-    auth,
-    user,
-    assets,
-    transactions,
-    obligations,
-    budgets,
-    goals,
-    rates,
-    rawRates,
-    ratesDetails,
-    veRates,
-    referenceRate,
     setReferenceRate,
-    rateHistory,
     refreshRateHistory,
-    binanceSymbols,
-    knownFiatCurrencies,
-    isFetchingRates,
     setAssets,
     setTransactions,
     setObligations,
@@ -436,16 +664,53 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     transferFunds,
     payObligation,
     bulkDeleteTransactions,
+    deleteTransactionWithUndo,
     adjustAssetBalance,
     syncNow,
     handleExportBackup,
-    clearLocalData
+    clearLocalData,
+    getSubcategories,
+    getCategoryById,
+    getCategoryName,
+    getSubcategoryName,
+    createCategory,
+    renameCategory,
+    hideCategory,
+    toggleActiveCategory,
+    updateCategory,
+    reorderCategories,
+    deleteCategory,
+    reassignCategoryTransactions,
+    seedInitialCategories,
+    setCategories,
+    setShoppingLists,
+    setShoppingItems,
+    setShoppingProducts,
+    createShoppingList,
+    updateShoppingList,
+    deleteShoppingListWithUndo,
+    duplicateShoppingList,
+    addShoppingItem,
+    updateShoppingItem,
+    toggleShoppingItemCheck,
+    deleteShoppingItem,
+    completeShoppingListPurchase,
+    searchShoppingProducts
   ]);
 
+  const value = useMemo(() => ({
+    ...stateValue,
+    ...actionsValue
+  }), [stateValue, actionsValue]);
+
   return (
-    <FinanceContext.Provider value={value}>
-      {children}
-    </FinanceContext.Provider>
+    <FinanceStateContext.Provider value={stateValue}>
+      <FinanceActionsContext.Provider value={actionsValue}>
+        <FinanceContext.Provider value={value}>
+          {children}
+        </FinanceContext.Provider>
+      </FinanceActionsContext.Provider>
+    </FinanceStateContext.Provider>
   );
 }
 
@@ -453,6 +718,22 @@ export function useFinance() {
   const ctx = useContext(FinanceContext);
   if (!ctx) {
     throw new Error('useFinance debe usarse dentro de un FinanceProvider');
+  }
+  return ctx;
+}
+
+export function useFinanceState() {
+  const ctx = useContext(FinanceStateContext);
+  if (!ctx) {
+    throw new Error('useFinanceState debe usarse dentro de un FinanceProvider');
+  }
+  return ctx;
+}
+
+export function useFinanceActions() {
+  const ctx = useContext(FinanceActionsContext);
+  if (!ctx) {
+    throw new Error('useFinanceActions debe usarse dentro de un FinanceProvider');
   }
   return ctx;
 }

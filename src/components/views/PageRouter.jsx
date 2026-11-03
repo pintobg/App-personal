@@ -1,88 +1,71 @@
-import { Suspense } from 'react';
+import React, { Suspense, lazy } from 'react';
 import DashboardView from './DashboardView';
 import BalancesView from './BalancesView';
-import ObligationsView from './ObligationsView';
-import CalculatorView from './CalculatorView';
 import TransactionsView from './TransactionsView';
-import { convertForPayment } from '../../domain/money';
+import { prepareObligationPaymentData } from './pageRouterUtils';
+
+const PlanningView = lazy(() => import('./PlanningView'));
+const CalculatorView = lazy(() => import('./CalculatorView'));
+const SettingsView = lazy(() => import('./SettingsView'));
+const CategoriesView = lazy(() => import('./CategoriesView'));
+import { todayLocal } from '../../utils/dates';
 
 export default function PageRouter({
-  currentPage,
-  setCurrentPage,
-  isBalanceHidden,
-  setIsBalanceHidden,
-  grandTotalUsd,
-  alternateGrandTotalUsd,
-  referenceRate,
-  setReferenceRate,
-  rateHistory,
-  refreshRateHistory,
-  rates,
-  ratesDetails,
-  totalIncomeUsd,
-  totalSpentUsd,
-  timeFrame,
-  setTimeFrame,
-  pieData,
-  nextPayments,
-  nextCollections,
-  budgets,
-  transactions,
-  assets,
-  setIsBudgetModalOpen,
-  auth,
-  setIsAuthModalOpen,
-  setTxFilter,
-  activeFilter,
-  setActiveFilter,
-  selectedFilters,
-  setSelectedFilters,
-  assetsByLocation,
-  accountTotalsUsd,
-  uniqueAssetNames,
-  goals,
-  onOpenGoalModal,
-  onDeleteGoal,
-  deleteMode,
-  setDeleteMode,
-  setAdjustingAsset,
-  handleDeleteAsset,
-  handleAdjustBalance,
-  exportBackup,
-  flippedObId,
-  setFlippedObId,
-  setNewOb,
-  setIsObModalOpen,
-  setPayingOb,
-  setPayData,
-  handleDeleteObligation,
-  calcBaseCurrency,
-  setCalcBaseCurrency,
-  calcBaseAmount,
-  setCalcBaseAmount,
-  amountBs,
-  veRates,
-  setCustomRate,
-  refreshRates,
-  isFetchingRates,
-  obligations,
-  showToast,
-  injectAdvancedTestData,
-  clearAllAppData,
-  syncNow,
-  requestConfirm,
-  setAssets,
-  setTransactions,
-  setObligations,
-  setBudgets,
-  txFilter,
-  selectedTxs,
-  toggleSelectTx,
-  flippedTxId,
-  setFlippedTxId,
-  handleEditTransaction,
-  onOpenReportsModal
+  currentPage, setCurrentPage,
+  isBalanceHidden, setIsBalanceHidden,
+  grandTotalUsd, alternateGrandTotalUsd,
+  referenceRate, setReferenceRate,
+  rateHistory, refreshRateHistory,
+  rates, ratesDetails,
+  totalIncomeUsd, totalSpentUsd,
+  timeFrame, setTimeFrame,
+  pieData, nextPayments, nextCollections,
+  budgets, transactions, assets,
+  setIsBudgetModalOpen, auth, setIsAuthModalOpen,
+  setTxFilter, activeFilter, setActiveFilter,
+  selectedFilters, setSelectedFilters,
+  assetsByLocation, accountTotalsUsd, uniqueAssetNames,
+  goals, onOpenGoalModal, onDeleteGoal,
+  deleteMode, setDeleteMode,
+  setAdjustingAsset, handleDeleteAsset, handleAdjustBalance,
+  exportBackup, flippedObId, setFlippedObId,
+  setNewOb, setIsObModalOpen, setPayingOb,
+  setPayData, handleDeleteObligation,
+  calcBaseCurrency, setCalcBaseCurrency,
+  calcBaseAmount, setCalcBaseAmount, amountBs,
+  veRates, setCustomRate, refreshRates, isFetchingRates,
+  obligations, showToast, injectAdvancedTestData,
+  clearAllAppData, syncNow, requestConfirm,
+  setAssets, setTransactions, setObligations, setBudgets,
+  txFilter, selectedTxs, toggleSelectTx,
+  flippedTxId, setFlippedTxId, handleEditTransaction,
+  onOpenReportsModal, getCategoryName, getSubcategoryName,
+  planningSubTab, setPlanningSubTab,
+  selectedShoppingListId, setSelectedShoppingListId,
+  onRegisterShoppingPurchase, appLock, onOpenSecurityModal
 }) {
+  const handleOpenPayObligation = (ob) => {
+    setPayingOb(ob);
+    setPayData(prepareObligationPaymentData(ob, assets, rates, veRates));
+  };
+
+  const handleOpenNewObligation = () => {
+    setNewOb({
+      id: '',
+      type: 'pay',
+      title: '',
+      amount: '',
+      currency: 'USD',
+      frequency: 'monthly',
+      category: 'Otros',
+      dueDate: todayLocal(),
+      totalInstallments: '',
+      paidInstallments: 0,
+      installmentsCount: '3'
+    });
+    setIsObModalOpen(true);
+  };
+
   return (
     <div className="content-area" key={currentPage}>
       <div className="page-enter">
@@ -111,11 +94,36 @@ export default function PageRouter({
                 setCurrentPage('transactions');
               }}
               budgets={budgets}
+              obligations={obligations}
               transactions={transactions}
               assets={assets}
               onOpenBudgetModal={() => setIsBudgetModalOpen(true)}
+              onOpenCategories={() => setCurrentPage('categories')}
               auth={auth}
               onOpenAuthModal={() => setIsAuthModalOpen(true)}
+              getCategoryName={getCategoryName}
+              onOpenSettings={() => setCurrentPage('settings')}
+            />
+          )}
+
+          {currentPage === 'transactions' && (
+            <TransactionsView
+              transactions={transactions}
+              assets={assets}
+              txFilter={txFilter}
+              setTxFilter={setTxFilter}
+              deleteMode={deleteMode}
+              setDeleteMode={setDeleteMode}
+              selectedTxs={selectedTxs}
+              toggleSelectTx={toggleSelectTx}
+              flippedTxId={flippedTxId}
+              setFlippedTxId={setFlippedTxId}
+              rates={rates}
+              onEdit={handleEditTransaction}
+              onOpenReportsModal={onOpenReportsModal}
+              getCategoryName={getCategoryName}
+              getSubcategoryName={getSubcategoryName}
+              onOpenSettings={() => setCurrentPage('settings')}
             />
           )}
 
@@ -146,57 +154,45 @@ export default function PageRouter({
               auth={auth}
               onOpenAuthModal={() => setIsAuthModalOpen(true)}
               onExportBackup={exportBackup}
-              onNavigateToCalculator={() => setCurrentPage('calculator')}
+              onNavigateToCalculator={() => setCurrentPage('rates')}
+              onOpenSettings={() => setCurrentPage('settings')}
             />
           )}
 
-          {currentPage === 'obligations' && (
-            <ObligationsView
+          {(currentPage === 'planning' || currentPage === 'obligations') && (
+            <PlanningView
+              activeSubTab={planningSubTab}
+              setActiveSubTab={setPlanningSubTab}
+              budgets={budgets}
+              obligations={obligations}
+              transactions={transactions}
+              rates={rates}
+              veRates={veRates}
+              onOpenBudgetModal={() => setIsBudgetModalOpen(true)}
+              getCategoryName={getCategoryName}
+              onOpenCategories={() => setCurrentPage('categories')}
               obligations={obligations}
               flippedObId={flippedObId}
               setFlippedObId={setFlippedObId}
-              rates={rates}
-              veRates={veRates}
-              onEdit={(ob) => {
+              onEditObligation={(ob) => {
                 setNewOb({ ...ob });
                 setIsObModalOpen(true);
               }}
-              onPay={(ob) => {
-                setPayingOb(ob);
-                const isIndexedToBs = Boolean(ob.payInBs);
-                const vesAccount = assets.find(a => (a.name || '').toUpperCase() === 'VES');
-                const targetAsset = (isIndexedToBs && vesAccount) ? vesAccount : null;
-                const chosenRateType = ob.indexRateType || ((ob.currency || '').toUpperCase() === 'EUR' ? 'EUR' : 'BCV_USD');
-
-                let initialAmountStr = ob.amount.toString();
-                if (isIndexedToBs && targetAsset) {
-                  let activeVeRate = null;
-                  if (chosenRateType === 'PARALELO') activeVeRate = veRates?.paralelo;
-                  else if (chosenRateType === 'BCV_EUR' || chosenRateType === 'EUR') activeVeRate = veRates?.bcvEur || veRates?.bcvUsd;
-                  else activeVeRate = veRates?.bcvUsd || rates?.bcvUsd || rates?.VES;
-
-                  const converted = convertForPayment(
-                    ob.amount,
-                    ob.currency,
-                    'VES',
-                    { ...rates, ...veRates },
-                    activeVeRate
-                  );
-                  if (converted != null) initialAmountStr = converted.toString();
-                }
-
-                setPayData({
-                  assetId: targetAsset ? targetAsset.id : '',
-                  actualAmount: initialAmountStr,
-                  rateType: chosenRateType,
-                  customRate: ''
-                });
-              }}
-              onDelete={handleDeleteObligation}
+              onPayObligation={handleOpenPayObligation}
+              onDeleteObligation={handleDeleteObligation}
+              onOpenObModal={handleOpenNewObligation}
+              goals={goals}
+              onOpenGoalModal={onOpenGoalModal}
+              onDeleteGoal={onDeleteGoal}
+              assets={assets}
+              onOpenSettings={() => setCurrentPage('settings')}
+              selectedShoppingListId={selectedShoppingListId}
+              setSelectedShoppingListId={setSelectedShoppingListId}
+              onRegisterShoppingPurchase={onRegisterShoppingPurchase}
             />
           )}
 
-          {currentPage === 'calculator' && (
+          {(currentPage === 'rates' || currentPage === 'calculator') && (
             <CalculatorView
               calcBaseCurrency={calcBaseCurrency}
               setCalcBaseCurrency={setCalcBaseCurrency}
@@ -211,17 +207,23 @@ export default function PageRouter({
               }}
               fetchVeRates={refreshRates}
               isFetchingRates={isFetchingRates}
+              showToast={showToast}
+              onOpenSettings={() => setCurrentPage('settings')}
+            />
+          )}
+
+          {currentPage === 'settings' && (
+            <SettingsView
+              onBack={() => setCurrentPage('dashboard')}
+              auth={auth}
+              onSyncNow={syncNow}
+              onOpenAuthModal={() => setIsAuthModalOpen(true)}
               assets={assets}
               transactions={transactions}
               obligations={obligations}
+              veRates={veRates}
               budgets={budgets}
               showToast={showToast}
-              onInjectTestData={injectAdvancedTestData}
-              onClearAllData={clearAllAppData}
-              auth={auth}
-              onOpenAuthModal={() => setIsAuthModalOpen(true)}
-              onSyncNow={syncNow}
-              onRequestConfirm={requestConfirm}
               onRestoreBackup={(data) => {
                 setAssets(data.assets);
                 setTransactions(data.transactions);
@@ -229,25 +231,22 @@ export default function PageRouter({
                 if (data.veRates?.custom) setCustomRate(data.veRates.custom);
                 if (data.budgets) setBudgets(data.budgets);
               }}
+              onRequestConfirm={requestConfirm}
+              onClearAllData={clearAllAppData}
+              onInjectTestData={injectAdvancedTestData}
+              onOpenCategories={() => setCurrentPage('categories')}
+              referenceRate={referenceRate}
+              setReferenceRate={setReferenceRate}
+              setCustomRate={setCustomRate}
+              refreshRates={refreshRates}
+              isFetchingRates={isFetchingRates}
+              appLock={appLock}
+              onOpenSecurityModal={onOpenSecurityModal}
             />
           )}
 
-          {currentPage === 'transactions' && (
-            <TransactionsView
-              transactions={transactions}
-              assets={assets}
-              txFilter={txFilter}
-              setTxFilter={setTxFilter}
-              deleteMode={deleteMode}
-              setDeleteMode={setDeleteMode}
-              selectedTxs={selectedTxs}
-              toggleSelectTx={toggleSelectTx}
-              flippedTxId={flippedTxId}
-              setFlippedTxId={setFlippedTxId}
-              rates={rates}
-              onEdit={handleEditTransaction}
-              onOpenReportsModal={onOpenReportsModal}
-            />
+          {currentPage === 'categories' && (
+            <CategoriesView onBack={() => setCurrentPage('settings')} />
           )}
         </Suspense>
       </div>

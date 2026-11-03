@@ -40,6 +40,7 @@ export default function AppModals({
   txValidationError,
   setTxValidationError,
   handleAddTransaction,
+  handleSaveAndAddAnother,
   // TransferModal
   isTransferModalOpen,
   setIsTransferModalOpen,
@@ -68,6 +69,7 @@ export default function AppModals({
   // AuthModal
   isAuthModalOpen,
   setIsAuthModalOpen,
+  onNavigateCategories,
   auth,
   syncNow,
   obligations,
@@ -145,6 +147,7 @@ export default function AppModals({
         validationError={txValidationError}
         setValidationError={setTxValidationError}
         onSubmit={handleAddTransaction}
+        onSaveAndAddAnother={handleSaveAndAddAnother}
       />
 
       <TransferModal
@@ -205,6 +208,7 @@ export default function AppModals({
         referenceRate={referenceRate}
         setReferenceRate={setReferenceRate}
         onClearLocalData={clearLocalData}
+        onNavigateCategories={onNavigateCategories}
       />
 
       <GoalModal
