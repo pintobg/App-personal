@@ -3,13 +3,14 @@ import ObligationsView from './ObligationsView';
 import ShoppingListsView from '../shopping/ShoppingListsView';
 import PlanningBudgetsTab from './planning/PlanningBudgetsTab';
 import PlanningGoalsTab from './planning/PlanningGoalsTab';
+import PlanningTabHeader from './planning/PlanningTabHeader';
 import { FinanceContext } from '../../context/FinanceContext';
 
 const SUB_TABS = [
   { id: 'presupuestos', label: 'Presupuestos' },
-  { id: 'deudas', label: 'Deudas y cuotas' },
-  { id: 'metas', label: 'Metas de ahorro' },
-  { id: 'compras', label: 'Lista de compras' }
+  { id: 'deudas', label: 'Deudas' },
+  { id: 'metas', label: 'Metas' },
+  { id: 'compras', label: 'Compras' }
 ];
 
 export default function PlanningView({
@@ -23,8 +24,8 @@ export default function PlanningView({
   getCategoryName,
   onOpenCategories,
   obligations = [],
-  flippedObId,
-  setFlippedObId,
+  actionObId,
+  setActionObId,
   onEditObligation,
   onPayObligation,
   onDeleteObligation,
@@ -33,7 +34,6 @@ export default function PlanningView({
   onOpenGoalModal,
   onDeleteGoal,
   assets = [],
-  onOpenSettings,
   selectedShoppingListId,
   setSelectedShoppingListId,
   onRegisterShoppingPurchase,
@@ -69,88 +69,27 @@ export default function PlanningView({
   const setActiveTab = externalSetSubTab !== undefined ? externalSetSubTab : setInternalSubTab;
 
   return (
-    <div className="view-container" style={{ padding: '0 1rem 3rem', color: 'var(--text-primary)' }}>
-      {/* ENCABEZADO PRINCIPAL DE PLANIFICAR */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', marginBottom: '1.25rem' }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 'clamp(1.2rem, 5vw, 1.5rem)', fontWeight: 700, color: 'var(--text-primary)' }}>
-            Planificar
-          </h1>
-          <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-            Presupuestos, compromisos y metas financieras
-          </p>
-        </div>
+    <div className="view-container planning-view">
+      <h1 className="page-title">Planificar</h1>
 
-        {onOpenSettings && (
-          <button
-            type="button"
-            onClick={onOpenSettings}
-            aria-label="Ajustes"
-            style={{
-              background: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '50%',
-              width: '38px',
-              height: '38px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--text-primary)',
-              cursor: 'pointer',
-              fontSize: '1.1rem'
-            }}
-          >
-            ⚙️
-          </button>
-        )}
-      </div>
-
-      {/* SUB-PESTAÑAS DE PLANIFICAR */}
-      <div
-        style={{
-          display: 'flex',
-          gap: '1rem',
-          borderBottom: '1px solid var(--border-color)',
-          marginBottom: '1.5rem',
-          overflowX: 'auto',
-          whiteSpace: 'nowrap',
-          WebkitOverflowScrolling: 'touch',
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none'
-        }}
-      >
+      {/* Sub-pestañas: ocupan todo el ancho, sin desplazamiento lateral */}
+      <div className="planning-tabs" role="tablist" aria-label="Secciones de Planificar">
         {SUB_TABS.map(tab => {
           const isActive = activeTab === tab.id;
+          const count = tab.id === 'deudas'
+            ? obligations.filter(o => o.status !== 'paid').length
+            : (tab.id === 'metas' ? goals.length : 0);
           return (
             <button
               key={tab.id}
               type="button"
+              role="tab"
+              aria-selected={isActive}
+              className={`planning-tab${isActive ? ' active' : ''}`}
               onClick={() => setActiveTab(tab.id)}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                borderBottom: isActive ? '2px solid var(--color-accent)' : '2px solid transparent',
-                padding: '0.6rem 0.25rem',
-                color: isActive ? 'var(--color-accent)' : 'var(--text-secondary)',
-                fontWeight: isActive ? 700 : 500,
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem'
-              }}
             >
-              {tab.label}
-              {tab.id === 'deudas' && obligations.length > 0 && (
-                <span style={{ fontSize: '0.7rem', padding: '1px 5px', borderRadius: '8px', background: 'var(--bg-surface-elevated)', color: 'var(--text-secondary)' }}>
-                  {obligations.filter(o => o.status !== 'paid').length}
-                </span>
-              )}
-              {tab.id === 'metas' && goals.length > 0 && (
-                <span style={{ fontSize: '0.7rem', padding: '1px 5px', borderRadius: '8px', background: 'var(--bg-surface-elevated)', color: 'var(--text-secondary)' }}>
-                  {goals.length}
-                </span>
-              )}
+              <span>{tab.label}</span>
+              {count > 0 && <span className="planning-tab-count">{count}</span>}
             </button>
           );
         })}
@@ -170,35 +109,15 @@ export default function PlanningView({
 
       {activeTab === 'deudas' && (
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>Deudas y Cuotas</h2>
-              <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Pagos pendientes y cuentas por cobrar</p>
-            </div>
-            {onOpenObModal && (
-              <button
-                type="button"
-                onClick={onOpenObModal}
-                style={{
-                  padding: '0.45rem 0.85rem',
-                  borderRadius: '12px',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  background: 'var(--color-accent-soft)',
-                  border: '1px solid var(--color-accent-border)',
-                  color: 'var(--color-accent)',
-                  cursor: 'pointer'
-                }}
-              >
-                + Nueva Deuda
-              </button>
-            )}
-          </div>
+          <PlanningTabHeader
+            hint="Lo que debes pagar y lo que te deben."
+            actions={[onOpenObModal && { label: '+ Nueva', ariaLabel: 'Nueva deuda o cobro', onClick: onOpenObModal, primary: true }]}
+          />
 
           <ObligationsView
             obligations={obligations}
-            flippedObId={flippedObId}
-            setFlippedObId={setFlippedObId}
+            actionObId={actionObId}
+            setActionObId={setActionObId}
             rates={rates}
             veRates={veRates}
             onEdit={onEditObligation}

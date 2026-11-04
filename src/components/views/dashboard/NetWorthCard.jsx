@@ -1,7 +1,8 @@
 import React from 'react';
 import { formatAmount } from '../../../utils/formatters';
 import { getRateStatus } from '../../../services/ratesService';
-import ReferenceRateSelector from '../../common/ReferenceRateSelector';
+
+const RATE_LABELS = { bcv: 'BCV', paralelo: 'Paralelo', custom: 'Propia' };
 
 export default function NetWorthCard({
   isBalanceHidden,
@@ -9,133 +10,75 @@ export default function NetWorthCard({
   grandTotalUsd,
   alternateGrandTotalUsd,
   referenceRate,
-  setReferenceRate,
   rates,
   ratesDetails,
   auth,
-  onOpenAuthModal,
-  onOpenSettings
+  onOpenSettings,
+  onOpenRates,
+  notice = null
 }) {
-  return (
-    <div style={{ marginTop: '1rem', marginBottom: '2.5rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-            Mi balance
-            <button
-              onClick={() => setIsBalanceHidden(!isBalanceHidden)}
-              style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}
-              aria-label={isBalanceHidden ? 'Mostrar saldo' : 'Ocultar saldo'}
-            >
-              {isBalanceHidden ? (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
-              ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-              )}
-            </button>
-          </div>
-          <ReferenceRateSelector
-            referenceRate={referenceRate}
-            setReferenceRate={setReferenceRate}
-          />
-        </div>
+  const vesRate = rates?.['VES'] ? (rates['VES'] < 1 ? 1 / rates['VES'] : rates['VES']) : null;
+  const rateLabel = RATE_LABELS[referenceRate] || 'BCV';
+  const rateStatus = ratesDetails?.bcvUsd ? getRateStatus(ratesDetails.bcvUsd) : null;
+  // Punto de aviso en Ajustes: sin sincronizar, con error o con cambios pendientes.
+  const needsAttention = !auth?.user || ['error', 'offline'].includes(auth?.syncStatus) || auth?.pendingCount > 0;
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          {onOpenAuthModal && (
-            <button
-              onClick={onOpenAuthModal}
-              aria-label="Estado de autenticación"
-              style={{
-                background: auth?.user ? 'var(--color-accent-soft)' : 'var(--bg-surface)',
-                border: `1px solid ${auth?.user ? 'var(--color-accent-border)' : 'var(--border-color)'}`,
-                borderRadius: '9999px',
-                padding: '4px 10px',
-                color: auth?.user ? 'var(--color-accent)' : 'var(--text-secondary)',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px'
-              }}
-            >
-              <span>{auth?.user ? '☁️' : '👤'}</span>
-              <span>
-                {auth?.user
-                  ? (auth.syncStatus === 'syncing'
-                      ? 'Sincronizando...'
-                      : auth.syncStatus === 'offline'
-                      ? 'Sin conexión'
-                      : auth.syncStatus === 'error'
-                      ? 'Error, reintentar'
-                      : auth.pendingCount > 0
-                      ? `Pendiente (${auth.pendingCount})`
-                      : 'Sincronizado')
-                  : 'Modo local'}
-              </span>
-            </button>
-          )}
-          {onOpenSettings && (
-            <button
-              type="button"
-              onClick={onOpenSettings}
-              aria-label="Ajustes"
-              style={{
-                background: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '50%',
-                width: '32px',
-                height: '32px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--text-primary)',
-                cursor: 'pointer',
-                fontSize: '0.95rem'
-              }}
-            >
-              ⚙️
-            </button>
-          )}
+  return (
+    <section className="home-hero" aria-label="Saldo total">
+      <div className="home-hero-top">
+        <div className="home-hero-label">
+          <span>Tienes en total</span>
+          <button
+            type="button"
+            className="icon-hit"
+            onClick={() => setIsBalanceHidden(!isBalanceHidden)}
+            aria-label={isBalanceHidden ? 'Mostrar saldo' : 'Ocultar saldo'}
+          >
+            {isBalanceHidden ? (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line></svg>
+            ) : (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            )}
+          </button>
         </div>
-      </div>
-      <div style={{ fontSize: 'clamp(1.8rem, 7vw, 2.4rem)', fontWeight: 700, letterSpacing: '-0.025em', color: 'var(--text-primary)', marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 'clamp(1.2rem, 5vw, 1.6rem)' }}>$</span>
-        {isBalanceHidden ? '***' : formatAmount(grandTotalUsd, 'USD')}
-      </div>
-      {alternateGrandTotalUsd != null && (
-        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginBottom: '0.35rem', fontWeight: 500 }}>
-          {referenceRate === 'paralelo'
-            ? `A tasa BCV: $${isBalanceHidden ? '***' : formatAmount(alternateGrandTotalUsd, 'USD')}`
-            : `A tasa Paralelo: $${isBalanceHidden ? '***' : formatAmount(alternateGrandTotalUsd, 'USD')}`}
-        </div>
-      )}
-      <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-        {rates?.['VES'] ? (
-          <>
-            <span>Bs {formatAmount(rates['VES'] < 1 ? 1 / rates['VES'] : rates['VES'], 'VES')} / $</span>
-            {ratesDetails?.bcvUsd && (() => {
-              const status = getRateStatus(ratesDetails.bcvUsd);
-              if (status.isStale) {
-                return (
-                  <span style={{ color: 'var(--color-warning)', fontSize: '0.74rem', padding: '1px 6px', background: 'var(--color-warning-soft)', borderRadius: '4px', fontWeight: 600 }}>
-                    {status.label}
-                  </span>
-                );
-              }
-              return (
-                <span style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>
-                  ({status.label})
-                </span>
-              );
-            })()}
-          </>
-        ) : (
-          <span style={{ color: 'var(--color-warning)', fontSize: '0.82rem', fontWeight: 600 }}>
-            ⚠️ Sin tasa (Conéctate o ingresa una tasa en la Calculadora)
-          </span>
+        {onOpenSettings && (
+          <button
+            type="button"
+            className="icon-hit settings-btn"
+            onClick={onOpenSettings}
+            aria-label={needsAttention ? 'Ajustes (sin sincronizar)' : 'Ajustes'}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            {needsAttention && <span className="attention-dot" aria-hidden="true" />}
+          </button>
         )}
       </div>
-    </div>
+
+      <div className="home-hero-amount">
+        <span className="currency">$</span>
+        {isBalanceHidden ? '***' : formatAmount(grandTotalUsd, 'USD')}
+      </div>
+
+      {alternateGrandTotalUsd != null && !isBalanceHidden && (
+        <div className="home-hero-alt">
+          {referenceRate === 'paralelo' ? 'A tasa BCV' : 'A tasa paralelo'}: ${formatAmount(alternateGrandTotalUsd, 'USD')}
+        </div>
+      )}
+
+      {vesRate && (
+        <button
+          type="button"
+          className="rate-tag"
+          onClick={onOpenRates}
+          disabled={!onOpenRates}
+          aria-label={`Tasa ${rateLabel} ${formatAmount(vesRate, 'VES')} bolívares por dólar. Cambiar en Tasas`}
+        >
+          Tasa {rateLabel} · {formatAmount(vesRate, 'VES')}
+          {rateStatus?.isStale && <span className="rate-tag-stale"> · {rateStatus.label}</span>}
+        </button>
+      )}
+
+      {notice}
+    </section>
   );
 }

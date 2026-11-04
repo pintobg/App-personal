@@ -1,6 +1,6 @@
 import React from 'react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
-import { formatAmount } from '../../../utils/formatters';
+import { formatAmount, formatPercent, formatNumber } from '../../../utils/formatters';
 
 export default function EvolutionAreaChart({
   evolutionStats,
@@ -32,7 +32,7 @@ export default function EvolutionAreaChart({
                 color: evolutionStats.diff >= 0 ? 'var(--color-accent)' : 'var(--color-danger)'
               }}
             >
-              {evolutionStats.diff >= 0 ? '+' : ''}{evolutionStats.diffPercent.toFixed(1)}%
+              {formatPercent(evolutionStats.diffPercent, 1, { signed: evolutionStats.diff >= 0 })}
             </span>
           </div>
         </div>
@@ -96,12 +96,12 @@ export default function EvolutionAreaChart({
               tickLine={false}
               axisLine={false}
               tick={{ fill: 'var(--text-secondary)', fontSize: 10 }}
-              tickFormatter={(val) => `$${val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val}`}
+              tickFormatter={(val) => `$${val >= 1000 ? `${formatNumber(val / 1000, 1)}k` : formatNumber(val, 0)}`}
             />
             <Tooltip
               formatter={(value) => [
-                `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`,
-                'Patrimonio'
+                `$${formatAmount(value, 'USD')} USD`,
+                'Total'
               ]}
               contentStyle={{
                 borderRadius: '12px',
@@ -116,7 +116,7 @@ export default function EvolutionAreaChart({
             <Area
               type="monotone"
               dataKey="balance"
-              name="Patrimonio"
+              name="Total"
               stroke="var(--color-accent)"
               strokeWidth={2.5}
               fillOpacity={1}

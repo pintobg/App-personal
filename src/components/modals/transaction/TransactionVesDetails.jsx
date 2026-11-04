@@ -7,11 +7,8 @@ export default function TransactionVesDetails({
   if (newTx.currency !== 'VES') return null;
 
   return (
-    <div style={{ marginBottom: '1rem', padding: '0.85rem', background: 'var(--bg-surface-elevated)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-      <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-        <span>🇻🇪</span>
-        <span>Detalles de pago en Bolívares (Opcional)</span>
-      </div>
+    <div className="input-group">
+      <span className="form-section-label">Pago en bolívares</span>
 
       <div style={{ marginBottom: '0.65rem' }}>
         <label style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.35rem' }}>Tipo de pago</label>
@@ -20,7 +17,7 @@ export default function TransactionVesDetails({
             <button
               key={method}
               type="button"
-              className={`segmented-btn ${newTx.paymentMethod === method ? 'active-success' : ''}`}
+              className={`segmented-btn ${newTx.paymentMethod === method ? 'active' : ''}`}
               onClick={() => setNewTx(prev => ({
                 ...prev,
                 paymentMethod: prev.paymentMethod === method ? '' : method

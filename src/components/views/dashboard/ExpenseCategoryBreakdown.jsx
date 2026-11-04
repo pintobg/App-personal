@@ -1,5 +1,5 @@
 import React from 'react';
-import { translateCategory } from '../../../utils/formatters';
+import { translateCategory, formatNumber, formatAmount } from '../../../utils/formatters';
 import { COLORS } from '../../../utils/constants';
 import { tint } from '../../../utils/colors';
 
@@ -36,7 +36,7 @@ export default function ExpenseCategoryBreakdown({
           const catObj = allCategories.find(c => c.name === entry.name || c.id === entry.name);
           const color = catObj?.color || COLORS[index % COLORS.length];
           const icon = catObj?.icon || CATEGORY_ICONS[entry.name] || '🏷️';
-          const pct = totalPieUsd > 0 ? ((entry.value / totalPieUsd) * 100).toFixed(1) : '0.0';
+          const pct = totalPieUsd > 0 ? formatNumber((entry.value / totalPieUsd) * 100, 1) : '0,0';
           return (
             <div
               key={entry.name}
@@ -80,7 +80,7 @@ export default function ExpenseCategoryBreakdown({
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', flexShrink: 0 }}>
                 <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                  ${entry.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ${formatAmount(entry.value, 'USD')}
                 </div>
                 <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--color-accent)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '2px', whiteSpace: 'nowrap' }}>
                   <span>Ver transacciones</span>

@@ -1,11 +1,55 @@
+import { useMemo, useState } from 'react';
+import { formatDueLabel } from '../../utils/dates';
 import EmptyState from '../common/EmptyState';
-import { translateCategory, translateFrequency, getCurrencySymbol, formatAmount } from '../../utils/formatters';
+import { ActionSheet, Icon } from '../ui';
+import { translateCategory, translateFrequency, formatAmount } from '../../utils/formatters';
 import { isObligationCompleted, getIndexedBsInfo as getIndexedInfoUtil } from '../../domain/obligations';
+
+function dueClass(label) {
+  if (label.startsWith('Vencido')) return ' danger';
+  if (label === 'Vence hoy') return ' warning';
+  return '';
+}
+
+function ObligationRow({ ob, kind, indexedInfo, onOpen }) {
+  const due = ob.dueDate ? formatDueLabel(ob.dueDate) : '';
+  const subParts = [];
+  if (kind !== 'done' && due) subParts.push(due);
+  if (ob.totalInstallments) subParts.push(`${ob.paidInstallments || 0} de ${ob.totalInstallments} cuotas`);
+  if (!subParts.length) subParts.push(translateCategory(ob.category) || translateFrequency(ob.frequency));
+  const sign = kind === 'receive' ? '+' : '−';
+  const amountClass = kind === 'done' ? 'neutral' : (kind === 'receive' ? 'income' : 'expense');
+
+  return (
+    <button type="button" className="list-row" onClick={() => onOpen(ob.id)} aria-label={`${ob.title}, ${subParts.join(', ')}`}>
+      <span className="list-row-main">
+        <span className="list-row-title">{ob.title}</span>
+        <span className={`list-row-sub${kind !== 'done' ? dueClass(due) : ''}`}>{subParts.join(' · ')}</span>
+      </span>
+      <span className="list-row-value">
+        <span className={`amount ${amountClass}`}>{sign}{formatAmount(ob.amount, ob.currency)} {(ob.currency || '').toUpperCase()}</span>
+        {indexedInfo && <span className="amount-sub">{indexedInfo.text}</span>}
+      </span>
+    </button>
+  );
+}
+
+function Section({ title, empty, children, count }) {
+  return (
+    <section className="list-section">
+      <div className="list-section-header">
+        <span className="form-section-label" style={{ margin: 0 }}>{title}</span>
+        {count > 0 && <span className="list-section-count">{count}</span>}
+      </div>
+      {count === 0 ? empty : <div className="list-card">{children}</div>}
+    </section>
+  );
+}
 
 export default function ObligationsView({
   obligations,
-  flippedObId,
-  setFlippedObId,
+  actionObId,
+  setActionObId,
   rates = {},
   veRates = {},
   onEdit,
@@ -16,267 +60,100 @@ export default function ObligationsView({
   const pendingPay = obligations.filter(ob => ob.type === 'pay' && !isCompleted(ob));
   const pendingReceive = obligations.filter(ob => ob.type === 'receive' && !isCompleted(ob));
   const completedHistory = obligations.filter(isCompleted);
+  const [showHistory, setShowHistory] = useState(false);
 
   const getIndexedBsInfo = (ob) => getIndexedInfoUtil(ob, rates, veRates);
+  const actionOb = useMemo(() => obligations.find(o => o.id === actionObId) || null, [obligations, actionObId]);
+  const closeSheet = () => setActionObId(null);
+  const openSheet = (id) => setActionObId(id);
+
+  let sheet = null;
+  if (actionOb) {
+    const done = isCompleted(actionOb);
+    const isReceive = actionOb.type === 'receive';
+    const info = getIndexedBsInfo(actionOb);
+    const actions = [
+      !done && {
+        label: isReceive ? 'Registrar cobro' : 'Registrar pago',
+        icon: <Icon name="checkCircle" />,
+        onClick: () => { closeSheet(); onPay(actionOb); }
+      },
+      {
+        label: 'Editar',
+        ariaLabel: isReceive ? 'Editar obligación por cobrar' : 'Editar obligación',
+        icon: <Icon name="edit" />,
+        onClick: () => { closeSheet(); onEdit(actionOb); }
+      },
+      {
+        label: 'Eliminar',
+        ariaLabel: isReceive ? 'Eliminar obligación por cobrar' : 'Eliminar obligación',
+        icon: <Icon name="trash" />,
+        variant: 'danger',
+        onClick: () => { closeSheet(); onDelete(actionOb.id, done ? '¿Eliminar esto del historial?' : '¿Eliminar esta obligación?'); }
+      }
+    ].filter(Boolean);
+
+    sheet = (
+      <ActionSheet
+        isOpen
+        onClose={closeSheet}
+        title={`${actionOb.title} · ${formatAmount(actionOb.amount, actionOb.currency)} ${(actionOb.currency || '').toUpperCase()}`}
+        subtitle={[actionOb.dueDate && !done ? formatDueLabel(actionOb.dueDate) : null, translateCategory(actionOb.category)].filter(Boolean).join(' · ')}
+        actions={actions}
+      >
+        <div className="detail-row"><span>Frecuencia</span><span>{translateFrequency(actionOb.frequency)}</span></div>
+        {actionOb.totalInstallments && (
+          <div className="detail-row"><span>Cuotas</span><span>{actionOb.paidInstallments || 0} de {actionOb.totalInstallments}</span></div>
+        )}
+        {actionOb.payInBs && (
+          <div className="detail-row"><span>Se paga en Bs.</span><span>a tasa {actionOb.indexRateType || 'BCV'}</span></div>
+        )}
+        {info && <div className="detail-row"><span>Equivale hoy</span><span>{info.text}</span></div>}
+        {!done && (
+          <div className="detail-row"><span>Recordatorio</span><span>{actionOb.reminderEnabled !== false ? 'Activo, 9:00 a. m.' : 'Desactivado'}</span></div>
+        )}
+      </ActionSheet>
+    );
+  }
 
   return (
-    <div className="view-container" style={{ padding: '0 1rem', marginTop: '2rem' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h2 className="section-title" style={{ padding: 0, color: '#fff', fontSize: 'clamp(1rem, 4vw, 1.2rem)', margin: 0 }}>Por Pagar</h2>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem' }}>
-        {pendingPay.length === 0 && <EmptyState icon="📝" message="No hay obligaciones pendientes" />}
+    <div className="obligations-view">
+      <Section
+        title="Por pagar"
+        count={pendingPay.length}
+        empty={<EmptyState icon="📝" message="No tienes pagos pendientes" />}
+      >
         {pendingPay.map(ob => (
-          <div
-            key={ob.id}
-            className={`tx-flip-container ${flippedObId === ob.id ? 'flipped' : ''}`}
-          >
-            <div className="tx-flip-inner" onClick={() => setFlippedObId(flippedObId === ob.id ? null : ob.id)}>
-              <div className="tx-flip-front glass-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.15rem', borderRadius: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: 0, paddingRight: '0.5rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {ob.title}
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {translateCategory(ob.category)}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-danger)' }}>
-                    -{getCurrencySymbol(ob.currency)}{formatAmount(ob.amount, ob.currency)} {ob.currency.toUpperCase()}
-                  </div>
-                  {(() => {
-                    const info = getIndexedBsInfo(ob);
-                    if (!info) return null;
-                    return (
-                      <div style={{ fontSize: '0.74rem', color: 'var(--color-success)', fontWeight: 600 }}>
-                        {info.text}
-                      </div>
-                    );
-                  })()}
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.25rem' }}>
-                    <button
-                      title="Editar"
-                      aria-label="Editar obligación"
-                      style={{ background: 'var(--color-warning-strong)', border: 'none', color: '#fff', fontSize: '0.75rem', borderRadius: '8px', padding: '0.4rem', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      onClick={(e) => { e.stopPropagation(); onEdit(ob); }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                    </button>
-                    <button
-                      title="Pagar"
-                      aria-label="Registrar pago"
-                      style={{ background: 'var(--color-info-strong)', border: 'none', color: '#fff', fontSize: '0.75rem', borderRadius: '8px', padding: '0.4rem', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      onClick={(e) => { e.stopPropagation(); onPay(ob); }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                    </button>
-                    <button
-                      title="Eliminar"
-                      aria-label="Eliminar obligación"
-                      style={{ background: 'var(--color-danger-soft)', border: '1px solid var(--color-danger-border)', color: 'var(--color-danger)', fontSize: '0.75rem', borderRadius: '8px', padding: '0.4rem', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      onClick={(e) => { e.stopPropagation(); onDelete(ob.id, '¿Eliminar esta obligación?'); }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div className="tx-flip-back glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '1rem 1.15rem', borderRadius: '16px', gap: '0.5rem' }}>
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Detalles de la Deuda</div>
-                <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Frecuencia: {translateFrequency(ob.frequency)}</div>
-                {ob.payInBs && (
-                  <div style={{ fontSize: '0.82rem', color: 'var(--color-success)', fontWeight: 600 }}>
-                    Se paga en Bs. a tasa {ob.indexRateType || 'BCV'}
-                  </div>
-                )}
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  {ob.reminderEnabled !== false ? '🔔 Recordatorio a las 9:00 a.m. activo' : '🔕 Recordatorio desactivado'}
-                </div>
-                {ob.totalInstallments && (
-                  <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Progreso: {ob.paidInstallments || 0} de {ob.totalInstallments} pagos</div>
-                )}
-                {ob.dueDate && (
-                  <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                    {(() => {
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-                      const due = new Date(ob.dueDate);
-                      due.setHours(0, 0, 0, 0);
-                      const diffTime = due - today;
-                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                      if (diffDays < 0) return <span style={{ color: 'var(--color-danger)' }}>Vencido hace {Math.abs(diffDays)} día(s)</span>;
-                      if (diffDays === 0) return <span style={{ color: 'var(--color-warning)' }}>Vence HOY</span>;
-                      return `Vence en ${diffDays} día(s)`;
-                    })()}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <ObligationRow key={ob.id} ob={ob} kind="pay" indexedInfo={getIndexedBsInfo(ob)} onOpen={openSheet} />
         ))}
-      </div>
+      </Section>
 
-      <div style={{ width: '50%', margin: '0 auto 2rem', borderBottom: '1px solid var(--border-color)' }}></div>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h2 className="section-title" style={{ padding: 0, color: 'var(--text-primary)', fontSize: 'clamp(1rem, 4vw, 1.2rem)', margin: 0 }}>Por Cobrar</h2>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem' }}>
-        {pendingReceive.length === 0 && <EmptyState icon="🤝" message="No hay créditos pendientes" />}
+      <Section
+        title="Por cobrar"
+        count={pendingReceive.length}
+        empty={<EmptyState icon="🤝" message="Nadie te debe por ahora" />}
+      >
         {pendingReceive.map(ob => (
-          <div
-            key={ob.id}
-            className={`tx-flip-container ${flippedObId === ob.id ? 'flipped' : ''}`}
-          >
-            <div className="tx-flip-inner" onClick={() => setFlippedObId(flippedObId === ob.id ? null : ob.id)}>
-              <div className="tx-flip-front glass-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.15rem', borderRadius: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: 0, paddingRight: '0.5rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {ob.title}
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {translateCategory(ob.category)}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.25rem', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-success)' }}>
-                    +{getCurrencySymbol(ob.currency)}{formatAmount(ob.amount, ob.currency)} {ob.currency.toUpperCase()}
-                  </div>
-                  {(() => {
-                    const info = getIndexedBsInfo(ob);
-                    if (!info) return null;
-                    return (
-                      <div style={{ fontSize: '0.74rem', color: 'var(--color-success)', fontWeight: 600 }}>
-                        {info.text}
-                      </div>
-                    );
-                  })()}
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.25rem' }}>
-                    <button
-                      title="Editar"
-                      aria-label="Editar obligación por cobrar"
-                      style={{ background: 'var(--color-warning-strong)', border: 'none', color: '#fff', fontSize: '0.75rem', borderRadius: '8px', padding: '0.4rem', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      onClick={(e) => { e.stopPropagation(); onEdit(ob); }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                    </button>
-                    <button
-                      title="Recibir"
-                      aria-label="Registrar cobro"
-                      style={{ background: 'var(--color-info-strong)', border: 'none', color: '#fff', fontSize: '0.75rem', borderRadius: '8px', padding: '0.4rem', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      onClick={(e) => { e.stopPropagation(); onPay(ob); }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                    </button>
-                    <button
-                      title="Eliminar"
-                      aria-label="Eliminar obligación por cobrar"
-                      style={{ background: 'var(--color-danger-soft)', border: '1px solid var(--color-danger-border)', color: 'var(--color-danger)', fontSize: '0.75rem', borderRadius: '8px', padding: '0.4rem', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      onClick={(e) => { e.stopPropagation(); onDelete(ob.id, '¿Eliminar esta obligación?'); }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div className="tx-flip-back glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '1rem 1.15rem', borderRadius: '16px', gap: '0.5rem' }}>
-                <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Detalles de Crédito</div>
-                <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Frecuencia: {translateFrequency(ob.frequency)}</div>
-                {ob.payInBs && (
-                  <div style={{ fontSize: '0.82rem', color: 'var(--color-success)', fontWeight: 600 }}>
-                    Se cobra en Bs. a tasa {ob.indexRateType || 'BCV'}
-                  </div>
-                )}
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  {ob.reminderEnabled !== false ? '🔔 Recordatorio a las 9:00 a.m. activo' : '🔕 Recordatorio desactivado'}
-                </div>
-                {ob.totalInstallments && (
-                  <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>Progreso: {ob.paidInstallments || 0} de {ob.totalInstallments} pagos</div>
-                )}
-                {ob.dueDate && (
-                  <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                    {(() => {
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-                      const due = new Date(ob.dueDate);
-                      due.setHours(0, 0, 0, 0);
-                      const diffTime = due - today;
-                      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                      if (diffDays < 0) return <span style={{ color: 'var(--color-danger)' }}>Vencido hace {Math.abs(diffDays)} día(s)</span>;
-                      if (diffDays === 0) return <span style={{ color: 'var(--color-warning)' }}>Vence HOY</span>;
-                      return `Vence en ${diffDays} día(s)`;
-                    })()}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <ObligationRow key={ob.id} ob={ob} kind="receive" indexedInfo={getIndexedBsInfo(ob)} onOpen={openSheet} />
         ))}
-      </div>
+      </Section>
 
-      <div style={{ width: '50%', margin: '0 auto 2rem', borderBottom: '1px solid var(--border-color)' }}></div>
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h2 className="section-title" style={{ padding: 0, color: 'var(--text-primary)', fontSize: 'clamp(1rem, 4vw, 1.2rem)', margin: 0 }}>Historial (Pagado)</h2>
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2rem' }}>
-        {completedHistory.length === 0 && <EmptyState icon="✅" message="Sin historial de pagos completados" />}
-        {completedHistory.map(ob => (
-          <div
-            key={ob.id}
-            className={`tx-flip-container ${flippedObId === ob.id ? 'flipped' : ''}`}
-          >
-            <div className="tx-flip-inner" onClick={() => setFlippedObId(flippedObId === ob.id ? null : ob.id)}>
-              <div className="tx-flip-front glass-card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.15rem', borderRadius: '16px', opacity: 0.65 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: 0, paddingRight: '0.5rem' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center' }}>
-                      {ob.title}
-                      <span style={{ marginLeft: '0.5rem', background: 'var(--color-success-strong)', color: '#fff', fontSize: '0.7rem', padding: '0.1rem 0.4rem', borderRadius: '4px' }}>Pagado</span>
-                    </div>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {translateCategory(ob.category)}
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '0.5rem', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                  <div style={{ fontSize: '1rem', fontWeight: 700, color: ob.type === 'pay' ? 'var(--color-danger)' : 'var(--color-success)' }}>
-                    {ob.type === 'pay' ? '-' : '+'}{getCurrencySymbol(ob.currency)}{formatAmount(ob.amount, ob.currency)} {ob.currency.toUpperCase()}
-                  </div>
-                  <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    <button
-                      title="Editar"
-                      aria-label="Editar registro de historial"
-                      style={{ background: 'var(--color-warning-strong)', border: 'none', color: '#fff', fontSize: '0.75rem', borderRadius: '8px', padding: '0.4rem', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      onClick={(e) => { e.stopPropagation(); onEdit(ob); }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
-                    </button>
-                    <button
-                      title="Eliminar"
-                      aria-label="Eliminar registro de historial"
-                      style={{ background: 'var(--color-danger-soft)', border: '1px solid var(--color-danger-border)', color: 'var(--color-danger)', fontSize: '0.75rem', borderRadius: '8px', padding: '0.4rem', cursor: 'pointer', zIndex: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      onClick={(e) => { e.stopPropagation(); onDelete(ob.id, '¿Eliminar esto del historial?'); }}
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <div className="tx-flip-back glass-card" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '1rem 1.15rem', borderRadius: '16px', gap: '0.5rem', opacity: 0.8 }}>
-                <div style={{ fontWeight: 600, color: '#fff' }}>Detalles de Historial</div>
-                <div style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>Frecuencia: {translateFrequency(ob.frequency)}</div>
-                <div style={{ fontSize: '0.875rem', color: 'var(--color-success)' }}>Completado: {ob.totalInstallments ? `${ob.paidInstallments || 0} de ${ob.totalInstallments} pagos` : 'Totalmente completado'}</div>
-              </div>
+      {completedHistory.length > 0 && (
+        <section className="list-section">
+          <button type="button" className="link-btn" onClick={() => setShowHistory(v => !v)} aria-expanded={showHistory}>
+            {showHistory ? 'Ocultar pagados ▴' : `Ver pagados (${completedHistory.length}) ▾`}
+          </button>
+          {showHistory && (
+            <div className="list-card">
+              {completedHistory.map(ob => (
+                <ObligationRow key={ob.id} ob={ob} kind="done" indexedInfo={null} onOpen={openSheet} />
+              ))}
             </div>
-          </div>
-        ))}
-      </div>
+          )}
+        </section>
+      )}
+
+      {sheet}
     </div>
   );
 }

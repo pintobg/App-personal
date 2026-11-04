@@ -148,6 +148,18 @@ export default function AppModals({
         setValidationError={setTxValidationError}
         onSubmit={handleAddTransaction}
         onSaveAndAddAnother={handleSaveAndAddAnother}
+        onSwitchToTransfer={({ amount, assetId }) => {
+          // Pasa a Transferencia conservando el monto y la cuenta ya elegidos
+          setTxModalMode(null);
+          setTxValidationError('');
+          setNewTransfer(prev => ({
+            ...prev,
+            id: '',
+            sourceAssetId: assetId || prev.sourceAssetId,
+            amountDeducted: amount || prev.amountDeducted
+          }));
+          setIsTransferModalOpen(true);
+        }}
       />
 
       <TransferModal

@@ -4,6 +4,7 @@ import {
   calculateExchangeGapData,
   calculateBudgetStats,
   calculateDashboardAlerts,
+  buildUpcomingDue,
   calculateWealthEvolution
 } from './dashboard';
 
@@ -98,5 +99,33 @@ describe('dashboard domain logic', () => {
 
     const weekly = calculateWealthEvolution(transactions, { USD: 1 }, 1000, 'weekly');
     expect(weekly.points.length).toBe(8);
+  });
+});
+
+describe('buildUpcomingDue', () => {
+  const today = new Date(2026, 10, 3, 10, 0, 0);
+
+  it('pone primero los vencidos, ordena por fecha y no duplica', () => {
+    const obligations = [
+      { id: 'a', type: 'pay', title: 'Internet', amount: 30, currency: 'USD', dueDate: '2026-11-10' },
+      { id: 'b', type: 'pay', title: 'Luz', amount: 10, currency: 'USD', dueDate: '2026-11-01' },
+      { id: 'c', type: 'receive', title: 'Préstamo a Ana', amount: 50, currency: 'USD', dueDate: '2026-11-05' },
+      { id: 'a', type: 'pay', title: 'Internet', amount: 30, currency: 'USD', dueDate: '2026-11-10' },
+      { id: 'd', type: 'pay', title: 'Pagada', amount: 5, currency: 'USD', dueDate: '2026-11-04', status: 'paid' }
+    ];
+    const list = buildUpcomingDue(obligations, null, today);
+    expect(list.map(i => i.title)).toEqual(['Luz', 'Préstamo a Ana', 'Internet']);
+    expect(list[0].overdue).toBe(true);
+    expect(list[1].kind).toBe('collect');
+  });
+
+  it('agrega al final los presupuestos al 80% o más', () => {
+    const budgetStats = { activeBudgetCategories: [
+      { category: 'Comida', percent: 120, spent: 120, limit: 100 },
+      { category: 'Ocio', percent: 50, spent: 5, limit: 10 }
+    ] };
+    const list = buildUpcomingDue([{ id: 'x', type: 'pay', title: 'Gym', amount: 20, currency: 'USD', dueDate: '2026-11-06' }], budgetStats, today);
+    expect(list.map(i => i.kind)).toEqual(['pay', 'budget']);
+    expect(list[1].overdue).toBe(true);
   });
 });

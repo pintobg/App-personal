@@ -2,13 +2,17 @@ import { useState, useRef, useEffect, useMemo, useCallback, lazy, Suspense } fro
 import CalculatorHeader from './calculator/CalculatorHeader';
 import CalculatorCards from './calculator/CalculatorCards';
 import { useRateHistory } from './calculator/useRateHistory';
+import ExchangeGapBar from './calculator/ExchangeGapBar';
+import MyExchangesView from './calculator/MyExchangesView';
+import ReferenceRateSelector from '../common/ReferenceRateSelector';
+import { InfoHint, SegmentedControl } from '../ui';
+import { calculateExchangeGapData } from '../../domain/dashboard';
 
 const RateHistoryChart = lazy(() => import('./calculator/RateHistoryChart'));
 import {
   getIsoDateOffset,
   formatShortDate,
-  formatFullDate,
-  formatCalcNumber
+  formatFullDate
 } from './calculator/calculatorUtils';
 import { todayLocal } from '../../utils/dates';
 
@@ -23,8 +27,12 @@ export default function CalculatorView({
   fetchVeRates,
   isFetchingRates,
   showToast,
-  onOpenSettings
+  onOpenSettings,
+  referenceRate,
+  setReferenceRate,
+  transactions
 }) {
+  const [section, setSection] = useState('calculadora');
   const hasAutoFetchedRef = useRef(false);
   const calculatorTopRef = useRef(null);
 
@@ -152,6 +160,11 @@ export default function CalculatorView({
     calculatorTopRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [calcBaseAmount, setCalcBaseAmount, setCalcBaseCurrency, showToast]);
 
+  const exchangeGapData = useMemo(
+    () => calculateExchangeGapData(veRates, ratesDetails, rateHistory),
+    [veRates, ratesDetails, rateHistory]
+  );
+
   const historyCurrencyMeta = {
     bcvUsd: { label: 'USD BCV', subtitle: 'Tasa Oficial BCV', color: 'var(--color-success)', fill: 'var(--color-success-soft)' },
     bcvEur: { label: 'EUR BCV', subtitle: 'Euro Oficial BCV', color: 'var(--color-info)', fill: 'var(--color-info-soft)' },
@@ -162,7 +175,7 @@ export default function CalculatorView({
     <div
       ref={calculatorTopRef}
       className="view-container"
-      style={{ padding: '0 1rem calc(90px + env(safe-area-inset-bottom))', marginTop: '1.25rem' }}
+      style={{ padding: '0 1rem var(--space-4)', marginTop: '1.25rem' }}
     >
       {/* 1. Encabezado y selector de modo */}
       <CalculatorHeader
@@ -180,9 +193,23 @@ export default function CalculatorView({
         minHistoryDate={minHistoryDate}
         maxHistoryDate={maxHistoryDate}
         onOpenSettings={onOpenSettings}
+        sectionSwitcher={Array.isArray(transactions) ? (
+          <SegmentedControl
+            className="tasas-sections"
+            ariaLabel="Secciones de Tasas"
+            options={[{ value: 'calculadora', label: 'Calculadora' }, { value: 'cambios', label: 'Mis cambios' }]}
+            value={section}
+            onChange={setSection}
+          />
+        ) : null}
+        hideModes={section === 'cambios'}
       />
 
-      {/* 2. Tarjetas interactivas de conversión */}
+      {section === 'cambios' && <MyExchangesView transactions={transactions} />}
+
+      {section === 'calculadora' && (
+        <>
+      {/* 3. Tarjetas interactivas de conversión */}
       <CalculatorCards
         calcBaseCurrency={calcBaseCurrency}
         setCalcBaseCurrency={setCalcBaseCurrency}
@@ -197,6 +224,26 @@ export default function CalculatorView({
         veRates={veRates}
         setVeRates={setVeRates}
       />
+
+      {/* 2. Tasa con la que se calculan tus totales (único lugar donde se cambia) */}
+      {setReferenceRate && (
+        <section className="reference-rate-card" aria-label="Tasa para tus totales">
+          <div className="reference-rate-head">
+            <span className="reference-rate-title">
+              Tasa para tus totales
+              <InfoHint label="Qué es la tasa para tus totales">
+                Tus bolívares se pasan a dólares con esta tasa para mostrar cuánto tienes en Inicio y en Cuentas. No cambia tus movimientos guardados.
+              </InfoHint>
+            </span>
+          </div>
+          <ReferenceRateSelector
+            referenceRate={referenceRate}
+            setReferenceRate={setReferenceRate}
+            onChanged={(opt) => showToast?.(`Tus totales ahora usan la tasa ${opt.label}`)}
+          />
+          <ExchangeGapBar exchangeGapData={exchangeGapData} />
+        </section>
+      )}
 
       {/* 3. Gráfico y tabla de historial */}
       <Suspense fallback={
@@ -216,6 +263,8 @@ export default function CalculatorView({
           onSelectDateFromHistory={handleSelectDateFromHistory}
         />
       </Suspense>
+        </>
+      )}
     </div>
   );
 }

@@ -1,51 +1,27 @@
-export default function ReferenceRateSelector({ referenceRate = 'bcv', setReferenceRate }) {
-  const options = [
-    { id: 'bcv', label: 'BCV' },
-    { id: 'paralelo', label: 'Paralelo' },
-    { id: 'custom', label: 'Personalizada' }
-  ];
+import { SegmentedControl } from '../ui';
 
+const OPTIONS = [
+  { value: 'bcv', label: 'BCV' },
+  { value: 'paralelo', label: 'Paralelo' },
+  { value: 'custom', label: 'Propia' }
+];
+
+/**
+ * Elige con qué tasa se calculan los totales en dólares: BCV, paralelo o una propia.
+ * Vive solo en Tasas para que haya un único lugar donde cambiarla.
+ */
+export default function ReferenceRateSelector({ referenceRate = 'bcv', setReferenceRate, onChanged }) {
   return (
-    <div
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        background: 'var(--plomo-900)',
-        border: '1px solid var(--plomo-700)',
-        borderRadius: '8px',
-        padding: '2px',
-        gap: '2px'
+    <SegmentedControl
+      className="reference-rate-selector"
+      role="radio"
+      ariaLabel="Tasa para tus totales"
+      options={OPTIONS}
+      value={referenceRate || 'bcv'}
+      onChange={(value, opt) => {
+        if (setReferenceRate) setReferenceRate(value);
+        if (onChanged) onChanged(opt);
       }}
-      role="group"
-      aria-label="Tasa de referencia"
-    >
-      {options.map((opt) => {
-        const isActive = (referenceRate || 'bcv') === opt.id;
-        return (
-          <button
-            key={opt.id}
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (setReferenceRate) setReferenceRate(opt.id);
-            }}
-            style={{
-              background: isActive ? 'var(--color-accent-strong)' : 'transparent',
-              color: isActive ? 'var(--color-success-soft)' : 'var(--text-secondary)',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '3px 8px',
-              fontSize: '0.72rem',
-              fontWeight: isActive ? 700 : 500,
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
-              lineHeight: 1.2
-            }}
-          >
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
+    />
   );
 }

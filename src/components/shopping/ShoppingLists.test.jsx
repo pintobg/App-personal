@@ -202,7 +202,7 @@ describe('Lista de compras dentro de Planificar', () => {
         />
       );
 
-      const repeatBtn = screen.getByText('🔁 Repetir lista');
+      const repeatBtn = screen.getByText('Repetir lista');
       fireEvent.click(repeatBtn);
       expect(onDuplicate).toHaveBeenCalledWith('l2');
     });

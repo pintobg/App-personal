@@ -121,8 +121,9 @@ describe('App - Pantalla por defecto y gestos de navegación', () => {
     const { App: CapApp } = await import('@capacitor/app');
     render(<App />);
 
-    // Ir a Cuentas
-    const cuentasBtn = screen.getByRole('button', { name: /Cuentas/i });
+    // Pasar por Cuentas y volver a Inicio (Ajustes se abre desde Inicio)
+    fireEvent.click(screen.getByRole('button', { name: /Cuentas/i }));
+    const cuentasBtn = screen.getByRole('button', { name: /Inicio/i });
     fireEvent.click(cuentasBtn);
     expect(cuentasBtn.className).toContain('active');
 
@@ -133,7 +134,7 @@ describe('App - Pantalla por defecto y gestos de navegación', () => {
     // Verificar que estamos en Ajustes
     expect(await screen.findByText('Preferencias, seguridad y respaldos')).toBeDefined();
 
-    // Disparar botón atrás de Android: debe regresar a Cuentas
+    // Disparar botón atrás de Android: debe regresar a Inicio
     act(() => {
       CapApp.__triggerBackButton();
     });

@@ -227,3 +227,37 @@ export function resolveHistoricalRate({
     toCurrency: to
   };
 }
+
+const USD_PEGGED = ['USD', 'USDT', 'USDC'];
+
+/**
+ * Problemas de tasa que afectan los totales, agrupados para mostrar UN solo aviso.
+ * - missingDollarRate: no hay tasa del dólar en Bs (afecta cuentas en VES o el equivalente en Bs).
+ * - unknownSymbols: monedas o cripto sin precio (probablemente mal escritas o no listadas).
+ */
+export function getRateProblems(assets = [], rates = {}) {
+  const symbols = new Set();
+  const firstAssetBySymbol = {};
+  (assets || []).forEach(a => {
+    if (!a || a.deleted_at) return;
+    const sym = (a.name || '').trim().toUpperCase();
+    if (!sym) return;
+    symbols.add(sym);
+    if (!firstAssetBySymbol[sym]) firstAssetBySymbol[sym] = a;
+  });
+
+  const vesRate = Number(rates?.VES) || 0;
+  const missingDollarRate = symbols.size > 0 && vesRate <= 0;
+  const unknownSymbols = [...symbols]
+    .filter(sym => sym !== 'VES' && !USD_PEGGED.includes(sym))
+    .filter(sym => !(Number(rates?.[sym]) > 0))
+    .sort();
+
+  return {
+    missingDollarRate,
+    unknownSymbols,
+    firstAssetBySymbol,
+    hasProblems: missingDollarRate || unknownSymbols.length > 0,
+    signature: `${missingDollarRate ? 'ves' : ''}|${unknownSymbols.join(',')}`
+  };
+}

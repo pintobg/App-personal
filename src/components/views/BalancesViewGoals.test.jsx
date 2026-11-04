@@ -64,8 +64,8 @@ describe('PlanningView y BalancesView - Metas de Ahorro y Cuentas', () => {
     );
 
     // En Cuentas lo primero que se ve es el portafolio de cuentas
-    expect(screen.getByText(/Por Moneda/i)).toBeInTheDocument();
-    expect(screen.getByText(/Por Cuenta/i)).toBeInTheDocument();
+    expect(screen.getByText('Por banco')).toBeInTheDocument();
+    expect(screen.getByText('Por moneda')).toBeInTheDocument();
     // Las metas ya no están en BalancesView
     expect(screen.queryByText('Fondo de emergencia')).toBeNull();
   });

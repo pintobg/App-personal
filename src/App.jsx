@@ -252,8 +252,8 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
         handleDeleteAsset={modalState.handleDeleteAsset}
         handleAdjustBalance={modalState.handleAdjustBalance}
         exportBackup={exportBackup}
-        flippedObId={modalState.flippedObId}
-        setFlippedObId={modalState.setFlippedObId}
+        actionObId={modalState.actionObId}
+        setActionObId={modalState.setActionObId}
         setNewOb={modalState.setNewOb}
         setIsObModalOpen={modalState.setIsObModalOpen}
         setPayingOb={modalState.setPayingOb}
@@ -281,9 +281,10 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
         txFilter={txFilter}
         selectedTxs={modalState.selectedTxs}
         toggleSelectTx={modalState.toggleSelectTx}
-        flippedTxId={modalState.flippedTxId}
-        setFlippedTxId={modalState.setFlippedTxId}
+        actionTxId={modalState.actionTxId}
+        setActionTxId={modalState.setActionTxId}
         handleEditTransaction={modalState.handleEditTransaction}
+        handleRepeatTransaction={modalState.handleRepeatTransaction}
         onOpenReportsModal={() => modalState.setIsReportsModalOpen(true)}
         getCategoryName={finance.getCategoryName}
         getSubcategoryName={finance.getSubcategoryName}
@@ -298,6 +299,7 @@ function AppContent({ showToast, confirmConfig, setConfirmConfig, requestConfirm
 
       <FabOverlay
         currentPage={currentPage}
+        showToast={showToast}
         deleteMode={modalState.deleteMode}
         selectedTxs={modalState.selectedTxs}
         handleBulkDelete={modalState.handleBulkDelete}

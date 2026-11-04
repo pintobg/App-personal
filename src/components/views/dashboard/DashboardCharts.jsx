@@ -1,4 +1,5 @@
 import React, { useState, lazy, Suspense } from 'react';
+import { Icon } from '../../ui';
 
 const ExpensePieChart = lazy(() => import('./ExpensePieChart'));
 const EvolutionAreaChart = lazy(() => import('./EvolutionAreaChart'));
@@ -79,7 +80,7 @@ export default function DashboardCharts({
                 transition: 'all 0.15s ease'
               }}
             >
-              <span>📊</span>
+              <Icon name="bars" size={16} />
               <span>Gastos</span>
             </button>
             <button
@@ -100,8 +101,8 @@ export default function DashboardCharts({
                 transition: 'all 0.15s ease'
               }}
             >
-              <span>📈</span>
-              <span>Patrimonio</span>
+              <Icon name="chart" size={16} />
+              <span>Tienes en total</span>
             </button>
           </div>
         )}

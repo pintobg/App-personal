@@ -967,3 +967,76 @@ export function executeBulkDelete({ assets, transactions }, selectedTxs) {
     toastMessage: 'Eliminado con éxito'
   };
 }
+
+/**
+ * Cambia la categoría de varios movimientos a la vez.
+ * Solo toca gastos o ingresos del mismo tipo que la categoría elegida (kind: 'spent' | 'income').
+ */
+export function executeBulkRecategorize({ assets, transactions }, selectedTxs, { kind, category, category_id, subcategory = '', subcategory_id = null }) {
+  const ids = new Set((selectedTxs || []).filter(t => t.type === kind && !t.parentTransactionId).map(t => t.id));
+  const nowIso = new Date().toISOString();
+  const syncChanges = [];
+  const nextTransactions = transactions.map(t => {
+    if (!ids.has(t.id)) return t;
+    const updated = { ...t, category, category_id, subcategory: subcategory || '', subcategory_id: subcategory_id || null, updated_at: nowIso };
+    syncChanges.push({ table: 'transactions', type: 'upsert', record: updated });
+    return updated;
+  });
+  return {
+    success: true,
+    nextAssets: assets,
+    nextTransactions,
+    syncChanges,
+    changedCount: ids.size,
+    skippedCount: (selectedTxs || []).length - ids.size
+  };
+}
+
+/**
+ * Mueve varios gastos o ingresos a otra cuenta de la misma moneda y corrige los saldos.
+ * Las comisiones vinculadas (IGTF, comisión) se mueven con su movimiento.
+ * Transferencias, ajustes y movimientos en otra moneda se dejan igual (skippedCount).
+ */
+export function executeBulkMove({ assets, transactions }, selectedTxs, targetAssetId) {
+  const target = (assets || []).find(a => a.id === targetAssetId);
+  if (!target) return { success: false, error: 'No encontramos esa cuenta.' };
+  const targetCur = (target.name || '').trim().toUpperCase();
+  const nowIso = new Date().toISOString();
+  let nextAssets = [...assets];
+  const syncChanges = [];
+  const touchedAssets = new Map();
+  const moved = new Map();
+  let skippedCount = 0;
+
+  const moveOne = (tx) => {
+    const cur = (tx.currency || '').trim().toUpperCase();
+    if (cur !== targetCur) return false;
+    const fromAsset = findAsset(nextAssets, tx.assetId, tx.currency, tx.origin);
+    if (fromAsset && fromAsset.id === target.id) return false;
+    const amount = Number(tx.amount) || 0;
+    const sign = tx.type === 'income' ? 1 : -1; // efecto del movimiento sobre su cuenta
+    if (fromAsset) {
+      const res = applyBalanceDelta(nextAssets, fromAsset.id, -sign * amount);
+      if (res) { nextAssets = res.nextAssets; touchedAssets.set(res.updatedAsset.id, res.updatedAsset); }
+    }
+    const resTo = applyBalanceDelta(nextAssets, target.id, sign * amount);
+    if (resTo) { nextAssets = resTo.nextAssets; touchedAssets.set(resTo.updatedAsset.id, resTo.updatedAsset); }
+    moved.set(tx.id, { ...tx, assetId: target.id, origin: target.location, updated_at: nowIso });
+    return true;
+  };
+
+  (selectedTxs || []).forEach(tx => {
+    if (!tx || (tx.type !== 'spent' && tx.type !== 'income') || tx.parentTransactionId || moved.has(tx.id)) {
+      skippedCount += 1;
+      return;
+    }
+    if (!moveOne(tx)) { skippedCount += 1; return; }
+    transactions.filter(c => c.parentTransactionId === tx.id && !moved.has(c.id)).forEach(moveOne);
+  });
+
+  const nextTransactions = transactions.map(t => moved.get(t.id) || t);
+  moved.forEach(record => syncChanges.push({ table: 'transactions', type: 'upsert', record }));
+  touchedAssets.forEach(record => syncChanges.push({ table: 'assets', type: 'upsert', record }));
+  const changedCount = Array.from(moved.values()).filter(t => !t.parentTransactionId).length;
+  return { success: true, nextAssets, nextTransactions, syncChanges, changedCount, skippedCount };
+}

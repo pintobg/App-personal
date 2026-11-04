@@ -53,7 +53,7 @@ export default function SecuritySettingsModal({
       resetForm();
       onClose();
     } catch (err) {
-      setErrorMsg(err.message || 'Error al configurar el PIN');
+      setErrorMsg(err.message || 'No pudimos guardar el PIN. Intenta de nuevo.');
     } finally {
       setIsSubmitting(false);
     }
@@ -86,7 +86,7 @@ export default function SecuritySettingsModal({
         setErrorMsg(res.error || 'PIN actual incorrecto');
       }
     } catch (err) {
-      setErrorMsg(err.message || 'Error al cambiar PIN');
+      setErrorMsg(err.message || 'No pudimos cambiar el PIN. Revisa el PIN actual e intenta de nuevo.');
     } finally {
       setIsSubmitting(false);
     }
@@ -111,7 +111,7 @@ export default function SecuritySettingsModal({
         setErrorMsg(res.error || 'PIN incorrecto');
       }
     } catch (err) {
-      setErrorMsg(err.message || 'Error al desactivar el PIN');
+      setErrorMsg(err.message || 'No pudimos quitar el PIN. Intenta de nuevo.');
     } finally {
       setIsSubmitting(false);
     }

@@ -1,13 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import EmptyState from '../common/EmptyState';
-import {
-  formatAmount,
-  getCurrencySymbol,
-  getTxUsdEquivalent,
-  getBudgetColor,
-  translateCategory
-} from '../../utils/formatters';
-import { toLocalDateString } from '../../utils/dates';
+import { formatAmount, getCurrencySymbol, getTxUsdEquivalent, getBudgetColor, translateCategory, formatPercent } from '../../utils/formatters';
+import { formatFriendlyDate } from '../../utils/dates';
 import { tint } from '../../utils/colors';
 
 const CATEGORY_ICONS = {
@@ -31,16 +25,6 @@ const TIMEFRAME_LABELS = {
   monthly: 'Último mes',
   all: 'Todo el historial'
 };
-
-function formatReadableDate(dateStr) {
-  if (!dateStr) return 'Sin fecha';
-  const clean = toLocalDateString(dateStr);
-  const parts = clean.split('-');
-  if (parts.length !== 3) return dateStr;
-  const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-  const m = parseInt(parts[1], 10) - 1;
-  return `${parseInt(parts[2], 10)} ${months[m] || parts[1]} ${parts[0]}`;
-}
 
 export default function CategoryDetailModal({
   onClose,
@@ -248,7 +232,7 @@ export default function CategoryDetailModal({
                   flexShrink: 0
                 }}
               >
-                <div>{shareOfTotal.toFixed(1)}%</div>
+                <div>{formatPercent(shareOfTotal, 1)}</div>
                 <div style={{ fontSize: '0.64rem', color: 'var(--text-secondary)', fontWeight: 500 }}>del total</div>
               </div>
             )}
@@ -294,7 +278,7 @@ export default function CategoryDetailModal({
                   Presupuesto mensual asignado: <strong style={{ color: 'var(--text-primary)' }}>${formatAmount(monthlyBudgetLimit, 'USD')}</strong>
                 </span>
                 <span style={{ fontWeight: 700, color: getBudgetColor(budgetPercent) }}>
-                  {budgetPercent.toFixed(0)}%
+                  {formatPercent(budgetPercent, 0)}
                 </span>
               </div>
               <div style={{ width: '100%', height: '7px', borderRadius: '4px', background: 'var(--bg-surface-elevated)', overflow: 'hidden' }}>
@@ -362,7 +346,7 @@ export default function CategoryDetailModal({
                       ${formatAmount(sub.usd, 'USD')}
                     </span>
                     <span style={{ color: 'var(--text-secondary)', fontSize: '0.7rem' }}>
-                      ({sub.percent.toFixed(0)}%)
+                      ({formatPercent(sub.percent, 0)})
                     </span>
                   </button>
                 );
@@ -444,7 +428,7 @@ export default function CategoryDetailModal({
                             textOverflow: 'ellipsis'
                           }}
                         >
-                          {formatReadableDate(tx.date)} • {accountLabel}
+                          {formatFriendlyDate(tx.date)} • {accountLabel}
                         </div>
                       </div>
                     </div>
@@ -458,7 +442,7 @@ export default function CategoryDetailModal({
                           ? `≈ $${formatAmount(tx.usdEquivalent, 'USD')} USD • `
                           : ''}
                         <span style={{ color: categoryColor, fontWeight: 600 }}>
-                          {txPct.toFixed(1)}%
+                          {formatPercent(txPct, 1)}
                         </span>
                       </div>
                     </div>

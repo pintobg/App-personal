@@ -1,4 +1,4 @@
-import { parseAmount, round } from '../../../domain/money';
+import { parseAmount, round, add, sub } from '../../../domain/money';
 
 export function calculateAssetFees(amountStr, asset, isSpent) {
   const parsedAmt = parseAmount(amountStr);
@@ -80,4 +80,34 @@ export function filterAssetsByCurrency(assets = [], currentCurrency = '') {
   return assets
     .filter(a => (a.name || '').toUpperCase().trim() === cur)
     .sort((a, b) => (a.location || '').localeCompare(b.location || ''));
+}
+
+/** Saldo que quedará en la cuenta después de guardar el movimiento. */
+export function computeNewBalance({ newTx, oldTx, currentBalance }) {
+  const parsedEntered = parseAmount(newTx.amount);
+  const amountEntered = parsedEntered !== null ? parsedEntered : 0;
+  const igtfEntered = (newTx.type === 'spent' && newTx.includeIgtf && newTx.igtfAmount) ? (parseAmount(newTx.igtfAmount) || 0) : 0;
+  const commEntered = (newTx.type === 'spent' && newTx.includeCommission && newTx.commissionAmount) ? (parseAmount(newTx.commissionAmount) || 0) : 0;
+  const totalDeducted = add(add(amountEntered, igtfEntered), commEntered);
+
+  const isSameAccount = oldTx && (
+    (oldTx.assetId && newTx.assetId ? oldTx.assetId === newTx.assetId : false) ||
+    ((oldTx.currency || '').toUpperCase() === (newTx.currency || '').toUpperCase() && oldTx.origin === newTx.origin)
+  );
+  let newBalance = 0;
+  if (isSameAccount) {
+    const oldAmount = Number(oldTx.amount) || 0;
+    if (oldTx.type === 'spent' && newTx.type === 'spent') {
+      newBalance = sub(add(currentBalance, oldAmount), totalDeducted);
+    } else if (oldTx.type === 'income' && newTx.type === 'income') {
+      newBalance = add(sub(currentBalance, oldAmount), amountEntered);
+    } else if (oldTx.type === 'spent' && newTx.type === 'income') {
+      newBalance = add(add(currentBalance, oldAmount), amountEntered);
+    } else {
+      newBalance = sub(sub(currentBalance, oldAmount), totalDeducted);
+    }
+  } else {
+    newBalance = newTx.type === 'income' ? add(currentBalance, amountEntered) : sub(currentBalance, totalDeducted);
+  }
+  return round(newBalance, newTx.currency);
 }

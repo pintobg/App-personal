@@ -310,3 +310,60 @@ export function calculateWealthEvolution(transactions = [], rates = {}, grandTot
     return { points, diff, diffPercent };
   }
 }
+
+/**
+ * Próximos vencimientos para Inicio: une pagos, cobros y presupuestos en alerta
+ * en una sola lista sin duplicados. Los vencidos van primero, luego por fecha.
+ * Los presupuestos (sin fecha) van al final.
+ */
+export function buildUpcomingDue(obligations = [], budgetStats = null, today = new Date()) {
+  const todayStr = toLocalDateString(today);
+  const seen = new Set();
+  const dated = [];
+
+  obligations.forEach(ob => {
+    if (!ob || ob.deleted_at || seen.has(ob.id)) return;
+    if (ob.type !== 'pay' && ob.type !== 'receive') return;
+    if (ob.status === 'paid') return;
+    if (ob.totalInstallments && Number(ob.paidInstallments) >= Number(ob.totalInstallments)) return;
+    seen.add(ob.id);
+    const dueStr = ob.dueDate ? toLocalDateString(ob.dueDate) : null;
+    const daysLeft = dueStr
+      ? Math.round((parseLocalDate(dueStr) - parseLocalDate(todayStr)) / (1000 * 60 * 60 * 24))
+      : null;
+    dated.push({
+      id: `ob-${ob.id}`,
+      obligationId: ob.id,
+      kind: ob.type === 'pay' ? 'pay' : 'collect',
+      title: ob.title || 'Sin título',
+      amount: ob.amount,
+      currency: ob.currency,
+      dueDate: dueStr,
+      daysLeft,
+      overdue: daysLeft !== null && daysLeft < 0
+    });
+  });
+
+  dated.sort((a, b) => {
+    if (a.overdue !== b.overdue) return a.overdue ? -1 : 1;
+    if (a.dueDate && b.dueDate) return a.dueDate.localeCompare(b.dueDate);
+    if (a.dueDate) return -1;
+    if (b.dueDate) return 1;
+    return 0;
+  });
+
+  const budgets = (budgetStats?.activeBudgetCategories || [])
+    .filter(b => b.percent >= 80)
+    .sort((a, b) => b.percent - a.percent)
+    .map(b => ({
+      id: `budget-${b.category}`,
+      kind: 'budget',
+      title: b.category,
+      percent: b.percent,
+      spent: b.spent,
+      limit: b.limit,
+      overdue: b.percent >= 100
+    }));
+
+  return [...dated, ...budgets];
+}

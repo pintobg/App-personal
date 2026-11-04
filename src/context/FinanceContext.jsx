@@ -22,7 +22,9 @@ import {
   executeAddOrEditTransaction,
   executeTransfer as runTransfer,
   executePayObligation as runPayObligation,
-  executeBulkDelete as runBulkDelete
+  executeBulkDelete as runBulkDelete,
+  executeBulkMove,
+  executeBulkRecategorize
 } from '../domain/operations';
 import { convert, round } from '../domain/money';
 import { scheduleObligationReminders } from '../services/notificationService';
@@ -250,6 +252,60 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
             });
           }
           showToast('Movimiento restaurado');
+        }
+      });
+    }
+    return result;
+  }, [assets, transactions, setAssets, setTransactions, user?.id, showToast]);
+
+  // Edición en lote (categoría o cuenta) con opción de deshacer.
+  const bulkEditTransactions = useCallback((selectedTxs, action) => {
+    const state = { assets, transactions };
+    const result = action.type === 'move'
+      ? executeBulkMove(state, selectedTxs, action.assetId)
+      : executeBulkRecategorize(state, selectedTxs, action);
+    if (!result.success) {
+      if (showToast) showToast(result.error || 'No pudimos cambiar los movimientos.', 'error');
+      return result;
+    }
+    if (result.changedCount === 0) {
+      if (showToast) showToast(action.type === 'move'
+        ? 'Ningún movimiento cambió: ya estaban en esa cuenta o son de otra moneda.'
+        : 'Ningún movimiento era del mismo tipo que esa categoría.', 'error');
+      return result;
+    }
+    const prevAssets = [...assets];
+    const prevTransactions = [...transactions];
+    const changedIds = new Set(result.syncChanges.filter(c => c.table === 'transactions').map(c => c.record.id));
+    const changedAssetIds = new Set(result.syncChanges.filter(c => c.table === 'assets').map(c => c.record.id));
+    setAssets(result.nextAssets);
+    setTransactions(result.nextTransactions);
+    if (user?.id) {
+      result.syncChanges.forEach((change) => {
+        syncService.queueChange(change.table, change.type, change.record, user.id);
+      });
+    }
+    if (showToast) {
+      const n = result.changedCount;
+      const base = action.type === 'move' ? `${n} ${n === 1 ? 'movimiento movido' : 'movimientos movidos'}` : `${n} ${n === 1 ? 'movimiento cambiado' : 'movimientos cambiados'}`;
+      const skipped = result.skippedCount ? ` (${result.skippedCount} sin cambiar)` : '';
+      showToast({
+        message: base + skipped,
+        undoText: 'Deshacer',
+        duration: 6000,
+        onUndo: () => {
+          setAssets(prevAssets);
+          setTransactions(prevTransactions);
+          if (user?.id) {
+            const nowIso = new Date().toISOString();
+            prevTransactions.filter(t => changedIds.has(t.id)).forEach(t => {
+              syncService.queueChange('transactions', 'upsert', { ...t, updated_at: nowIso }, user.id);
+            });
+            prevAssets.filter(a => changedAssetIds.has(a.id)).forEach(a => {
+              syncService.queueChange('assets', 'upsert', { ...a, updated_at: nowIso }, user.id);
+            });
+          }
+          showToast('Cambios deshechos');
         }
       });
     }
@@ -602,6 +658,7 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     transferFunds,
     payObligation,
     bulkDeleteTransactions,
+    bulkEditTransactions,
     deleteTransactionWithUndo,
     adjustAssetBalance,
     syncNow,
@@ -664,6 +721,7 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     transferFunds,
     payObligation,
     bulkDeleteTransactions,
+    bulkEditTransactions,
     deleteTransactionWithUndo,
     adjustAssetBalance,
     syncNow,

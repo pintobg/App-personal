@@ -1,5 +1,12 @@
 import { useRef } from 'react';
+import { Icon } from '../ui';
 import { exportBackup, validateBackupData } from '../../utils/backup';
+
+// Los datos de prueba solo aparecen en desarrollo (o si se activan a mano con dev_tools=1).
+function showDevTools() {
+  if (import.meta.env?.DEV) return true;
+  try { return localStorage.getItem('dev_tools') === '1'; } catch { return false; }
+}
 
 export default function BackupDataSection({
   assets = [],
@@ -26,7 +33,7 @@ export default function BackupDataSection({
         return;
       }
       if (showToast) {
-        showToast('Error al exportar copia de seguridad', 'error');
+        showToast('No pudimos guardar el respaldo. Intenta de nuevo.', 'error');
       }
       console.error(err);
     }
@@ -86,7 +93,7 @@ export default function BackupDataSection({
       }
     } catch (err) {
       if (showToast) {
-        showToast(err.message || 'Error al procesar el archivo de copia de seguridad', 'error');
+        showToast(err.message || 'Ese archivo no parece un respaldo de esta app.', 'error');
       }
       console.error(err);
     } finally {
@@ -99,7 +106,7 @@ export default function BackupDataSection({
   return (
     <div className="glass-card" style={{ padding: '1rem 1.15rem', borderRadius: '16px', marginBottom: '1.25rem', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-        <span style={{ fontSize: '1.25rem' }}>💾</span>
+        <span className="section-icon"><Icon name="save" /></span>
         <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>Respaldo y Exportación</h3>
       </div>
       <p style={{ margin: '0 0 1.25rem', fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
@@ -197,7 +204,7 @@ export default function BackupDataSection({
           </button>
         )}
 
-        {onInjectTestData && (
+        {onInjectTestData && showDevTools() && (
           <div style={{ textAlign: 'center', marginTop: '0.5rem' }}>
             <button
               type="button"
@@ -216,7 +223,7 @@ export default function BackupDataSection({
                 gap: '0.4rem'
               }}
             >
-              🛠 Cargar Datos de Prueba
+              Cargar datos de prueba
             </button>
           </div>
         )}

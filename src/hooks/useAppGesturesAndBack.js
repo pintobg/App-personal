@@ -21,6 +21,15 @@ export function useAppGesturesAndBack({
       else if (setConfirmConfig) setConfirmConfig(null);
       return true;
     }
+    // Hojas de acciones abiertas (movimientos y obligaciones)
+    if (modalState.actionTxId) {
+      modalState.setActionTxId(null);
+      return true;
+    }
+    if (modalState.actionObId) {
+      modalState.setActionObId(null);
+      return true;
+    }
     if (modalState.isFabExpanded) {
       modalState.setIsFabExpanded(false);
       return true;

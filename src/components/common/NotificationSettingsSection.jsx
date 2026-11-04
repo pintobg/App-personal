@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Icon } from '../ui';
 import {
   getNotificationSettings,
   saveNotificationSettings,
@@ -68,7 +69,7 @@ export default function NotificationSettingsSection({ obligations = [], showToas
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <span style={{ fontSize: '1.2rem' }}>🔔</span>
+            <span className="section-icon"><Icon name="bell" /></span>
             <div>
               <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-primary)' }}>Notificaciones y Recordatorios</div>
               <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
@@ -185,8 +186,8 @@ export default function NotificationSettingsSection({ obligations = [], showToas
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ fontSize: '2rem', textAlign: 'center', marginBottom: '0.5rem' }}>
-              🔔
+            <div className="section-icon" style={{ display: 'flex', marginBottom: 'var(--space-2)' }}>
+              <Icon name="bell" size={32} />
             </div>
             <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', textAlign: 'center', margin: '0 0 0.5rem 0' }}>
               Activar avisos de vencimiento

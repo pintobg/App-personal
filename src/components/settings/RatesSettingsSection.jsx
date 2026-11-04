@@ -1,14 +1,16 @@
+import { formatNumber } from '../../utils/formatters';
+import { Icon, ListRow } from '../ui';
 import React, { useState } from 'react';
-import ReferenceRateSelector from '../common/ReferenceRateSelector';
 
 export default function RatesSettingsSection({
   referenceRate,
-  setReferenceRate,
+  setReferenceRate: _setReferenceRate,
   setCustomRate,
   refreshRates,
   isFetchingRates,
   veRates,
-  showToast
+  showToast,
+  onOpenRates
 }) {
   const [customRateInput, setCustomRateInput] = useState(veRates?.custom ? String(veRates.custom) : '');
 
@@ -17,7 +19,7 @@ export default function RatesSettingsSection({
     const val = parseFloat(customRateInput);
     if (!isNaN(val) && val > 0) {
       if (setCustomRate) setCustomRate(val);
-      if (showToast) showToast(`Tasa personalizada guardada: Bs. ${val.toFixed(2)}`);
+      if (showToast) showToast(`Tasa personalizada guardada: Bs. ${formatNumber(val, 2)}`);
     } else {
       if (showToast) showToast('Ingresa una tasa numérica válida', 'error');
     }
@@ -26,23 +28,24 @@ export default function RatesSettingsSection({
   return (
     <div className="glass-card" style={{ padding: '1rem 1.15rem', borderRadius: '16px', marginBottom: '1.25rem', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-        <span style={{ fontSize: '1.25rem' }}>💱</span>
+        <span className="section-icon"><Icon name="exchange" /></span>
         <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>Monedas y Tasas</h3>
       </div>
       <p style={{ margin: '0 0 1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-        Elige qué tasa usar como referencia principal en el balance y define tasas manuales.
+        Guarda tu propia tasa si no quieres usar la del BCV ni la paralela.
       </p>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-        <div>
-          <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.4rem', fontWeight: 500 }}>
-            Tasa de referencia para el total
-          </label>
-          <ReferenceRateSelector
-            referenceRate={referenceRate}
-            setReferenceRate={setReferenceRate}
-          />
-        </div>
+        {onOpenRates && (
+          <div className="list-card">
+            <ListRow
+              title={`Tasa para tus totales: ${{ bcv: 'BCV', paralelo: 'Paralelo', custom: 'Propia' }[referenceRate] || 'BCV'}`}
+              sub="Se elige en Tasas"
+              chevron
+              onClick={onOpenRates}
+            />
+          </div>
+        )}
 
         <form onSubmit={handleSaveCustomRate} style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>

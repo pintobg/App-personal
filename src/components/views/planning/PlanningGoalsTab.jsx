@@ -1,3 +1,5 @@
+import PlanningTabHeader from './PlanningTabHeader';
+import { formatFriendlyDate } from '../../../utils/dates';
 import React from 'react';
 import { calculateGoalProgress } from '../../../domain/goals';
 import { formatAmount } from '../../../utils/formatters';
@@ -11,30 +13,12 @@ export default function PlanningGoalsTab({
 }) {
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'gap', gap: '0.5rem' }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>Metas de Ahorro</h2>
-          <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Objetivos y fondos reservados</p>
-        </div>
-        {onOpenGoalModal && (
-          <button
-            type="button"
-            onClick={() => onOpenGoalModal(null)}
-            style={{
-              padding: '0.45rem 0.85rem',
-              borderRadius: '12px',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              background: 'var(--color-accent-soft)',
-              border: '1px solid var(--color-accent-border)',
-              color: 'var(--color-accent)',
-              cursor: 'pointer'
-            }}
-          >
-            + Nueva Meta
-          </button>
-        )}
-      </div>
+      <PlanningTabHeader
+        hint="Ahorros con fecha y las cuentas donde los guardas."
+        actions={[
+          onOpenGoalModal && goals.length > 0 && { label: '+ Nueva meta', onClick: () => onOpenGoalModal(null), primary: true }
+        ]}
+      />
 
       {goals.length === 0 ? (
         <div className="glass-card" style={{ padding: '2rem 1rem', textAlign: 'center', borderRadius: '16px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)' }}>
@@ -178,7 +162,7 @@ export default function PlanningGoalsTab({
                     {isAchieved ? (
                       <span style={{ color: 'var(--color-accent)', fontWeight: 600 }}>🎉 ¡Meta alcanzada!</span>
                     ) : isExpired ? (
-                      <span style={{ color: 'var(--color-danger)', fontWeight: 600 }}>⚠️ Fecha vencida ({goal.deadline})</span>
+                      <span style={{ color: 'var(--color-danger)', fontWeight: 600 }}>Fecha vencida ({formatFriendlyDate(goal.deadline)})</span>
                     ) : (
                       <span style={{ color: 'var(--text-secondary)' }}>
                         {progress.monthsRemaining != null ? (
@@ -186,7 +170,7 @@ export default function PlanningGoalsTab({
                             Faltan {progress.monthsRemaining} {progress.monthsRemaining === 1 ? 'mes' : 'meses'} • Ahorrar <strong style={{ color: 'var(--text-primary)' }}>{formatAmount(progress.monthlySavingsNeeded, targetCurrency)} {targetCurrency}/mes</strong>
                           </>
                         ) : (
-                          <>Fecha límite: {goal.deadline}</>
+                          <>Fecha límite: {formatFriendlyDate(goal.deadline)}</>
                         )}
                       </span>
                     )}

@@ -99,7 +99,7 @@ export default function ReportsModal({
       onClose();
     } catch (e) {
       console.error('Error al exportar CSV:', e);
-      if (showToast) showToast('Error al exportar el archivo CSV', 'error');
+      if (showToast) showToast('No pudimos crear el archivo CSV. Intenta de nuevo.', 'error');
     } finally {
       setIsExportingCsv(false);
     }
@@ -113,7 +113,7 @@ export default function ReportsModal({
       onClose();
     } catch (e) {
       console.error('Error al exportar PDF:', e);
-      if (showToast) showToast('Error al generar el reporte mensual', 'error');
+      if (showToast) showToast('No pudimos crear el reporte del mes. Intenta de nuevo.', 'error');
     } finally {
       setIsExportingPdf(false);
     }
@@ -140,14 +140,14 @@ export default function ReportsModal({
             className={`segmented-btn ${activeTab === 'csv' ? 'active' : ''}`}
             onClick={() => setActiveTab('csv')}
           >
-            📊 Movimientos (CSV)
+            Movimientos (CSV)
           </button>
           <button
             type="button"
             className={`segmented-btn ${activeTab === 'monthly_pdf' ? 'active' : ''}`}
             onClick={() => setActiveTab('monthly_pdf')}
           >
-            📑 Resumen Mensual (PDF)
+            Resumen del mes (PDF)
           </button>
         </div>
 
@@ -236,7 +236,7 @@ export default function ReportsModal({
                 disabled={isExportingCsv || filteredTxsCount === 0}
                 style={{ flex: 2 }}
               >
-                {isExportingCsv ? 'Exportando...' : '📥 Descargar CSV'}
+                {isExportingCsv ? 'Exportando...' : 'Descargar CSV'}
               </button>
             </div>
           </div>
@@ -329,7 +329,7 @@ export default function ReportsModal({
                 disabled={isExportingPdf}
                 style={{ flex: 2 }}
               >
-                {isExportingPdf ? 'Generando...' : '📄 Ver / Imprimir Reporte'}
+                {isExportingPdf ? 'Generando...' : 'Ver o imprimir el reporte'}
               </button>
             </div>
           </div>

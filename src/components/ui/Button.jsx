@@ -20,14 +20,14 @@ export default function Button({
     sm: {
       padding: 'var(--space-1) var(--space-3)',
       fontSize: 'var(--font-xs)',
-      height: '32px',
+      height: '36px',
       gap: 'var(--space-1)',
       borderRadius: 'var(--radius-sm)'
     },
     md: {
       padding: 'var(--space-2) var(--space-4)',
       fontSize: 'var(--font-sm)',
-      height: '42px',
+      height: '44px',
       gap: 'var(--space-2)',
       borderRadius: 'var(--radius-md)'
     },

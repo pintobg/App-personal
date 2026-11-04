@@ -103,7 +103,7 @@ export default function CalculatorRateCard({
           </div>
         ) : !rateValue ? (
           <div style={{ fontSize: '0.74rem', color: 'var(--color-warning)', fontWeight: 600 }}>
-            Tasa: Sin tasa
+            Sin tasa todavía
           </div>
         ) : (
           <div style={{ fontSize: '0.74rem', color: status.isStale ? 'var(--color-warning)' : 'var(--text-secondary)', fontWeight: status.isStale ? 600 : 400 }}>

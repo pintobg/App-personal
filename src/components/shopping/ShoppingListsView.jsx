@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { Icon } from '../ui';
 import ShoppingListDetailView from './ShoppingListDetailView';
 import ShoppingListFormModal from './ShoppingListFormModal';
 import Button from '../ui/Button';
@@ -188,7 +189,7 @@ export default function ShoppingListsView({
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px', flexWrap: 'wrap' }}>
                         {list.store && (
                           <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', background: 'var(--bg-surface-elevated)', padding: '1px 6px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                            🏪 {list.store}
+                            {list.store}
                           </span>
                         )}
                         <span style={{ fontSize: '0.72rem', color: 'var(--color-accent)', fontWeight: 600 }}>
@@ -209,27 +210,27 @@ export default function ShoppingListsView({
                         title="Duplicar lista"
                         aria-label="Duplicar lista"
                         onClick={(e) => handleDuplicate(list.id, e)}
-                        style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px', fontSize: '0.9rem' }}
+                        style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 0, width: '44px', height: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                       >
-                        📋
+                        <Icon name="copy" size={18} />
                       </button>
                       <button
                         type="button"
                         title="Editar lista"
                         aria-label="Editar lista"
                         onClick={(e) => handleOpenEditModal(list, e)}
-                        style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px', fontSize: '0.9rem' }}
+                        style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 0, width: '44px', height: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                       >
-                        ✏️
+                        <Icon name="edit" size={18} />
                       </button>
                       <button
                         type="button"
                         title="Eliminar lista"
                         aria-label="Eliminar lista"
                         onClick={(e) => handleDelete(list.id, e)}
-                        style={{ background: 'transparent', border: 'none', color: 'var(--color-danger)', cursor: 'pointer', padding: '4px', fontSize: '0.9rem' }}
+                        style={{ background: 'transparent', border: 'none', color: 'var(--color-danger)', cursor: 'pointer', padding: 0, width: '44px', height: '44px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
                       >
-                        🗑️
+                        <Icon name="trash" size={18} />
                       </button>
                     </div>
                   </div>
@@ -328,15 +329,15 @@ export default function ShoppingListsView({
                       title="Repetir lista para esta semana"
                       style={{ padding: '0.35rem 0.65rem', fontSize: '0.74rem', borderRadius: '8px' }}
                     >
-                      🔁 Repetir lista
+                      Repetir lista
                     </Button>
                     <IconButton
                       ariaLabel="Eliminar lista"
                       variant="ghost"
                       onClick={(e) => handleDelete(list.id, e)}
-                      style={{ width: '28px', height: '28px', color: 'var(--color-danger)' }}
+                      style={{ color: 'var(--color-danger)' }}
                     >
-                      🗑️
+                      <Icon name="trash" size={18} />
                     </IconButton>
                   </div>
                 </div>

@@ -69,3 +69,16 @@ describe('Utils: formatters.js - Snapshots y Equivalentes USD', () => {
     });
   });
 });
+
+describe('formatNumber y formatPercent', () => {
+  it('usa coma decimal y punto de miles', async () => {
+    const { formatNumber, formatPercent } = await import('./formatters');
+    expect(formatNumber(0)).toBe('0,00');
+    expect(formatNumber(1234.5)).toBe('1.234,50');
+    expect(formatNumber(-36.523, 2)).toBe('-36,52');
+    expect(formatNumber('abc')).toBe('0,00');
+    expect(formatPercent(12.345, 1)).toBe('12,3%');
+    expect(formatPercent(4.2, 1, { signed: true })).toBe('+4,2%');
+    expect(formatPercent(-3, 0, { signed: true })).toBe('-3%');
+  });
+});

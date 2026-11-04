@@ -1,3 +1,4 @@
+import { formatAmount } from '../../utils/formatters';
 import { useState, useEffect } from 'react';
 import CustomSelect from '../common/CustomSelect';
 
@@ -232,7 +233,7 @@ export default function GoalModal({
                         </div>
                       </div>
                       <div style={{ fontSize: '0.85rem', fontWeight: '500', color: 'var(--plomo-200)' }}>
-                        {Number(asset.amount || 0).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {asset.name}
+                        {formatAmount(asset.amount, asset.name)} {asset.name}
                       </div>
                     </label>
                   );

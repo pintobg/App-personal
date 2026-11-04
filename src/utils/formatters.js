@@ -136,3 +136,25 @@ export const getBudgetColor = (percent) => {
   if (percent <= 90) return '#f59e0b'; // Amarillo (70%-90%)
   return '#ef4444'; // Rojo (>90% o superado)
 };
+
+/**
+ * Número con formato venezolano (1.234,56). Para tasas, porcentajes y cifras sin moneda.
+ */
+export const formatNumber = (value, decimals = 2) => {
+  const num = Number(value);
+  const safe = Number.isFinite(num) ? num : 0;
+  return new Intl.NumberFormat('es-VE', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals
+  }).format(safe);
+};
+
+/**
+ * Porcentaje con coma decimal: formatPercent(12.345, 1) da "12,3%"; con { signed: true } da "+12,3%".
+ */
+export const formatPercent = (value, decimals = 0, { signed = false } = {}) => {
+  const num = Number(value);
+  const safe = Number.isFinite(num) ? num : 0;
+  const sign = signed && safe > 0 ? '+' : '';
+  return `${sign}${formatNumber(safe, decimals)}%`;
+};

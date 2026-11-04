@@ -35,16 +35,16 @@ describe('Nuevas mejoras: Descripción de gastos, Comisiones, Deudas Cashea y Pe
         setDeleteMode={vi.fn()}
         selectedTxs={[]}
         toggleSelectTx={vi.fn()}
-        flippedTxId={null}
-        setFlippedTxId={vi.fn()}
+        actionTxId={null}
+        setActionTxId={vi.fn()}
         rates={{ USD: 1 }}
         onEdit={vi.fn()}
       />
     );
 
-    // Debe mostrar "Almuerzo con clientes" como título principal
-    expect(screen.getByText('Almuerzo con clientes')).toBeDefined();
-    expect(screen.getByText(/Alimentación • Restaurante/i)).toBeDefined();
+    // La fila muestra la categoría arriba y la descripción debajo
+    expect(screen.getByText(/Almuerzo con clientes/)).toBeDefined();
+    expect(screen.getByText(/Alimentación · Restaurante/i)).toBeDefined();
   });
 
   it('2. Pago de cuotas de deuda tipo Cashea: la transacción especifica el nombre de la deuda y número de cuota', () => {
@@ -83,14 +83,14 @@ describe('Nuevas mejoras: Descripción de gastos, Comisiones, Deudas Cashea y Pe
         setDeleteMode={vi.fn()}
         selectedTxs={[]}
         toggleSelectTx={vi.fn()}
-        flippedTxId={null}
-        setFlippedTxId={vi.fn()}
+        actionTxId={null}
+        setActionTxId={vi.fn()}
         rates={{ USD: 1 }}
         onEdit={vi.fn()}
       />
     );
 
-    expect(screen.getByText('Pago deuda: Zapatos Traki (Cuota 1/3)')).toBeDefined();
+    expect(screen.getByText(/Pago deuda: Zapatos Traki \(Cuota 1\/3\)/)).toBeDefined();
   });
 
   it('3. Persistencia de deuda con pago en Bs. a tasa BCV: no se pierde al sincronizar o reiniciar la app', () => {
@@ -122,8 +122,8 @@ describe('Nuevas mejoras: Descripción de gastos, Comisiones, Deudas Cashea y Pe
     render(
       <ObligationsView
         obligations={[restoredOb]}
-        flippedObId={null}
-        setFlippedObId={vi.fn()}
+        actionObId={null}
+        setActionObId={vi.fn()}
         rates={{ VES: 50 }}
         veRates={{ bcvUsd: 50 }}
         onEdit={vi.fn()}
@@ -248,16 +248,16 @@ describe('Nuevas mejoras: Descripción de gastos, Comisiones, Deudas Cashea y Pe
         setDeleteMode={vi.fn()}
         selectedTxs={[]}
         toggleSelectTx={vi.fn()}
-        flippedTxId={transferTx.id}
-        setFlippedTxId={vi.fn()}
+        actionTxId={transferTx.id}
+        setActionTxId={vi.fn()}
         rates={{ USD: 1, VES: 50 }}
         onEdit={vi.fn()}
       />
     );
 
-    // En la fila y en el detalle debe verse la fecha del viernes
-    expect(screen.getAllByText(/2026-10-16/i).length).toBeGreaterThanOrEqual(1);
-    // Y el botón para editar la transferencia
-    expect(screen.getAllByTitle(/Editar transferencia/i).length).toBeGreaterThanOrEqual(1);
+    // En el encabezado del día y en el detalle debe verse la fecha del viernes
+    expect(screen.getAllByText(/16 oct/i).length).toBeGreaterThanOrEqual(1);
+    // Y la acción para editar la transferencia en la hoja
+    expect(screen.getAllByLabelText(/Editar transferencia/i).length).toBeGreaterThanOrEqual(1);
   });
 });

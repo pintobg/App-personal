@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import ReferenceRateSelector from '../../common/ReferenceRateSelector';
+import { Icon } from '../../ui';
 import NotificationSettingsSection from '../../common/NotificationSettingsSection';
 import AuthGuestWarning from './AuthGuestWarning';
 
@@ -13,8 +13,8 @@ export default function AuthGuestView({
   onNavigateCategories,
   onOpenSecurityModal,
   hasPin,
-  referenceRate,
-  setReferenceRate,
+  referenceRate: _referenceRate,
+  setReferenceRate: _setReferenceRate,
   showToast,
   localState,
   onClose
@@ -146,13 +146,13 @@ export default function AuthGuestView({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontSize: '1.25rem' }}>🏷️</span>
+              <span className="section-icon"><Icon name="tag" /></span>
               <div>
                 <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>Administrar Categorías</div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Configurar catálogo de gastos e ingresos</div>
               </div>
             </div>
-            <span style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>➔</span>
+            <span style={{ color: 'var(--text-secondary)', display: 'inline-flex' }}><Icon name="chevronRight" size={18} /></span>
           </button>
         )}
 
@@ -171,21 +171,15 @@ export default function AuthGuestView({
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', flexWrap: 'wrap' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-              <span style={{ fontSize: '1.2rem' }}>💱</span>
+              <span className="section-icon"><Icon name="exchange" /></span>
               <div>
-                <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-primary)' }}>Tasa de referencia global</div>
+                <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-primary)' }}>Tasa para tus totales</div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                   Valora tus bolívares en dólares
                 </div>
               </div>
             </div>
-            <ReferenceRateSelector
-              referenceRate={referenceRate}
-              setReferenceRate={(newRef) => {
-                if (setReferenceRate) setReferenceRate(newRef);
-                if (showToast) showToast(`Tasa de referencia cambiada a ${newRef.toUpperCase()}`);
-              }}
-            />
+            <span style={{ fontSize: 'var(--font-xs)', color: 'var(--text-secondary)' }}>Se cambia en Tasas</span>
           </div>
         </div>
 
@@ -216,7 +210,7 @@ export default function AuthGuestView({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <span style={{ fontSize: '1.2rem' }}>🔒</span>
+              <span className="section-icon"><Icon name="lock" /></span>
               <div style={{ textAlign: 'left' }}>
                 <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>Seguridad y Bloqueo</div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>

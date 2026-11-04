@@ -1,3 +1,4 @@
+import { formatAmount } from '../../utils/formatters';
 import { useState, useEffect } from 'react';
 import CategoryPicker from '../common/CategoryPicker';
 import { useCategories } from '../../hooks/useCategories';
@@ -146,7 +147,7 @@ export default function BudgetModal({
             </span>
           </div>
           <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-            ${totalBudget.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ${formatAmount(totalBudget, 'USD')}
           </div>
         </div>
 

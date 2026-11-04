@@ -1,3 +1,4 @@
+import { formatPercent } from '../../../utils/formatters';
 import React from 'react';
 import {
   formatCalcNumber,
@@ -105,7 +106,7 @@ export default function CalculatorCards({
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', color: 'var(--plomo-200)', fontWeight: 500 }}>
-                <span>⚖️ Brecha BCV vs Paralelo</span>
+                <span>Diferencia BCV vs paralelo</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
                 <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
@@ -121,7 +122,7 @@ export default function CalculatorCards({
                     fontWeight: 700
                   }}
                 >
-                  {isPositiveGap ? '+' : ''}{gapPct.toFixed(2)}%
+                  {formatPercent(gapPct, 2, { signed: true })}
                 </span>
               </div>
             </div>
@@ -175,7 +176,7 @@ export default function CalculatorCards({
           accentColor="var(--color-warning)"
           tag={activeRates.bcvUsd > 0 && activeRates.paralelo > 0 && (
             <span style={{ fontSize: '0.66rem', padding: '1px 6px', borderRadius: '6px', background: 'color-mix(in srgb, var(--color-warning) 16%, transparent)', color: 'var(--color-warning)', fontWeight: 700 }}>
-              +{(((activeRates.paralelo - activeRates.bcvUsd) / activeRates.bcvUsd) * 100).toFixed(1)}%
+              {formatPercent(((activeRates.paralelo - activeRates.bcvUsd) / activeRates.bcvUsd) * 100, 1, { signed: true })}
             </span>
           )}
         />

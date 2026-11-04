@@ -42,8 +42,8 @@ describe('Comisiones y Pago Móvil - Vistas', () => {
         setDeleteMode={() => {}}
         selectedTxs={[]}
         toggleSelectTx={() => {}}
-        flippedTxId={null}
-        setFlippedTxId={() => {}}
+        actionTxId={null}
+        setActionTxId={() => {}}
         rates={{ VES: 50 }}
         onEdit={() => {}}
       />

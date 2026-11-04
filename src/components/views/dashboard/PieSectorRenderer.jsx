@@ -1,3 +1,4 @@
+import { formatPercent } from '../../../utils/formatters';
 import React from 'react';
 import { Sector } from 'recharts';
 
@@ -13,7 +14,7 @@ export function createPieSectorRenderer({ activeItem, totalPieUsd }) {
     const dy = sin * offset;
     const currentOuter = isSelected ? outerRadius + 4 : outerRadius;
     const pct = totalPieUsd > 0 ? (Number(value) / totalPieUsd) * 100 : 0;
-    const pctText = `${pct.toFixed(1)}%`;
+    const pctText = formatPercent(pct, 1);
 
     const sx = cx + dx + cos * (currentOuter + 1);
     const sy = cy + dy + sin * (currentOuter + 1);

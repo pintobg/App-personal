@@ -67,8 +67,9 @@ export default function Toast({
         alignItems: 'center',
         gap: 'var(--space-2)',
         zIndex: 9999,
-        width: 'auto',
-        maxWidth: '92vw',
+        // max-content evita que el aviso se encoja a la mitad de la pantalla (left: 50%)
+        width: 'max-content',
+        maxWidth: 'calc(100vw - 32px)',
         boxSizing: 'border-box',
         animation: 'slideDownFade 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards',
         ...style

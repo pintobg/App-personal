@@ -77,7 +77,7 @@ export default function PinLockModal({
         }
       }
     } catch {
-      setErrorMsg('Error al verificar PIN');
+      setErrorMsg('No pudimos revisar el PIN. Intenta de nuevo.');
     } finally {
       setIsVerifying(false);
     }

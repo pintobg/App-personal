@@ -1,4 +1,5 @@
 import React from 'react';
+import { Icon } from '../ui';
 
 export default function SecuritySettingsSection({
   appLock,
@@ -8,7 +9,7 @@ export default function SecuritySettingsSection({
     <div className="glass-card" style={{ padding: '1rem 1.15rem', borderRadius: '16px', marginBottom: '1.25rem', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '1.25rem' }}>🔒</span>
+          <span className="section-icon"><Icon name="lock" /></span>
           <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>Seguridad</h3>
         </div>
         <span style={{

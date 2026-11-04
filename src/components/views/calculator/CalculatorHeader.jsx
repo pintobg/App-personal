@@ -1,3 +1,5 @@
+import { formatFriendlyDate } from '../../../utils/dates';
+import { Icon } from '../../ui';
 import React from 'react';
 import { getIsoDateOffset, formatShortDate } from './calculatorUtils';
 
@@ -15,7 +17,9 @@ export default function CalculatorHeader({
   resolvedHistoricalEntry,
   minHistoryDate,
   maxHistoryDate,
-  onOpenSettings
+  onOpenSettings,
+  sectionSwitcher = null,
+  hideModes = false
 }) {
   return (
     <>
@@ -35,7 +39,7 @@ export default function CalculatorHeader({
                       if (msDiff > 24 * 60 * 60 * 1000) {
                         return (
                           <span style={{ color: 'var(--color-warning)', fontWeight: 600 }}>
-                            Consultado: {new Date(checkDate).toLocaleDateString('es-VE', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                            Consultado: {formatFriendlyDate(checkDate)}
                           </span>
                         );
                       }
@@ -97,8 +101,8 @@ export default function CalculatorHeader({
                 background: 'var(--bg-surface-elevated)',
                 border: '1px solid var(--border-color)',
                 borderRadius: '50%',
-                width: '34px',
-                height: '34px',
+                width: '44px',
+                height: '44px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -107,12 +111,15 @@ export default function CalculatorHeader({
                 fontSize: '1rem'
               }}
             >
-              ⚙️
+              <Icon name="settings" />
             </button>
           )}
         </div>
       </div>
 
+      {sectionSwitcher}
+
+      {!hideModes && (<>
       {/* SELECTOR DE MODO: TASA DE HOY VS TASA DE DÍAS ANTERIORES */}
       <div
         className="segmented-control"
@@ -124,7 +131,7 @@ export default function CalculatorHeader({
           onClick={() => setRateMode('current')}
           style={{ fontSize: '0.8rem', padding: '0.5rem 0.65rem', gap: '0.35rem' }}
         >
-          <span>⚡</span>
+          <Icon name="bolt" size={16} />
           <span>Tasa de Hoy</span>
         </button>
         <button
@@ -133,7 +140,7 @@ export default function CalculatorHeader({
           onClick={() => setRateMode('historical')}
           style={{ fontSize: '0.8rem', padding: '0.5rem 0.65rem', gap: '0.35rem' }}
         >
-          <span>📅</span>
+          <Icon name="calendar" size={16} />
           <span>Días Anteriores</span>
         </button>
       </div>
@@ -152,7 +159,7 @@ export default function CalculatorHeader({
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem', gap: '0.5rem' }}>
             <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-success)' }}>
-              📅 Fecha de tasa para el cálculo
+              Fecha de la tasa para calcular
             </span>
             {resolvedHistoricalEntry && resolvedHistoricalEntry.date !== selectedDate && (
               <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
@@ -259,6 +266,7 @@ export default function CalculatorHeader({
           </div>
         </div>
       )}
+      </>)}
     </>
   );
 }

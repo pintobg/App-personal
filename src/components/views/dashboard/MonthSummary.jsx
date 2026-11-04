@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatAmount } from '../../../utils/formatters';
+import { formatAmount, formatPercent } from '../../../utils/formatters';
 
 export default function MonthSummary({
   monthlyMetrics,
@@ -9,8 +9,8 @@ export default function MonthSummary({
   return (
     <div style={{ marginBottom: '1.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.65rem' }}>
-        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)' }}>Resumen del mes</div>
-        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Mes actual vs mes anterior</div>
+        <span className="form-section-label" style={{ margin: 0 }}>Este mes</span>
+        <span style={{ fontSize: 'var(--font-xs)', color: 'var(--text-muted)' }}>vs. mes anterior</span>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem' }}>
@@ -29,7 +29,7 @@ export default function MonthSummary({
             ${isBalanceHidden ? '***' : formatAmount(monthlyMetrics.curIncome, 'USD')}
           </div>
           <div style={{ fontSize: '0.68rem', color: monthlyMetrics.incomeDeltaPct >= 0 ? 'var(--color-income)' : 'var(--color-expense)', marginTop: '0.2rem', fontWeight: 600 }}>
-            {monthlyMetrics.incomeDeltaPct != null ? `${monthlyMetrics.incomeDeltaPct >= 0 ? '+' : ''}${monthlyMetrics.incomeDeltaPct.toFixed(0)}% ant.` : 'Actual'}
+            {monthlyMetrics.incomeDeltaPct != null ? `${formatPercent(monthlyMetrics.incomeDeltaPct, 0, { signed: true })} ant.` : 'Actual'}
           </div>
         </div>
 
@@ -48,7 +48,7 @@ export default function MonthSummary({
             ${isBalanceHidden ? '***' : formatAmount(monthlyMetrics.curSpent, 'USD')}
           </div>
           <div style={{ fontSize: '0.68rem', color: monthlyMetrics.spentDeltaPct > 0 ? 'var(--color-expense)' : 'var(--color-income)', marginTop: '0.2rem', fontWeight: 600 }}>
-            {monthlyMetrics.spentDeltaPct != null ? `${monthlyMetrics.spentDeltaPct >= 0 ? '+' : ''}${monthlyMetrics.spentDeltaPct.toFixed(0)}% ant.` : 'Actual'}
+            {monthlyMetrics.spentDeltaPct != null ? `${formatPercent(monthlyMetrics.spentDeltaPct, 0, { signed: true })} ant.` : 'Actual'}
           </div>
         </div>
 
@@ -57,7 +57,7 @@ export default function MonthSummary({
           style={{ padding: '0.85rem 0.75rem', borderRadius: '14px', backgroundColor: 'var(--bg-surface)', textAlign: 'center' }}
         >
           <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 500, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }}>
-            <span>⚖️</span> Saldo
+            Diferencia
           </div>
           <div style={{ fontSize: '1rem', fontWeight: 700, color: monthlyMetrics.curNet >= 0 ? 'var(--color-income)' : 'var(--color-expense)', marginTop: '0.25rem' }}>
             {monthlyMetrics.curNet >= 0 ? '+' : ''}${isBalanceHidden ? '***' : formatAmount(monthlyMetrics.curNet, 'USD')}

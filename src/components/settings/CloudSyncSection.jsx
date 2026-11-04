@@ -1,9 +1,10 @@
+import { Icon } from '../ui';
 export default function CloudSyncSection({ auth, onSyncNow, onOpenAuthModal }) {
   return (
     <div className="glass-card" style={{ padding: '1rem 1.15rem', borderRadius: '16px', marginBottom: '1.25rem', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '1.25rem' }}>☁️</span>
+          <span className="section-icon"><Icon name="cloud" /></span>
           <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>Cuenta y Sincronización</h3>
         </div>
         <span style={{
@@ -15,14 +16,14 @@ export default function CloudSyncSection({ auth, onSyncNow, onOpenAuthModal }) {
           fontWeight: 600,
           border: '1px solid var(--border-color)'
         }}>
-          {auth?.user ? 'Multidispositivo' : 'Modo Local'}
+          {auth?.user ? 'Sincronizado' : 'Sin sincronizar'}
         </span>
       </div>
 
       <p style={{ margin: '0 0 1.25rem', fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
         {auth?.user
           ? `Conectado como ${auth.user.email}. Tus datos se respaldan y sincronizan automáticamente.`
-          : 'Usa la app en modo local o inicia sesión para sincronizar tus finanzas en todos tus dispositivos.'}
+          : 'Tus datos están solo en este teléfono. Inicia sesión para tenerlos también en otros dispositivos.'}
       </p>
 
       {auth?.user ? (
@@ -50,8 +51,8 @@ export default function CloudSyncSection({ auth, onSyncNow, onOpenAuthModal }) {
                 ? 'var(--color-warning)'
                 : 'var(--color-danger)'
             }}>
-              {auth.syncStatus === 'syncing' && '🔄 Sincronizando...'}
-              {auth.syncStatus !== 'syncing' && auth.syncStatus === 'offline' && '⚠️ Sin conexión'}
+              {auth.syncStatus === 'syncing' && 'Sincronizando…'}
+              {auth.syncStatus !== 'syncing' && auth.syncStatus === 'offline' && 'Sin conexión'}
               {auth.syncStatus !== 'syncing' && auth.syncStatus !== 'offline' && auth.syncStatus === 'error' && (
                 <button
                   type="button"
@@ -66,12 +67,12 @@ export default function CloudSyncSection({ auth, onSyncNow, onOpenAuthModal }) {
                     textDecoration: 'underline'
                   }}
                 >
-                  ✕ Error, reintentar
+                  No se pudo sincronizar. Toca para reintentar
                 </button>
               )}
               {auth.syncStatus !== 'syncing' && auth.syncStatus !== 'offline' && auth.syncStatus !== 'error' && (auth.pendingCount || 0) > 0 && `⏳ Pendiente (${auth.pendingCount})`}
               {auth.syncStatus !== 'syncing' && auth.syncStatus !== 'offline' && auth.syncStatus !== 'error' && (auth.pendingCount || 0) === 0 && auth.syncStatus === 'synced' && '● Sincronizado'}
-              {auth.syncStatus === 'guest' && '👤 Local'}
+              {auth.syncStatus === 'guest' && 'Sin sincronizar'}
             </span>
           </div>
 

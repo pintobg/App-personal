@@ -54,7 +54,7 @@ export function useAppModalsState(requestConfirm, showToast) {
   });
   const [deleteMode, setDeleteMode] = useState(false);
   const [selectedTxs, setSelectedTxs] = useState([]);
-  const [flippedTxId, setFlippedTxId] = useState(null);
+  const [actionTxId, setActionTxId] = useState(null);
 
   // Transfer Modal
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
@@ -90,7 +90,7 @@ export function useAppModalsState(requestConfirm, showToast) {
   });
   const [payingOb, setPayingOb] = useState(null);
   const [payData, setPayData] = useState({ assetId: '', actualAmount: '', rateType: 'BCV_USD', customRate: '' });
-  const [flippedObId, setFlippedObId] = useState(null);
+  const [actionObId, setActionObId] = useState(null);
 
   // Budget, Auth, Security, Goal, Reports & FAB
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
@@ -236,6 +236,50 @@ export function useAppModalsState(requestConfirm, showToast) {
       setPayingOb(null);
       setPayData({ assetId: '', actualAmount: '', rateType: 'BCV_USD', customRate: '' });
     }
+  };
+
+  // "Repetir": abre el formulario con los mismos datos y la fecha de hoy (movimiento nuevo).
+  const handleRepeatTransaction = (tx) => {
+    if (!tx) return;
+    if (tx.type === 'transfer') {
+      setNewTransfer({
+        id: '',
+        sourceAssetId: tx.assetId || '',
+        destAssetId: tx.destAssetId || '',
+        amountDeducted: String(tx.amount || ''),
+        amountReceived: String(tx.destAmount || ''),
+        hasCommission: Number(tx.commission) > 0,
+        commissionAmount: String(tx.commission || ''),
+        hasIgtf: false,
+        igtfAmount: '',
+        date: toLocalDateTimeString(new Date())
+      });
+      setTxValidationError('');
+      setIsTransferModalOpen(true);
+      return;
+    }
+    const targetAsset = (tx.assetId && assets.find(a => a.id === tx.assetId)) ||
+                        assets.find(a => (a.name || '').toUpperCase() === (tx.currency || '').toUpperCase() && a.location === tx.origin);
+    setNewTx({
+      id: '',
+      assetId: targetAsset ? targetAsset.id : (tx.assetId || ''),
+      type: tx.type,
+      currency: tx.currency,
+      amount: String(tx.amount ?? ''),
+      origin: tx.origin,
+      category: tx.category || '',
+      category_id: tx.category_id || null,
+      subcategory: tx.subcategory || '',
+      subcategory_id: tx.subcategory_id || null,
+      notes: tx.notes || '',
+      paymentMethod: tx.paymentMethod || '',
+      referenceNumber: '',
+      bank: tx.bank || '',
+      recipientId: tx.recipientId || '',
+      date: todayLocal()
+    });
+    setTxValidationError('');
+    setTxModalMode('form');
   };
 
   const handleEditTransaction = (tx) => {
@@ -426,8 +470,8 @@ export function useAppModalsState(requestConfirm, showToast) {
     setDeleteMode,
     selectedTxs,
     setSelectedTxs,
-    flippedTxId,
-    setFlippedTxId,
+    actionTxId,
+    setActionTxId,
     isTransferModalOpen,
     setIsTransferModalOpen,
     newTransfer,
@@ -440,8 +484,8 @@ export function useAppModalsState(requestConfirm, showToast) {
     setPayingOb,
     payData,
     setPayData,
-    flippedObId,
-    setFlippedObId,
+    actionObId,
+    setActionObId,
     isBudgetModalOpen,
     setIsBudgetModalOpen,
     isAuthModalOpen,
@@ -464,6 +508,7 @@ export function useAppModalsState(requestConfirm, showToast) {
     handleDeleteObligation,
     handlePayObligationSubmit,
     handleEditTransaction,
+    handleRepeatTransaction,
     handleAddTransaction,
     handleSaveAndAddAnother,
     handleTransferSubmit,

@@ -11,16 +11,21 @@ export default function TransactionFormFooter({
   showCustomDatePicker,
   setShowCustomDatePicker,
   validationError,
-  setValidationError,
+  setValidationError: _setValidationError,
   isEditing,
-  onClose,
-  handleSaveAndAddAnotherClick
+  onClose: _onClose,
+  handleSaveAndAddAnotherClick,
+  section = 'all' // 'details' (fecha y nota) | 'actions' (botones) | 'all'
 }) {
+  const showDetails = section === 'all' || section === 'details';
+  const showActions = section === 'all' || section === 'actions';
   return (
     <>
+      {showDetails && (
+      <>
       {/* Fecha */}
       <div className="input-group">
-        <label>Fecha</label>
+        <label className="form-section-label">Fecha</label>
         <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
           <button
             type="button"
@@ -67,59 +72,34 @@ export default function TransactionFormFooter({
 
       {/* Nota opcional */}
       <div className="input-group">
-        <label>Descripción / Concepto (Opcional)</label>
+        <label className="form-section-label" htmlFor="tx-note">Nota</label>
         <input
+          id="tx-note"
           type="text"
           className="input-field"
-          placeholder="ej. Almuerzo, Zapatos, Mercado, Salario quincenal..."
+          placeholder="Ej. almuerzo, mercado, quincena"
           value={newTx.notes || ''}
           onChange={e => setNewTx(prev => ({ ...prev, notes: e.target.value }))}
         />
       </div>
-
-      {validationError && (
-        <div style={{ color: 'var(--color-danger)', fontSize: '0.875rem', marginBottom: '1rem', textAlign: 'center' }}>
-          {validationError}
-        </div>
+      </>
       )}
 
-      <div className="modal-actions" style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={() => {
-            onClose();
-            if (setValidationError) setValidationError('');
-          }}
-          style={{ flex: 1, minWidth: '90px' }}
-        >
-          Cancelar
-        </button>
-        {!isEditing && (
-          <button
-            type="button"
-            className="btn"
-            onClick={handleSaveAndAddAnotherClick}
-            style={{
-              flex: 1.5,
-              minWidth: '150px',
-              background: 'var(--color-accent-soft)',
-              color: 'var(--color-accent)',
-              border: '1px solid var(--color-accent-border)',
-              fontWeight: 600
-            }}
-          >
-            Guardar y agregar otro
+      {showActions && (
+        <div className="sticky-form-footer">
+          {validationError && (
+            <div className="form-error" role="alert">{validationError}</div>
+          )}
+          <button type="submit" className="btn-save">
+            {isEditing ? 'Guardar cambios' : 'Guardar'}
           </button>
-        )}
-        <button
-          type="submit"
-          className="btn btn-primary"
-          style={{ flex: 1.5, minWidth: '120px' }}
-        >
-          {isEditing ? 'Actualizar Transacción' : 'Guardar Transacción'}
-        </button>
-      </div>
+          {!isEditing && (
+            <button type="button" className="link-btn" onClick={handleSaveAndAddAnotherClick}>
+              Guardar y agregar otro
+            </button>
+          )}
+        </div>
+      )}
     </>
   );
 }

@@ -1,3 +1,4 @@
+import { formatPercent } from '../../../utils/formatters';
 import React from 'react';
 import {
   ResponsiveContainer,
@@ -26,7 +27,7 @@ export default function RateHistoryChart({
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <div>
           <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-            📈 Historial de Tasas de Cambio
+            Historial de tasas
           </h3>
           <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
             Evolución diaria en Bolívares (Bs) • Toca una fecha para usarla
@@ -168,7 +169,7 @@ export default function RateHistoryChart({
           <div>
             <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)' }}>% Periodo</div>
             <div style={{ fontSize: '0.78rem', fontWeight: 700, color: historyStats.changePct >= 0 ? 'var(--color-success)' : 'var(--color-warning)', marginTop: '2px' }}>
-              {historyStats.changePct >= 0 ? '+' : ''}{historyStats.changePct.toFixed(2)}%
+              {formatPercent(historyStats.changePct, 2, { signed: true })}
             </div>
           </div>
         </div>
@@ -200,7 +201,7 @@ export default function RateHistoryChart({
                     Bs. {formatCalcNumber(item.value, 2)}
                   </td>
                   <td style={{ padding: '6px 10px', textAlign: 'right', color: item.diff >= 0 ? 'var(--color-success)' : 'var(--color-warning)', fontWeight: 500 }}>
-                    {item.diff !== 0 ? `${item.diff >= 0 ? '+' : ''}${item.diffPct.toFixed(1)}%` : '—'}
+                    {item.diff !== 0 ? formatPercent(item.diffPct, 1, { signed: true }) : '—'}
                   </td>
                   <td style={{ padding: '6px 10px', textAlign: 'center' }}>
                     <span style={{ fontSize: '0.68rem', padding: '2px 6px', borderRadius: '4px', background: 'var(--color-success-soft)', color: 'var(--color-success)', fontWeight: 600 }}>

@@ -1,3 +1,4 @@
+import RateNotice from '../common/RateNotice';
 import React, { Suspense, lazy } from 'react';
 import DashboardView from './DashboardView';
 import BalancesView from './BalancesView';
@@ -28,7 +29,7 @@ export default function PageRouter({
   goals, onOpenGoalModal, onDeleteGoal,
   deleteMode, setDeleteMode,
   setAdjustingAsset, handleDeleteAsset, handleAdjustBalance,
-  exportBackup, flippedObId, setFlippedObId,
+  exportBackup, actionObId, setActionObId,
   setNewOb, setIsObModalOpen, setPayingOb,
   setPayData, handleDeleteObligation,
   calcBaseCurrency, setCalcBaseCurrency,
@@ -38,7 +39,7 @@ export default function PageRouter({
   clearAllAppData, syncNow, requestConfirm,
   setAssets, setTransactions, setObligations, setBudgets,
   txFilter, selectedTxs, toggleSelectTx,
-  flippedTxId, setFlippedTxId, handleEditTransaction,
+  actionTxId, setActionTxId, handleEditTransaction, handleRepeatTransaction,
   onOpenReportsModal, getCategoryName, getSubcategoryName,
   planningSubTab, setPlanningSubTab,
   selectedShoppingListId, setSelectedShoppingListId,
@@ -104,6 +105,12 @@ export default function PageRouter({
               onOpenAuthModal={() => setIsAuthModalOpen(true)}
               getCategoryName={getCategoryName}
               onOpenSettings={() => setCurrentPage('settings')}
+              onOpenRates={() => setCurrentPage('calculator')}
+              rateNotice={<RateNotice onGoToRates={() => setCurrentPage('calculator')} />}
+              onOpenPlanning={(tab) => {
+                if (setPlanningSubTab) setPlanningSubTab(tab);
+                setCurrentPage('planning');
+              }}
             />
           )}
 
@@ -117,10 +124,11 @@ export default function PageRouter({
               setDeleteMode={setDeleteMode}
               selectedTxs={selectedTxs}
               toggleSelectTx={toggleSelectTx}
-              flippedTxId={flippedTxId}
-              setFlippedTxId={setFlippedTxId}
+              actionTxId={actionTxId}
+              setActionTxId={setActionTxId}
               rates={rates}
               onEdit={handleEditTransaction}
+              onRepeat={handleRepeatTransaction}
               onOpenReportsModal={onOpenReportsModal}
               getCategoryName={getCategoryName}
               getSubcategoryName={getSubcategoryName}
@@ -158,6 +166,10 @@ export default function PageRouter({
               onNavigateToCalculator={() => setCurrentPage('rates')}
               onOpenSettings={() => setCurrentPage('settings')}
               onAddAsset={onAddAsset}
+              onViewMovements={(location) => {
+                try { sessionStorage.setItem('tx_account_filter', location); } catch { /* sin almacenamiento */ }
+                setCurrentPage('transactions');
+              }}
             />
           )}
 
@@ -173,8 +185,8 @@ export default function PageRouter({
               onOpenBudgetModal={() => setIsBudgetModalOpen(true)}
               getCategoryName={getCategoryName}
               onOpenCategories={() => setCurrentPage('categories')}
-              flippedObId={flippedObId}
-              setFlippedObId={setFlippedObId}
+              actionObId={actionObId}
+              setActionObId={setActionObId}
               onEditObligation={(ob) => {
                 setNewOb({ ...ob });
                 setIsObModalOpen(true);
@@ -210,6 +222,9 @@ export default function PageRouter({
               isFetchingRates={isFetchingRates}
               showToast={showToast}
               onOpenSettings={() => setCurrentPage('settings')}
+              referenceRate={referenceRate}
+              setReferenceRate={setReferenceRate}
+              transactions={transactions}
             />
           )}
 
@@ -243,6 +258,7 @@ export default function PageRouter({
               isFetchingRates={isFetchingRates}
               appLock={appLock}
               onOpenSecurityModal={onOpenSecurityModal}
+              onOpenRates={() => setCurrentPage('calculator')}
             />
           )}
 

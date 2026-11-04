@@ -94,7 +94,6 @@ const ShoppingListItemRow = memo(function ShoppingListItemRow({
               step="any"
               min="0"
               inputMode="decimal"
-              autoFocus
               placeholder="Precio"
               value={inlinePriceVal}
               onChange={e => setInlinePriceVal(e.target.value)}

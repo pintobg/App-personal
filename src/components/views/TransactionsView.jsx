@@ -1,8 +1,9 @@
-import { useContext, useCallback } from 'react';
+import { useContext, useCallback, useMemo, useState } from 'react';
 import { FinanceContext } from '../../context/FinanceContext';
 import TransactionsViewHeader from './transactions/TransactionsViewHeader';
 import TransactionFilters from './transactions/TransactionFilters';
 import TransactionsVirtualList from './transactions/TransactionsVirtualList';
+import TransactionActionSheet from './transactions/TransactionActionSheet';
 import { useTransactionFiltering } from './transactions/useTransactionFiltering';
 
 export default function TransactionsView({
@@ -14,16 +15,21 @@ export default function TransactionsView({
   setDeleteMode = () => {},
   selectedTxs = [],
   toggleSelectTx = () => {},
-  flippedTxId = null,
-  setFlippedTxId = () => {},
+  actionTxId: actionTxIdProp = null,
+  setActionTxId: setActionTxIdProp,
   rates = {},
   onEdit,
+  onRepeat,
   onOpenReportsModal,
   getCategoryName,
   getSubcategoryName,
   deleteTransactionWithUndo: propDeleteTransactionWithUndo
 }) {
   const finance = useContext(FinanceContext);
+  // La hoja de acciones puede controlarse desde fuera (botón atrás de Android) o localmente.
+  const [localActionTxId, setLocalActionTxId] = useState(null);
+  const actionTxId = setActionTxIdProp ? actionTxIdProp : localActionTxId;
+  const setActionTxId = setActionTxIdProp || setLocalActionTxId;
   const handleDeleteWithUndo = propDeleteTransactionWithUndo || finance?.deleteTransactionWithUndo;
   const categoriesMap = finance?.categoriesMap;
   const categories = finance?.categories || [];
@@ -62,9 +68,14 @@ export default function TransactionsView({
     getSubcategoryName
   });
 
-  const handleFlip = useCallback((id) => {
-    setFlippedTxId(prev => (prev === id ? null : id));
-  }, [setFlippedTxId]);
+  const handleOpenActions = useCallback((tx) => {
+    setActionTxId(tx?.id || null);
+  }, [setActionTxId]);
+
+  const actionTx = useMemo(
+    () => (actionTxId ? transactions.find(t => t.id === actionTxId) || null : null),
+    [actionTxId, transactions]
+  );
 
   const handleDelete = useCallback((tx) => {
     handleDeleteWithUndo?.(tx);
@@ -118,19 +129,30 @@ export default function TransactionsView({
       <TransactionsVirtualList
         transactions={filteredTransactions}
         rates={rates}
-        flippedTxId={flippedTxId}
-        onFlip={handleFlip}
+        onOpenActions={handleOpenActions}
         deleteMode={deleteMode}
         selectedTxs={selectedTxs}
         onToggleSelect={toggleSelectTx}
-        onEdit={onEdit}
-        onDelete={handleDelete}
+        onClearFilters={handleClearFilters}
         getCategoryName={getCategoryName}
         getSubcategoryName={getSubcategoryName}
         categoriesMap={categoriesMap}
         categories={categories}
         hasActiveFilters={hasActiveFilters}
       />
+
+      {actionTx && !deleteMode && (
+        <TransactionActionSheet
+          tx={actionTx}
+          rates={rates}
+          onClose={() => setActionTxId(null)}
+          onEdit={onEdit}
+          onRepeat={onRepeat}
+          onDelete={handleDelete}
+          getCategoryName={getCategoryName}
+          getSubcategoryName={getSubcategoryName}
+        />
+      )}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { todayLocal } from '../../utils/dates';
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import FabOverlay from '../common/FabOverlay';
@@ -11,34 +12,67 @@ describe('Acciones rápidas de transacción y reordenamiento de Inicio', () => {
     vi.clearAllMocks();
   });
 
-  describe('1. FabOverlay global con 4 acciones unificadas', () => {
-    it('muestra siempre las 4 opciones unificadas: Gasto, Ingreso, Transferencia o cambio y Artículo a lista de compras', () => {
+  describe('1. FabOverlay: toque abre un gasto, pulsación larga muestra el menú', () => {
+    it('un toque al + abre directamente "Nuevo gasto"', () => {
+      const setTxModalMode = vi.fn();
+      const setNewTx = vi.fn();
+      render(
+        <FabOverlay
+          isFabExpanded={false}
+          setIsFabExpanded={vi.fn()}
+          setTxModalMode={setTxModalMode}
+          setNewTx={setNewTx}
+          setIsTransferModalOpen={vi.fn()}
+        />
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Nuevo gasto' }));
+      expect(setTxModalMode).toHaveBeenCalledWith('form');
+      expect(setNewTx).toHaveBeenCalledWith(expect.objectContaining({ type: 'spent' }));
+    });
+
+    it('la pulsación larga abre el menú', () => {
+      vi.useFakeTimers();
+      const setIsFabExpanded = vi.fn();
+      const setTxModalMode = vi.fn();
+      render(
+        <FabOverlay
+          isFabExpanded={false}
+          setIsFabExpanded={setIsFabExpanded}
+          setTxModalMode={setTxModalMode}
+          setNewTx={vi.fn()}
+          setIsTransferModalOpen={vi.fn()}
+        />
+      );
+      const fab = screen.getByRole('button', { name: 'Nuevo gasto' });
+      fireEvent.pointerDown(fab, { clientX: 10, clientY: 10 });
+      vi.advanceTimersByTime(500);
+      fireEvent.pointerUp(fab);
+      fireEvent.click(fab);
+      expect(setIsFabExpanded).toHaveBeenCalledWith(true);
+      expect(setTxModalMode).not.toHaveBeenCalled();
+      vi.useRealTimers();
+    });
+
+    it('el menú tiene Ingreso, Transferencia o cambio, Cuenta o activo y Artículo a lista de compras', () => {
       const setTxModalMode = vi.fn();
       const setIsTransferModalOpen = vi.fn();
       const onAddShoppingItem = vi.fn();
-      const setIsFabExpanded = vi.fn();
       const setNewTx = vi.fn();
+      const setIsAssetModalOpen = vi.fn();
 
       render(
         <FabOverlay
           isFabExpanded={true}
-          setIsFabExpanded={setIsFabExpanded}
+          setIsFabExpanded={vi.fn()}
           setTxModalMode={setTxModalMode}
           setNewTx={setNewTx}
           setIsTransferModalOpen={setIsTransferModalOpen}
+          setIsAssetModalOpen={setIsAssetModalOpen}
           onAddShoppingItem={onAddShoppingItem}
         />
       );
 
-      expect(screen.getByText('Gasto')).toBeDefined();
-      expect(screen.getByText('Ingreso')).toBeDefined();
-      expect(screen.getByText('Transferencia o cambio')).toBeDefined();
-      expect(screen.getByText('Artículo a lista de compras')).toBeDefined();
-
-      fireEvent.click(screen.getByText('Gasto'));
-      expect(setTxModalMode).toHaveBeenCalledWith('form');
-      expect(setNewTx).toHaveBeenCalledWith(expect.objectContaining({ type: 'spent' }));
-
+      expect(screen.queryByText('Gasto')).toBeNull();
       fireEvent.click(screen.getByText('Ingreso'));
       expect(setTxModalMode).toHaveBeenCalledWith('form');
       expect(setNewTx).toHaveBeenCalledWith(expect.objectContaining({ type: 'income' }));
@@ -46,9 +80,52 @@ describe('Acciones rápidas de transacción y reordenamiento de Inicio', () => {
       fireEvent.click(screen.getByText('Transferencia o cambio'));
       expect(setIsTransferModalOpen).toHaveBeenCalledWith(true);
 
+      fireEvent.click(screen.getByText('Cuenta o activo'));
+      expect(setIsAssetModalOpen).toHaveBeenCalledWith(true);
+
       fireEvent.click(screen.getByText('Artículo a lista de compras'));
       expect(onAddShoppingItem).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('el formulario de gasto ofrece pasar a Transferencia', () => {
+    const onSwitchToTransfer = vi.fn();
+    render(
+      <TransactionModal
+        mode="form"
+        onClose={vi.fn()}
+        newTx={{ type: 'spent', amount: '20', assetId: 'a1', currency: 'USD', date: new Date().toISOString().slice(0, 10) }}
+        setNewTx={vi.fn()}
+        onSubmit={vi.fn()}
+        onSwitchToTransfer={onSwitchToTransfer}
+        assets={[{ id: 'a1', name: 'USD', location: 'Efectivo', amount: 100 }]}
+        transactions={[]}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Transferencia' }));
+    expect(onSwitchToTransfer).toHaveBeenCalledWith(expect.objectContaining({ amount: '20', assetId: 'a1' }));
+  });
+
+  it('muestra gastos frecuentes y al tocar uno llena monto, categoría y cuenta', () => {
+    const setNewTx = vi.fn();
+    const today = new Date();
+    const d = (n) => { const x = new Date(today); x.setDate(x.getDate() - n); return x.toISOString().slice(0, 10); };
+    const cafe = { type: 'spent', amount: 2, currency: 'USD', category: 'Comida', subcategory: 'Café', assetId: 'a1', origin: 'Efectivo' };
+    render(
+      <TransactionModal
+        mode="form"
+        onClose={vi.fn()}
+        newTx={{ type: 'spent', amount: '', assetId: '', currency: 'USD', date: d(0) }}
+        setNewTx={setNewTx}
+        onSubmit={vi.fn()}
+        assets={[{ id: 'a1', name: 'USD', location: 'Efectivo', amount: 100 }]}
+        transactions={[{ ...cafe, id: 't1', date: d(1) }, { ...cafe, id: 't2', date: d(3) }]}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Usar gasto frecuente: Café/ }));
+    const updater = setNewTx.mock.calls.at(-1)[0];
+    const next = typeof updater === 'function' ? updater({ type: 'spent' }) : updater;
+    expect(next).toEqual(expect.objectContaining({ amount: '2', assetId: 'a1', subcategory: 'Café', category: 'Comida' }));
   });
 
   describe('2. TransactionModal: Orden, precarga y "Guardar y agregar otro"', () => {
@@ -108,7 +185,7 @@ describe('Acciones rápidas de transacción y reordenamiento de Inicio', () => {
         amount: '10',
         assetId: 'a1',
         currency: 'USD',
-        date: '2026-11-03',
+        date: todayLocal(),
         category_id: 'exp.food'
       };
 
@@ -124,12 +201,48 @@ describe('Acciones rápidas de transacción y reordenamiento de Inicio', () => {
         />
       );
 
+      // La fecha vive dentro de "Más detalles", plegado por defecto
+      expect(screen.queryByRole('button', { name: 'Hoy' })).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: /Más detalles/i }));
       expect(screen.getByRole('button', { name: 'Hoy' })).toBeDefined();
       expect(screen.getByRole('button', { name: 'Ayer' })).toBeDefined();
       expect(screen.getByRole('button', { name: 'Otra' })).toBeDefined();
 
       fireEvent.click(screen.getByRole('button', { name: 'Ayer' }));
       expect(setNewTx).toHaveBeenCalled();
+    });
+
+    it('abre "Más detalles" automáticamente al editar un gasto con nota', () => {
+      render(
+        <TransactionModal
+          mode="form"
+          onClose={vi.fn()}
+          newTx={{ id: 'tx-prev', type: 'spent', amount: '200', assetId: 'a2', currency: 'VES', date: new Date().toISOString().slice(0, 10), notes: 'Mercado' }}
+          setNewTx={vi.fn()}
+          onSubmit={vi.fn()}
+          assets={assets}
+          transactions={transactions}
+        />
+      );
+      expect(screen.getByRole('button', { name: /Más detalles/i }).getAttribute('aria-expanded')).toBe('true');
+      expect(screen.getByDisplayValue('Mercado')).toBeDefined();
+      expect(screen.getByRole('button', { name: 'Guardar cambios' })).toBeDefined();
+    });
+
+    it('muestra una línea de saldo antes → después en lugar del bloque grande', () => {
+      render(
+        <TransactionModal
+          mode="form"
+          onClose={vi.fn()}
+          newTx={{ type: 'spent', amount: '50', assetId: 'a1', currency: 'USD', origin: 'Efectivo', date: new Date().toISOString().slice(0, 10) }}
+          setNewTx={vi.fn()}
+          onSubmit={vi.fn()}
+          assets={assets}
+          transactions={transactions}
+        />
+      );
+      const line = screen.getByTestId('tx-balance-line');
+      expect(line.textContent).toMatch(/Saldo: 150,00 USD → 100,00 USD/);
     });
 
     it('solo muestra como origen las cuentas que manejan la moneda elegida', () => {
@@ -155,8 +268,8 @@ describe('Acciones rápidas de transacción y reordenamiento de Inicio', () => {
         />
       );
 
-      // El selector de Moneda está presente y muestra VES
-      expect(screen.getByText('Moneda')).toBeDefined();
+      // El monto y el selector de moneda (VES) están presentes
+      expect(screen.getByLabelText('Monto')).toBeDefined();
       expect(screen.getByText('VES')).toBeDefined();
 
       // La cuenta seleccionada (Banesco, VES) se muestra y las cuentas en otra moneda no se ofrecen
@@ -236,8 +349,11 @@ describe('Acciones rápidas de transacción y reordenamiento de Inicio', () => {
         />
       );
 
+      // Tocar la fila abre la hoja de acciones con Editar, Repetir y Eliminar
+      fireEvent.click(screen.getAllByRole('button', { name: /Mercado semanal/i })[0]);
+      expect(screen.getByRole('dialog')).toBeDefined();
       const deleteBtns = screen.getAllByLabelText('Eliminar transacción');
-      expect(deleteBtns.length).toBeGreaterThan(0);
+      expect(deleteBtns.length).toBe(1);
 
       fireEvent.click(deleteBtns[0]);
       expect(deleteWithUndo).toHaveBeenCalledWith(transactions[0]);
@@ -296,22 +412,25 @@ describe('Acciones rápidas de transacción y reordenamiento de Inicio', () => {
         />
       );
 
-      // 1. Patrimonio total visible
-      expect(screen.getByText('Mi balance')).toBeDefined();
+      // 1. Saldo total visible
+      expect(screen.getByText('Tienes en total')).toBeDefined();
 
-      // 2. Resumen del mes
-      expect(screen.getByText('Resumen del mes')).toBeDefined();
-      expect(screen.getByText('Saldo')).toBeDefined();
+      // 2. Este mes
+      expect(screen.getByText('Este mes')).toBeDefined();
+      expect(screen.getByText('Diferencia')).toBeDefined();
 
-      // 3. Alertas accionables (pago próximo en 7 días)
-      expect(screen.getByText('Alertas y Vencimientos')).toBeDefined();
-      expect(screen.getByText('Servicio de Internet')).toBeDefined();
+      // 3. Próximos vencimientos (pagos y alertas fusionados, sin duplicados)
+      expect(screen.getByText('Próximos vencimientos')).toBeDefined();
+      expect(screen.getAllByText('Servicio de Internet')).toHaveLength(1);
 
-      // 4. Brecha cambiaria visible
-      expect(screen.getByText('Brecha:')).toBeDefined();
+      // 4. La brecha ya no está en Inicio (vive en Tasas)
+      expect(screen.queryByText('Brecha:')).toBeNull();
 
       // 5. Gráficos plegados por defecto
       expect(screen.getByText(/Ver gráficos/i)).toBeDefined();
+
+      // 6. Sin presupuestos no se muestra bloque de presupuestos
+      expect(screen.queryByText(/Presupuestos del mes/i)).toBeNull();
     });
   });
 });

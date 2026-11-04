@@ -3,17 +3,13 @@ import { FinanceContext } from '../../context/FinanceContext';
 import CategoryDetailModal from '../modals/CategoryDetailModal';
 import NetWorthCard from './dashboard/NetWorthCard';
 import MonthSummary from './dashboard/MonthSummary';
-import DashboardAlerts from './dashboard/DashboardAlerts';
-import ExchangeGapBar from './dashboard/ExchangeGapBar';
 import DashboardCharts from './dashboard/DashboardCharts';
-import DashboardBudgets from './dashboard/DashboardBudgets';
-import DashboardObligations from './dashboard/DashboardObligations';
+import DashboardUpcoming from './dashboard/DashboardUpcoming';
 import {
   calculateMonthlyComparison,
-  calculateExchangeGapData,
   calculateBudgetStats,
-  calculateDashboardAlerts,
-  calculateWealthEvolution
+  calculateWealthEvolution,
+  buildUpcomingDue
 } from '../../domain/dashboard';
 
 export default function DashboardView({
@@ -22,28 +18,31 @@ export default function DashboardView({
   grandTotalUsd,
   alternateGrandTotalUsd,
   referenceRate,
-  setReferenceRate,
-  rateHistory,
+  setReferenceRate: _setReferenceRate,
+  rateHistory: _rateHistory,
   rates,
   ratesDetails,
   totalSpentUsd,
   timeFrame,
   setTimeFrame,
   pieData = [],
-  nextPayments = [],
-  nextCollections = [],
+  nextPayments: _nextPayments = [],
+  nextCollections: _nextCollections = [],
   onNavigateTransactions,
   budgets = {},
   transactions = [],
   assets = [],
   obligations = [],
-  onOpenBudgetModal,
+  onOpenBudgetModal: _onOpenBudgetModal,
   auth,
-  onOpenAuthModal,
+  onOpenAuthModal: _onOpenAuthModal,
   getCategoryName,
-  onOpenCategories,
+  onOpenCategories: _onOpenCategories,
   categories = [],
-  onOpenSettings
+  onOpenSettings,
+  onOpenRates,
+  onOpenPlanning,
+  rateNotice = null
 }) {
   const finance = useContext(FinanceContext);
   const allCategories = categories.length > 0 ? categories : (finance?.categories || []);
@@ -57,17 +56,15 @@ export default function DashboardView({
     return calculateMonthlyComparison(transactions, rates);
   }, [transactions, rates]);
 
-  const exchangeGapData = useMemo(() => {
-    return calculateExchangeGapData(rates, ratesDetails, rateHistory);
-  }, [rates, ratesDetails, rateHistory]);
-
   const budgetStats = useMemo(() => {
     return calculateBudgetStats(transactions, budgets, rates, getCategoryName);
   }, [transactions, budgets, rates, getCategoryName]);
 
-  const alerts = useMemo(() => {
-    return calculateDashboardAlerts(allObligations, budgetStats);
+  const upcoming = useMemo(() => {
+    return buildUpcomingDue(allObligations, budgetStats);
   }, [allObligations, budgetStats]);
+
+  const activeBudgetCount = budgetStats?.activeBudgetCategories?.length || 0;
 
   const evolutionStats = useMemo(() => {
     return calculateWealthEvolution(transactions, rates, grandTotalUsd, evolutionGrouping);
@@ -91,35 +88,44 @@ export default function DashboardView({
 
   return (
     <div className="view-container" style={{ padding: '0 1rem 2rem', color: 'var(--text-primary)' }}>
-      {/* 1. Tarjeta de patrimonio total */}
+      {/* 1. ¿Cuánto tengo? */}
       <NetWorthCard
         isBalanceHidden={isBalanceHidden}
         setIsBalanceHidden={setIsBalanceHidden}
         grandTotalUsd={grandTotalUsd}
         alternateGrandTotalUsd={alternateGrandTotalUsd}
         referenceRate={referenceRate}
-        setReferenceRate={setReferenceRate}
         rates={rates}
         ratesDetails={ratesDetails}
         auth={auth}
-        onOpenAuthModal={onOpenAuthModal}
         onOpenSettings={onOpenSettings}
+        onOpenRates={onOpenRates}
+        notice={rateNotice}
       />
 
-      {/* 2. Resumen del mes */}
+      {/* 2. ¿Cómo voy este mes? */}
       <MonthSummary
         monthlyMetrics={monthlyMetrics}
         isBalanceHidden={isBalanceHidden}
         onNavigateTransactions={onNavigateTransactions}
       />
 
-      {/* 3. Alertas y vencimientos */}
-      <DashboardAlerts alerts={alerts} />
+      {/* 3. ¿Qué tengo que pagar pronto? */}
+      <DashboardUpcoming
+        items={upcoming}
+        isBalanceHidden={isBalanceHidden}
+        onSeeAll={onOpenPlanning ? () => onOpenPlanning('deudas') : undefined}
+      />
 
-      {/* 4. Brecha cambiaria en una línea */}
-      <ExchangeGapBar exchangeGapData={exchangeGapData} />
+      {/* Enlaces discretos: presupuestos y gráficos (plegados) */}
+      {activeBudgetCount > 0 && onOpenPlanning && (
+        <div className="home-links">
+          <button type="button" className="link-btn" onClick={() => onOpenPlanning('presupuestos')}>
+            Presupuestos del mes ({activeBudgetCount}) ›
+          </button>
+        </div>
+      )}
 
-      {/* 5. Gráficos interactivos colapsables */}
       <DashboardCharts
         pieData={pieData}
         timeFrame={timeFrame}
@@ -129,20 +135,6 @@ export default function DashboardView({
         setEvolutionGrouping={setEvolutionGrouping}
         onOpenDetailCategory={setDetailCategory}
         allCategories={allCategories}
-      />
-
-      {/* 6. Presupuestos mensuales */}
-      <DashboardBudgets
-        budgetStats={budgetStats}
-        onOpenBudgetModal={onOpenBudgetModal}
-        onOpenCategories={onOpenCategories}
-        allCategories={allCategories}
-      />
-
-      {/* 7. Próximos pagos y cobros */}
-      <DashboardObligations
-        nextPayments={nextPayments}
-        nextCollections={nextCollections}
       />
     </div>
   );

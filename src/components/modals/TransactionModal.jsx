@@ -1,18 +1,20 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import CustomSelect from '../common/CustomSelect';
 import CategoryPicker from '../common/CategoryPicker';
+import { getFrequentExpenses } from '../../domain/frequentExpenses';
 import { todayLocal, toLocalDateString } from '../../utils/dates';
+import { formatAmount } from '../../utils/formatters';
 import { calculateAssetFees, getCurrencyOptions, filterAssetsByCurrency, findMatchingAssetForCurrency } from './transaction/transactionCalculations';
-import TransactionTypeSelector from './transaction/TransactionTypeSelector';
 import TransactionVesDetails from './transaction/TransactionVesDetails';
 import TransactionAccountSection from './transaction/TransactionAccountSection';
+import TransactionFeesSection from './transaction/TransactionFeesSection';
 import TransactionFormFooter from './transaction/TransactionFormFooter';
 
 export default function TransactionModal({
-  mode, onClose, newTx, setNewTx, setMode,
+  mode, onClose, newTx, setNewTx, setMode: _setMode,
   assets = [], transactions = [],
   validationError, setValidationError,
-  onSubmit, onSaveAndAddAnother
+  onSubmit, onSaveAndAddAnother, onSwitchToTransfer
 }) {
   const todayStr = todayLocal();
   const yesterdayDate = new Date();
@@ -24,6 +26,12 @@ export default function TransactionModal({
   const isYesterday = txDateStr === yesterdayStr;
   const isCustomDate = !isToday && !isYesterday;
   const [showCustomDatePicker, setShowCustomDatePicker] = useState(isCustomDate);
+  // "Más detalles" se abre solo si ya hay algo cargado en esos campos (por ejemplo al editar).
+  const hasExtraDetails = Boolean(
+    (newTx?.notes || '').trim() || newTx?.includeCommission || newTx?.includeIgtf ||
+    newTx?.paymentMethod || newTx?.reference || isCustomDate || isYesterday
+  );
+  const [showDetails, setShowDetails] = useState(hasExtraDetails);
 
   const isEditing = Boolean(newTx?.id);
   const oldTx = isEditing ? transactions.find(t => t.id === newTx.id) : null;
@@ -75,6 +83,11 @@ export default function TransactionModal({
     }
   }, [mode, newTx?.type, isEditing]);
 
+  const frequentExpenses = useMemo(
+    () => (mode && !isEditing ? getFrequentExpenses(transactions, { days: 60, limit: 4 }) : []),
+    [mode, isEditing, transactions]
+  );
+
   if (!mode) return null;
 
   const handleAmountChange = (val) => {
@@ -86,6 +99,27 @@ export default function TransactionModal({
       includeIgtf: fees.includeIgtf ? true : prev.includeIgtf,
       commissionAmount: fees.commissionAmount || (val ? prev.commissionAmount : ''),
       includeCommission: fees.includeCommission ? true : prev.includeCommission
+    }));
+  };
+
+  // Toca un gasto frecuente: llena categoría, monto, moneda y cuenta de una vez.
+  const applyFrequent = (f) => {
+    const target = assets.find(a => a.id === f.assetId) || null;
+    const fees = calculateAssetFees(String(f.amount), target, true);
+    setNewTx(prev => ({
+      ...prev,
+      amount: String(f.amount),
+      currency: target ? target.name : f.currency,
+      assetId: target ? target.id : prev.assetId,
+      origin: target ? target.location : prev.origin,
+      category: f.category,
+      category_id: f.category_id,
+      subcategory: f.subcategory,
+      subcategory_id: f.subcategory_id,
+      includeIgtf: fees.includeIgtf,
+      igtfAmount: fees.igtfAmount,
+      includeCommission: fees.includeCommission,
+      commissionAmount: fees.commissionAmount
     }));
   };
 
@@ -139,19 +173,20 @@ export default function TransactionModal({
     }
   };
 
-  if (mode === 'select') {
-    return (
-      <TransactionTypeSelector
-        onClose={onClose}
-        setNewTx={setNewTx}
-        setMode={setMode}
-      />
-    );
-  }
+
+  const detailsSummary = [
+    isToday ? null : (isYesterday ? 'Ayer' : 'Otra fecha'),
+    (newTx.notes || '').trim() ? 'con nota' : null,
+    newTx.includeCommission ? 'con comisión' : null,
+    newTx.includeIgtf ? 'con IGTF' : null,
+    newTx.paymentMethod || null
+  ].filter(Boolean).join(' · ');
+
+  const singleCurrency = currencyOptions.length <= 1;
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
+      <div className="modal-content tx-form-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <button type="button" className="modal-back-btn" onClick={onClose} aria-label="Atrás">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
@@ -159,66 +194,94 @@ export default function TransactionModal({
           </button>
           <h2>
             {isEditing
-              ? (newTx.type === 'income' ? 'Editar Ingreso' : 'Editar Gasto')
-              : (newTx.type === 'income' ? 'Nuevo Ingreso' : 'Nuevo Gasto')}
+              ? (newTx.type === 'income' ? 'Editar ingreso' : 'Editar gasto')
+              : (newTx.type === 'income' ? 'Nuevo ingreso' : 'Nuevo gasto')}
           </h2>
           <div style={{ width: '64px' }} />
         </div>
 
-        <form onSubmit={onSubmit}>
-          {/* 1. Selector de Tipo */}
-          <div className="input-group">
-            <label>Tipo de Transacción</label>
-            <div className="segmented-control">
+        <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+          {/* 1. Tipo */}
+          <div className="segmented-control" role="group" aria-label="Tipo de movimiento">
+            <button
+              type="button"
+              className={`segmented-btn ${newTx.type === 'spent' ? 'active' : ''}`}
+              aria-pressed={newTx.type === 'spent'}
+              onClick={() => handleTypeChange('spent')}
+            >
+              Gasto
+            </button>
+            <button
+              type="button"
+              className={`segmented-btn ${newTx.type === 'income' ? 'active' : ''}`}
+              aria-pressed={newTx.type === 'income'}
+              onClick={() => handleTypeChange('income')}
+            >
+              Ingreso
+            </button>
+            {!isEditing && onSwitchToTransfer && (
               <button
                 type="button"
-                className={`segmented-btn ${newTx.type === 'income' ? 'active-success' : ''}`}
-                onClick={() => handleTypeChange('income')}
+                className="segmented-btn"
+                onClick={() => onSwitchToTransfer({ amount: newTx.amount, currency: newTx.currency, assetId: newTx.assetId })}
               >
-                Ingreso (+)
+                Transferencia
               </button>
-              <button
-                type="button"
-                className={`segmented-btn ${newTx.type === 'spent' ? 'active-danger' : ''}`}
-                onClick={() => handleTypeChange('spent')}
-              >
-                Gasto (-)
-              </button>
+            )}
+          </div>
+
+          {/* Atajos: tus gastos frecuentes de los últimos 60 días */}
+          {!isEditing && newTx.type === 'spent' && !newTx.amount && frequentExpenses.length > 0 && (
+            <div className="frequent-chips" role="group" aria-label="Gastos frecuentes">
+              {frequentExpenses.map(f => (
+                <button
+                  key={f.key}
+                  type="button"
+                  className="frequent-chip"
+                  onClick={() => applyFrequent(f)}
+                  aria-label={`Usar gasto frecuente: ${f.label}, ${formatAmount(f.amount, f.currency)} ${f.currency}`}
+                >
+                  <span className="frequent-chip-label">{f.label}</span>
+                  <span className="frequent-chip-amount">{formatAmount(f.amount, f.currency)} {f.currency}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* 2. Monto grande + moneda */}
+          <div className="tx-amount-hero">
+            <input
+              type="text"
+              inputMode="decimal"
+              aria-label="Monto"
+              placeholder="0,00"
+              value={newTx.amount}
+              onChange={e => handleAmountChange(e.target.value)}
+              required
+            />
+            <div className="tx-currency-chip-wrap">
+              {singleCurrency ? (
+                <span className="tx-currency-chip" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {newTx.currency || currencyOptions[0]?.value || '—'}
+                </span>
+              ) : (
+                <CustomSelect
+                  placeholder="Moneda"
+                  title="Seleccionar moneda"
+                  value={newTx.currency || ''}
+                  onChange={handleCurrencyChange}
+                  options={currencyOptions}
+                />
+              )}
             </div>
           </div>
 
-          {/* 2. Monto y Moneda */}
-          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-start', marginBottom: '1rem' }}>
-            <div className="input-group" style={{ flex: 1.6, marginBottom: 0 }}>
-              <label>Monto</label>
-              <input
-                type="text"
-                inputMode="decimal"
-                className="input-field"
-                placeholder="0,00"
-                value={newTx.amount}
-                onChange={e => handleAmountChange(e.target.value)}
-                required
-                style={{ fontSize: '1.2rem', fontWeight: 700 }}
-              />
-            </div>
-            <div className="input-group" style={{ flex: 1, marginBottom: 0 }}>
-              <label>Moneda</label>
-              <CustomSelect
-                placeholder="Moneda"
-                title="Seleccionar Moneda"
-                value={newTx.currency || ''}
-                onChange={handleCurrencyChange}
-                options={currencyOptions}
-              />
-            </div>
-          </div>
-
-          {/* 3. CategoryPicker */}
+          {/* 3. Categoría */}
           {(newTx.type === 'spent' || newTx.type === 'income') && (
             <div className="input-group">
-              <label>Categoría</label>
+              <span className="form-section-label">Categoría</span>
               <CategoryPicker
+                compact
                 kind={newTx.type === 'income' ? 'income' : 'expense'}
                 selectedCategoryId={newTx.category_id}
                 selectedSubcategoryId={newTx.subcategory_id}
@@ -236,33 +299,59 @@ export default function TransactionModal({
             </div>
           )}
 
-          {/* 4. Cuenta y comisiones */}
+          {/* 4. Cuenta */}
           <TransactionAccountSection
             newTx={newTx}
-            setNewTx={setNewTx}
             assets={assets}
             availableAssetsForTx={availableAssetsForTx}
-            selectedAsset={selectedAsset}
             handleAssetSelect={handleAssetSelect}
             oldTx={oldTx}
           />
 
-          {/* Detalles opcionales VES */}
-          <TransactionVesDetails
-            newTx={newTx}
-            setNewTx={setNewTx}
-          />
+          {/* 5. Más detalles (plegado): fecha, nota, comisión e IGTF, pago en Bs */}
+          <button
+            type="button"
+            className="tx-more-toggle"
+            aria-expanded={showDetails}
+            onClick={() => setShowDetails(v => !v)}
+          >
+            <span>Más detalles</span>
+            <span className="summary">{detailsSummary ? `· ${detailsSummary}` : ''}</span>
+            <span aria-hidden="true">{showDetails ? '▴' : '▾'}</span>
+          </button>
 
-          {/* 5 y 6. Fecha, Nota y Acciones */}
+          {showDetails && (
+            <div className="tx-more-panel">
+              <TransactionFormFooter
+                section="details"
+                newTx={newTx}
+                setNewTx={setNewTx}
+                todayStr={todayStr}
+                yesterdayStr={yesterdayStr}
+                isToday={isToday}
+                isYesterday={isYesterday}
+                showCustomDatePicker={showCustomDatePicker}
+                setShowCustomDatePicker={setShowCustomDatePicker}
+              />
+              <TransactionFeesSection
+                newTx={newTx}
+                setNewTx={setNewTx}
+                selectedAsset={selectedAsset}
+              />
+              <TransactionVesDetails
+                newTx={newTx}
+                setNewTx={setNewTx}
+              />
+            </div>
+          )}
+
+          <div style={{ flex: 1 }} />
+
+          {/* 6. Guardar (fijo abajo) */}
           <TransactionFormFooter
+            section="actions"
             newTx={newTx}
             setNewTx={setNewTx}
-            todayStr={todayStr}
-            yesterdayStr={yesterdayStr}
-            isToday={isToday}
-            isYesterday={isYesterday}
-            showCustomDatePicker={showCustomDatePicker}
-            setShowCustomDatePicker={setShowCustomDatePicker}
             validationError={validationError}
             setValidationError={setValidationError}
             isEditing={isEditing}

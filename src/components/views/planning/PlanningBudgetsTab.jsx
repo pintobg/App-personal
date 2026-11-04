@@ -1,5 +1,7 @@
+import PlanningTabHeader from './PlanningTabHeader';
+import { Icon } from '../../ui';
 import React, { useMemo } from 'react';
-import { formatAmount, getBudgetColor, translateCategory, getTxUsdEquivalent } from '../../../utils/formatters';
+import { formatAmount, getBudgetColor, translateCategory, getTxUsdEquivalent, formatPercent } from '../../../utils/formatters';
 
 export default function PlanningBudgetsTab({
   budgets = {},
@@ -61,50 +63,13 @@ export default function PlanningBudgetsTab({
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 600, color: 'var(--text-primary)' }}>Presupuestos del Mes</h2>
-          <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Límites mensuales de gasto</p>
-        </div>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          {onOpenCategories && (
-            <button
-              type="button"
-              onClick={onOpenCategories}
-              style={{
-                padding: '0.45rem 0.85rem',
-                borderRadius: '12px',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                background: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border-color)',
-                color: 'var(--text-secondary)',
-                cursor: 'pointer'
-              }}
-            >
-              🏷️ Categorías
-            </button>
-          )}
-          {onOpenBudgetModal && (
-            <button
-              type="button"
-              onClick={onOpenBudgetModal}
-              style={{
-                padding: '0.45rem 0.85rem',
-                borderRadius: '12px',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                background: 'var(--color-accent-soft)',
-                border: '1px solid var(--color-accent-border)',
-                color: 'var(--color-accent)',
-                cursor: 'pointer'
-              }}
-            >
-              ⚙️ Ajustar límites
-            </button>
-          )}
-        </div>
-      </div>
+      <PlanningTabHeader
+        hint="Cuánto quieres gastar como máximo cada mes."
+        actions={[
+          onOpenCategories && { label: 'Categorías', onClick: onOpenCategories },
+          onOpenBudgetModal && budgetStats.activeBudgetCategories.length > 0 && { label: 'Editar límites', onClick: onOpenBudgetModal, primary: true }
+        ]}
+      />
 
       {budgetStats.activeBudgetCategories.length === 0 ? (
         <div className="glass-card" style={{ padding: '2rem 1rem', textAlign: 'center', borderRadius: '16px', backgroundColor: 'var(--bg-surface)', border: '1px solid var(--border-color)' }}>
@@ -161,7 +126,7 @@ export default function PlanningBudgetsTab({
                   border: '1px solid var(--border-color)'
                 }}
               >
-                {budgetStats.totalPercent.toFixed(1)}%
+                {formatPercent(budgetStats.totalPercent, 1)}
               </div>
             </div>
 
@@ -189,7 +154,7 @@ export default function PlanningBudgetsTab({
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
               <span>
                 {budgetStats.totalPercent >= 100
-                  ? `⚠️ Excedido por $${formatAmount(budgetStats.totalSpentInBudgets - budgetStats.totalBudgetUsd, 'USD')}`
+                  ? `Te pasaste por $${formatAmount(budgetStats.totalSpentInBudgets - budgetStats.totalBudgetUsd, 'USD')}`
                   : `Disponible: $${formatAmount(budgetStats.totalBudgetUsd - budgetStats.totalSpentInBudgets, 'USD')}`}
               </span>
               <span>
@@ -222,9 +187,9 @@ export default function PlanningBudgetsTab({
                     </span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <span style={{ fontSize: '0.8rem', fontWeight: 600, color: barColor }}>
-                        {percent.toFixed(0)}%
+                        {formatPercent(percent, 0)}
                       </span>
-                      {isExceeded && <span style={{ fontSize: '0.72rem', color: 'var(--color-danger)' }}>⚠️</span>}
+                      {isExceeded && <span style={{ color: 'var(--color-danger)', display: 'inline-flex' }}><Icon name="alert" size={14} title="Te pasaste del límite" /></span>}
                     </div>
                   </div>
 

@@ -139,3 +139,41 @@ describe('Utils: dates.js', () => {
     });
   });
 });
+
+describe('fechas legibles', () => {
+  const now = new Date(2026, 10, 3, 10, 0, 0); // 3 nov 2026
+
+  it('formatFriendlyDate: hoy, ayer, mañana, mismo año y otro año', async () => {
+    const { formatFriendlyDate } = await import('./dates');
+    expect(formatFriendlyDate('2026-11-03', { now })).toBe('Hoy');
+    expect(formatFriendlyDate('2026-11-02', { now })).toBe('Ayer');
+    expect(formatFriendlyDate('2026-11-04', { now })).toBe('Mañana');
+    expect(formatFriendlyDate('2026-10-15', { now })).toBe('15 oct');
+    expect(formatFriendlyDate('2025-12-31', { now })).toBe('31 dic 2025');
+  });
+
+  it('formatFriendlyDate: con hora real la incluye', async () => {
+    const { formatFriendlyDate } = await import('./dates');
+    const withTime = new Date(2026, 10, 3, 14, 30, 0).toISOString();
+    expect(formatFriendlyDate(withTime, { now, withTime: true })).toBe('Hoy, 14:30');
+    expect(formatFriendlyDate('2026-11-03', { now, withTime: true })).toBe('Hoy');
+  });
+
+  it('formatFriendlyDate: cambio de año el 1 de enero', async () => {
+    const { formatFriendlyDate } = await import('./dates');
+    const jan1 = new Date(2027, 0, 1, 9, 0, 0);
+    expect(formatFriendlyDate('2026-12-31', { now: jan1 })).toBe('Ayer');
+    expect(formatFriendlyDate('2026-12-30', { now: jan1 })).toBe('30 dic 2026');
+  });
+
+  it('formatDayHeader y formatDueLabel', async () => {
+    const { formatDayHeader, formatDueLabel } = await import('./dates');
+    expect(formatDayHeader('2026-11-03', { now })).toBe('Hoy');
+    expect(formatDayHeader('2026-11-02', { now })).toBe('Ayer');
+    expect(formatDayHeader('2026-11-01', { now })).toBe('Domingo 1 nov');
+    expect(formatDueLabel('2026-11-01', { now })).toBe('Vencido hace 2 días');
+    expect(formatDueLabel('2026-11-03', { now })).toBe('Vence hoy');
+    expect(formatDueLabel('2026-11-08', { now })).toBe('Vence en 5 días');
+    expect(formatDueLabel('2026-12-20', { now })).toBe('Vence el 20 dic');
+  });
+});

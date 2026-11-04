@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { translateCategory } from '../../../utils/formatters';
+import { translateCategory, formatAmount, formatNumber } from '../../../utils/formatters';
 import { COLORS } from '../../../utils/constants';
 import ExpenseCategoryBreakdown from './ExpenseCategoryBreakdown';
 import { createPieSectorRenderer } from './PieSectorRenderer';
@@ -25,8 +25,8 @@ export default function ExpensePieChart({
   );
 
   const centerValue = activeItem ? activeItem.value : totalPieUsd;
-  const centerAmountText = `$${centerValue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  const totalShortText = `Total: $${totalPieUsd.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+  const centerAmountText = `$${formatAmount(centerValue, 'USD')}`;
+  const totalShortText = `Total: $${formatNumber(totalPieUsd, 0)}`;
   const longestLen = Math.max(
     centerAmountText.length,
     activeItem ? Math.min(14, translateCategory(activeItem.name).length) : 10,

@@ -166,3 +166,73 @@ export function formatTxDateTime(dateInput) {
   const minutes = String(d.getMinutes()).padStart(2, '0');
   return `${datePart} ${hours}:${minutes}`;
 }
+
+const MONTHS_SHORT = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const WEEKDAYS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+function dayDiffFromToday(dateStr, now) {
+  const todayStr = toLocalDateString(now);
+  return Math.round((parseLocalDate(dateStr) - parseLocalDate(todayStr)) / 86400000);
+}
+
+function timePart(dateInput) {
+  const d = dateInput instanceof Date ? dateInput : new Date(dateInput);
+  if (isNaN(d.getTime())) return '';
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/**
+ * Fecha legible para la interfaz: "Hoy", "Ayer", "Mañana", "3 nov" o "3 nov 2025".
+ * Con { withTime: true } y si la fecha tiene hora real: "Hoy, 14:30".
+ * Solo para mostrar: las fechas se siguen guardando como 'YYYY-MM-DD'.
+ */
+export function formatFriendlyDate(dateInput, { withTime = false, now = new Date() } = {}) {
+  if (!dateInput) return '';
+  const dateStr = toLocalDateString(dateInput);
+  if (!dateStr) return String(dateInput);
+  const diff = dayDiffFromToday(dateStr, now);
+  let label;
+  if (diff === 0) label = 'Hoy';
+  else if (diff === -1) label = 'Ayer';
+  else if (diff === 1) label = 'Mañana';
+  else {
+    const d = parseLocalDate(dateStr);
+    label = `${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
+    if (d.getFullYear() !== now.getFullYear()) label += ` ${d.getFullYear()}`;
+  }
+  if (withTime && hasExplicitTime(dateInput)) {
+    const t = timePart(dateInput);
+    if (t) label += `, ${t}`;
+  }
+  return label;
+}
+
+/**
+ * Encabezado de grupo por día: "Hoy", "Ayer", "Lunes 3 nov", "Sábado 1 nov 2025".
+ */
+export function formatDayHeader(dateInput, { now = new Date() } = {}) {
+  const dateStr = toLocalDateString(dateInput);
+  if (!dateStr) return '';
+  const diff = dayDiffFromToday(dateStr, now);
+  if (diff === 0) return 'Hoy';
+  if (diff === -1) return 'Ayer';
+  const d = parseLocalDate(dateStr);
+  let label = `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS_SHORT[d.getMonth()]}`;
+  if (d.getFullYear() !== now.getFullYear()) label += ` ${d.getFullYear()}`;
+  return label;
+}
+
+/**
+ * Texto relativo para vencimientos: "Vencido hace 2 días", "Vence hoy", "Vence mañana", "Vence en 5 días", "Vence el 3 nov".
+ */
+export function formatDueLabel(dateInput, { now = new Date() } = {}) {
+  const dateStr = toLocalDateString(dateInput);
+  if (!dateStr) return 'Sin fecha';
+  const diff = dayDiffFromToday(dateStr, now);
+  if (diff < -1) return `Vencido hace ${-diff} días`;
+  if (diff === -1) return 'Vencido ayer';
+  if (diff === 0) return 'Vence hoy';
+  if (diff === 1) return 'Vence mañana';
+  if (diff <= 7) return `Vence en ${diff} días`;
+  return `Vence el ${formatFriendlyDate(dateStr, { now })}`;
+}

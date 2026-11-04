@@ -21,7 +21,17 @@ export function useTransactionFiltering({
   const [dateRangeFilter, setDateRangeFilter] = useState('all');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
-  const [accountFilter, setAccountFilter] = useState('all');
+  // "Ver movimientos" desde Cuentas deja la cuenta elegida en sessionStorage.
+  const [accountFilter, setAccountFilter] = useState(() => {
+    try {
+      const pending = sessionStorage.getItem('tx_account_filter');
+      if (pending) {
+        sessionStorage.removeItem('tx_account_filter');
+        return pending;
+      }
+    } catch { /* sin almacenamiento */ }
+    return 'all';
+  });
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [currencyFilter, setCurrencyFilter] = useState('all');
 

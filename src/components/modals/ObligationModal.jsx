@@ -44,7 +44,7 @@ export default function ObligationModal({
           currency: newOb.currency || 'USD'
         });
       } catch (err) {
-        planError = err.message || 'Error al calcular cuotas';
+        planError = err.message || 'No pudimos calcular las cuotas. Revisa el monto y la cantidad de cuotas.';
       }
     }
   }

@@ -24,20 +24,20 @@ export default function IconButton({
 
   const sizeStyles = {
     sm: {
-      width: '28px',
-      height: '28px',
+      width: '36px',
+      height: '36px',
       fontSize: 'var(--font-sm)',
       borderRadius: 'var(--radius-sm)'
     },
     md: {
-      width: '36px',
-      height: '36px',
+      width: '44px',
+      height: '44px',
       fontSize: 'var(--font-base)',
       borderRadius: 'var(--radius-md)'
     },
     lg: {
-      width: '44px',
-      height: '44px',
+      width: '48px',
+      height: '48px',
       fontSize: 'var(--font-lg)',
       borderRadius: 'var(--radius-md)'
     }

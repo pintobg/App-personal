@@ -27,7 +27,8 @@ export default function CategoryPicker({
   onChange,
   transactions: customTransactions = null,
   categories: customCategories = null,
-  showCreate = true
+  showCreate = true,
+  compact = false
 }) {
   const finance = useContext(FinanceContext);
   const fallbackCategories = useCategories();
@@ -49,6 +50,8 @@ export default function CategoryPicker({
   const showToast = finance?.showToast || (() => {});
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAll, setShowAll] = useState(false);
+  const isCollapsed = compact && !showAll;
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [newCatIcon, setNewCatIcon] = useState('📦');
@@ -162,12 +165,54 @@ export default function CategoryPicker({
       setIsCreateModalOpen(false);
       setNewCatName('');
     } catch {
-      showToast('Error al crear categoría', 'error');
+      showToast('No pudimos crear la categoría. Intenta de nuevo.', 'error');
     }
   };
 
+  // Fila compacta: las más usadas (o las primeras activas) + la seleccionada + "Todas"
+  const quickRowCategories = (() => {
+    const base = topFrequentCategories.length > 0 ? topFrequentCategories : activeCategories.slice(0, 6);
+    if (currentCategory && !base.some(c => c.id === currentCategory.id)) {
+      return [currentCategory, ...base.slice(0, 5)];
+    }
+    return base;
+  })();
+
   return (
     <div className="category-picker" style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', width: '100%' }}>
+      {isCollapsed && (
+        <div className="category-quick-row" role="group" aria-label="Categorías frecuentes">
+          {quickRowCategories.map(cat => {
+            const isSelected = selectedCategoryId === cat.id;
+            return (
+              <button
+                key={`quick-${cat.id}`}
+                type="button"
+                className={`category-quick-chip${isSelected ? ' selected' : ''}`}
+                aria-pressed={isSelected}
+                onClick={() => handleSelectCategory(cat)}
+                style={isSelected ? {
+                  backgroundColor: tint(cat.color || 'var(--color-accent)', 0.25),
+                  borderColor: cat.color || 'var(--color-accent)'
+                } : undefined}
+              >
+                <span aria-hidden="true">{cat.icon || '📦'}</span>
+                <span>{cat.name}</span>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            className="category-quick-chip more"
+            onClick={() => setShowAll(true)}
+          >
+            Todas ▾
+          </button>
+        </div>
+      )}
+
+      {!isCollapsed && (
+      <>
       {/* Barra superior: Buscador + Botón Nueva */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <div style={{ position: 'relative', flex: 1 }}>
@@ -376,6 +421,14 @@ export default function CategoryPicker({
           </div>
         )}
       </div>
+
+      {compact && (
+        <button type="button" className="link-btn" onClick={() => { setShowAll(false); setSearchQuery(''); }}>
+          Ver menos ▴
+        </button>
+      )}
+      </>
+      )}
 
       {/* Sección 3: Subcategorías (aparecen si la categoría seleccionada tiene subcategorías) */}
       {currentCategory && availableSubcategories.length > 0 && (

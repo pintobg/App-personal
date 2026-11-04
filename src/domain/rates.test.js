@@ -138,3 +138,27 @@ describe('Domain: rates (Cálculo de brecha cambiaria y tasa efectiva)', () => {
     });
   });
 });
+
+describe('getRateProblems', () => {
+  it('detecta falta de tasa del dólar', async () => {
+    const { getRateProblems } = await import('./rates');
+    const r = getRateProblems([{ id: '1', name: 'VES' }, { id: '2', name: 'USD' }], { USD: 1 });
+    expect(r.missingDollarRate).toBe(true);
+    expect(r.unknownSymbols).toEqual([]);
+    expect(r.hasProblems).toBe(true);
+  });
+
+  it('detecta cripto sin precio y agrupa en una sola lista', async () => {
+    const { getRateProblems } = await import('./rates');
+    const assets = [{ id: '1', name: 'xyz' }, { id: '2', name: 'ABC' }, { id: '3', name: 'XYZ' }, { id: '4', name: 'BTC' }, { id: '5', name: 'USDT' }];
+    const r = getRateProblems(assets, { VES: 40, BTC: 60000 });
+    expect(r.missingDollarRate).toBe(false);
+    expect(r.unknownSymbols).toEqual(['ABC', 'XYZ']);
+    expect(r.firstAssetBySymbol.XYZ.id).toBe('1');
+  });
+
+  it('sin cuentas no hay problemas', async () => {
+    const { getRateProblems } = await import('./rates');
+    expect(getRateProblems([], {}).hasProblems).toBe(false);
+  });
+});

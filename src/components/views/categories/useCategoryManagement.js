@@ -109,7 +109,7 @@ export function useCategoryManagement({
       setIsNewCategoryModalOpen(false);
       setNewCatName('');
     } catch {
-      if (showToast) showToast('Error al crear categoría', 'error');
+      if (showToast) showToast('No pudimos crear la categoría. Intenta de nuevo.', 'error');
     }
   };
 
@@ -134,7 +134,7 @@ export function useCategoryManagement({
       setIsNewSubcategoryModalOpen(false);
       setNewSubcatName('');
     } catch {
-      if (showToast) showToast('Error al crear subcategoría', 'error');
+      if (showToast) showToast('No pudimos crear la subcategoría. Intenta de nuevo.', 'error');
     }
   };
 

@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { Icon } from '../ui';
 import { verifyAllAssetsBalances } from '../../domain/balances';
 import { formatAmount } from '../../utils/formatters';
 
@@ -42,7 +43,7 @@ export default function VerifyBalancesModal({
           alignItems: 'center',
           gap: '0.65rem'
         }}>
-          <span style={{ fontSize: '1.25rem' }}>{allMatched ? '✅' : '⚠️'}</span>
+          <span className="section-icon" style={{ color: allMatched ? 'var(--color-success)' : 'var(--color-warning)' }}><Icon name={allMatched ? 'checkCircle' : 'alert'} /></span>
           <div>
             <div style={{ fontWeight: 700, fontSize: '0.95rem', color: allMatched ? 'var(--color-success)' : 'var(--color-danger)' }}>
               {allMatched ? 'Todos los saldos coinciden' : `${mismatchesCount} cuenta(s) con diferencias`}
