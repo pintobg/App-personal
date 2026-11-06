@@ -82,10 +82,14 @@ export function useRateHistory(veRates) {
           if (row.bcvUsd) lastUsd = row.bcvUsd;
           if (row.bcvEur) lastEur = row.bcvEur;
           if (row.paralelo) lastPar = row.paralelo;
+          const u = row.bcvUsd || lastUsd;
+          const e = row.bcvEur || lastEur;
+          const avg = (u > 0 && e > 0) ? Number(((u + e) / 2).toFixed(4)) : (u || e || null);
           return {
             date: d,
-            bcvUsd: row.bcvUsd || lastUsd,
-            bcvEur: row.bcvEur || lastEur,
+            bcvUsd: u,
+            bcvEur: e,
+            avgBcv: avg,
             paralelo: row.paralelo || lastPar
           };
         });

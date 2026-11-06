@@ -40,6 +40,7 @@ export default function RateHistoryChart({
         {[
           { id: 'bcvUsd', label: 'USD BCV', activeBg: 'var(--color-success-soft)', activeColor: 'var(--color-success)', border: 'var(--color-success-border)' },
           { id: 'bcvEur', label: 'EUR BCV', activeBg: 'var(--color-info-soft)', activeColor: 'var(--color-info)', border: 'var(--color-info-border)' },
+          { id: 'avgBcv', label: 'Promedio', activeBg: 'var(--color-accent-soft)', activeColor: 'var(--color-accent)', border: 'var(--color-accent-border)' },
           { id: 'paralelo', label: 'Paralelo', activeBg: 'var(--color-warning-soft)', activeColor: 'var(--color-warning)', border: 'var(--color-warning-border)' }
         ].map(tab => {
           const isActive = historyCurrency === tab.id;

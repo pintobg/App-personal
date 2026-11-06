@@ -62,8 +62,10 @@ export async function fetchBcvRates() {
   const now = new Date().toISOString();
   let bcvUsd = null;
   let bcvEur = null;
-  let fuente = null;
-  let fechaValor = null;
+  let usdFuente = null;
+  let eurFuente = null;
+  let usdFechaValor = null;
+  let eurFechaValor = null;
 
   // 1. Intentar rates.dolarvzla.com
   try {
@@ -74,19 +76,25 @@ export async function fetchBcvRates() {
       console.info('[ratesService] dolarvzla raw date:', rawDate);
       const usdVal = data?.current?.usd;
       const eurVal = data?.current?.eur;
+
+      let dateFormatted = null;
+      if (rawDate) {
+        dateFormatted = hasExplicitTime(rawDate)
+          ? rawDate
+          : toLocalDateString(parseLocalDate(rawDate));
+      } else {
+        dateFormatted = toLocalDateString(new Date());
+      }
+
       if (usdVal && Number(usdVal) > 0) {
         bcvUsd = Number(usdVal);
-        fuente = 'dolarvzla';
-        if (rawDate) {
-          fechaValor = hasExplicitTime(rawDate)
-            ? rawDate
-            : toLocalDateString(parseLocalDate(rawDate));
-        } else {
-          fechaValor = toLocalDateString(new Date());
-        }
+        usdFuente = 'dolarvzla';
+        usdFechaValor = dateFormatted;
       }
       if (eurVal && Number(eurVal) > 0) {
         bcvEur = Number(eurVal);
+        eurFuente = 'dolarvzla';
+        eurFechaValor = dateFormatted;
       }
     }
   } catch (err) {
@@ -102,15 +110,11 @@ export async function fetchBcvRates() {
         console.info('[ratesService] dolarapi oficial raw date:', data?.fechaActualizacion);
         if (data?.promedio && Number(data.promedio) > 0) {
           bcvUsd = Number(data.promedio);
-          fuente = 'dolarapi';
+          usdFuente = 'dolarapi';
           const rawDate = data.fechaActualizacion;
-          if (rawDate) {
-            fechaValor = hasExplicitTime(rawDate)
-              ? rawDate
-              : toLocalDateString(parseLocalDate(rawDate));
-          } else {
-            fechaValor = toLocalDateString(new Date());
-          }
+          usdFechaValor = rawDate
+            ? (hasExplicitTime(rawDate) ? rawDate : toLocalDateString(parseLocalDate(rawDate)))
+            : toLocalDateString(new Date());
         }
       }
     } catch (err) {
@@ -126,12 +130,11 @@ export async function fetchBcvRates() {
         console.info('[ratesService] dolarapi euros raw date:', data?.fechaActualizacion);
         if (data?.promedio && Number(data.promedio) > 0) {
           bcvEur = Number(data.promedio);
-          if (!fechaValor && data.fechaActualizacion) {
-            const rawDate = data.fechaActualizacion;
-            fechaValor = hasExplicitTime(rawDate)
-              ? rawDate
-              : toLocalDateString(parseLocalDate(rawDate));
-          }
+          eurFuente = 'dolarapi';
+          const rawDate = data.fechaActualizacion;
+          eurFechaValor = rawDate
+            ? (hasExplicitTime(rawDate) ? rawDate : toLocalDateString(parseLocalDate(rawDate)))
+            : toLocalDateString(new Date());
         }
       }
     } catch (err) {
@@ -142,15 +145,15 @@ export async function fetchBcvRates() {
   return {
     bcvUsd: {
       valor: bcvUsd,
-      fuente: bcvUsd ? fuente || 'dolarapi' : null,
+      fuente: bcvUsd ? usdFuente : null,
       fechaConsulta: now,
-      fechaValor: bcvUsd ? fechaValor : null
+      fechaValor: bcvUsd ? usdFechaValor : null
     },
     bcvEur: {
       valor: bcvEur,
-      fuente: bcvEur ? (fuente || 'dolarapi') : null,
+      fuente: bcvEur ? eurFuente : null,
       fechaConsulta: now,
-      fechaValor: bcvEur ? fechaValor : null
+      fechaValor: bcvEur ? eurFechaValor : null
     }
   };
 }
@@ -459,6 +462,16 @@ export async function fetchAllExchangeRates(assetSymbols = [], currentCustomRate
 
   if (bcvResult.bcvUsd?.valor) {
     rates.VES = bcvResult.bcvUsd.valor;
+    rates.bcvUsd = bcvResult.bcvUsd.valor;
+  }
+  if (bcvResult.bcvEur?.valor) {
+    rates.bcvEur = bcvResult.bcvEur.valor;
+  }
+  if (paraleloResult?.valor) {
+    rates.paralelo = paraleloResult.valor;
+  }
+  if (rates.bcvUsd && rates.bcvEur) {
+    rates.avgBcv = Number(((rates.bcvUsd + rates.bcvEur) / 2).toFixed(4));
   }
 
   // Agregar fiats
@@ -669,10 +682,14 @@ export async function fetchRateHistory(currentRates = {}) {
         if (row.bcvUsd) lastUsd = row.bcvUsd;
         if (row.bcvEur) lastEur = row.bcvEur;
         if (row.paralelo) lastPar = row.paralelo;
+        const u = row.bcvUsd || lastUsd;
+        const e = row.bcvEur || lastEur;
+        const avg = (u > 0 && e > 0) ? Number(((u + e) / 2).toFixed(4)) : (u || e || null);
         return {
           date: d,
-          bcvUsd: row.bcvUsd || lastUsd,
-          bcvEur: row.bcvEur || lastEur,
+          bcvUsd: u,
+          bcvEur: e,
+          avgBcv: avg,
           paralelo: row.paralelo || lastPar
         };
       });

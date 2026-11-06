@@ -109,4 +109,32 @@ describe('Service: syncService - Manejo de fallos en Supabase', () => {
     const updatedQueue = getQueue();
     expect(updatedQueue.find(i => i.payload?.id === 'ob-to-discard')).toBeUndefined();
   });
+
+  it('resilientUpsert reintenta y tiene éxito si Supabase reporta una columna no encontrada', async () => {
+    const { supabase } = await import('./supabaseClient');
+    let callCount = 0;
+    let lastPayload = null;
+
+    supabase.from = vi.fn().mockReturnValue({
+      upsert: vi.fn().mockImplementation((payload) => {
+        callCount++;
+        lastPayload = payload;
+        if (callCount === 1) {
+          return Promise.resolve({
+            data: null,
+            error: new Error("Could not find the 'category_id' column of 'obligations' in the schema cache")
+          });
+        }
+        return Promise.resolve({ data: [{ id: 'ob-ok' }], error: null });
+      })
+    });
+
+    const { syncService, getPendingCount } = await import('./syncService');
+    await syncService.queueChange('obligations', 'upsert', { id: 'ob-missing-col', category_id: 'exp.food', title: 'Comida' }, 'user-123');
+
+    expect(getPendingCount()).toBe(0);
+    expect(callCount).toBe(2);
+    expect(lastPayload.category_id).toBeUndefined();
+    expect(lastPayload.title).toBe('Comida');
+  });
 });

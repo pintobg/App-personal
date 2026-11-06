@@ -79,19 +79,27 @@ export default function CalculatorView({
   }, [rateHistory, selectedDate]);
 
   const activeRates = useMemo(() => {
-    if (rateMode === 'historical' && resolvedHistoricalEntry) {
-      return {
-        bcvUsd: resolvedHistoricalEntry.bcvUsd || veRates.bcvUsd || 0,
-        bcvEur: resolvedHistoricalEntry.bcvEur || veRates.bcvEur || 0,
-        paralelo: resolvedHistoricalEntry.paralelo || veRates.paralelo || 0,
-        custom: veRates.custom || 0
-      };
-    }
+    const bcvUsd = (rateMode === 'historical' && resolvedHistoricalEntry)
+      ? (resolvedHistoricalEntry.bcvUsd || veRates.bcvUsd || 0)
+      : (veRates.bcvUsd || 0);
+    const bcvEur = (rateMode === 'historical' && resolvedHistoricalEntry)
+      ? (resolvedHistoricalEntry.bcvEur || veRates.bcvEur || 0)
+      : (veRates.bcvEur || 0);
+    const paralelo = (rateMode === 'historical' && resolvedHistoricalEntry)
+      ? (resolvedHistoricalEntry.paralelo || veRates.paralelo || 0)
+      : (veRates.paralelo || 0);
+    const custom = veRates.custom || 0;
+    const avgBcv = (bcvUsd > 0 && bcvEur > 0)
+      ? (bcvUsd + bcvEur) / 2
+      : (bcvUsd || bcvEur || 0);
+
     return {
-      bcvUsd: veRates.bcvUsd || 0,
-      bcvEur: veRates.bcvEur || 0,
-      paralelo: veRates.paralelo || 0,
-      custom: veRates.custom || 0
+      bcvUsd,
+      bcvEur,
+      eur: bcvEur,
+      avgBcv,
+      paralelo,
+      custom
     };
   }, [rateMode, resolvedHistoricalEntry, veRates]);
 
@@ -103,7 +111,8 @@ export default function CalculatorView({
       case 'BS': return num;
       case 'BCV_USD': return num * activeRates.bcvUsd;
       case 'PARALELO': return num * activeRates.paralelo;
-      case 'EUR': return num * activeRates.bcvEur;
+      case 'EUR': return num * (activeRates.bcvEur || activeRates.eur || 0);
+      case 'AVG_BCV': return num * (activeRates.avgBcv || 0);
       case 'CUSTOM': return num * (activeRates.custom || 0);
       default: return '';
     }
@@ -168,8 +177,9 @@ export default function CalculatorView({
   const historyCurrencyMeta = {
     bcvUsd: { label: 'USD BCV', subtitle: 'Tasa Oficial BCV', color: 'var(--color-success)', fill: 'var(--color-success-soft)' },
     bcvEur: { label: 'EUR BCV', subtitle: 'Euro Oficial BCV', color: 'var(--color-info)', fill: 'var(--color-info-soft)' },
+    avgBcv: { label: 'Promedio BCV', subtitle: 'Promedio Dólar y Euro BCV', color: 'var(--color-accent)', fill: 'var(--color-accent-soft)' },
     paralelo: { label: 'Paralelo', subtitle: 'Monitor / Paralelo', color: 'var(--color-warning)', fill: 'var(--color-warning-soft)' }
-  }[historyCurrency];
+  }[historyCurrency] || { label: 'Tasa', subtitle: '', color: 'var(--color-accent)', fill: 'var(--color-accent-soft)' };
 
   return (
     <div

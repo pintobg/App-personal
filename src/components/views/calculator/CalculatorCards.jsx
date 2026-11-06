@@ -39,9 +39,25 @@ export default function CalculatorCards({
     ? { valor: activeRates.paralelo, fechaValor: resolvedHistoricalEntry?.date }
     : (ratesDetails?.paralelo || veRates?.details?.paralelo);
 
+  const eurVal = activeRates.bcvEur || activeRates.eur || 0;
   const eurInfo = rateMode === 'historical'
-    ? { valor: activeRates.eur, fechaValor: resolvedHistoricalEntry?.date }
+    ? { valor: eurVal, fechaValor: resolvedHistoricalEntry?.date }
     : (ratesDetails?.bcvEur || veRates?.details?.bcvEur);
+
+  const avgBcvValue = activeRates.avgBcv || (
+    activeRates.bcvUsd > 0 && eurVal > 0
+      ? (activeRates.bcvUsd + eurVal) / 2
+      : null
+  );
+
+  const avgBcvInfo = rateMode === 'historical'
+    ? { valor: avgBcvValue, fechaValor: resolvedHistoricalEntry?.date }
+    : {
+        valor: avgBcvValue,
+        fuente: 'promedio_bcv',
+        fechaConsulta: ratesDetails?.bcvEur?.fechaConsulta || ratesDetails?.bcvUsd?.fechaConsulta,
+        fechaValor: ratesDetails?.bcvEur?.fechaValor || ratesDetails?.bcvUsd?.fechaValor
+      };
 
   return (
     <>
@@ -186,7 +202,7 @@ export default function CalculatorCards({
           subtitle="Oficial Banco Central"
           currencyCode="EUR"
           currencySymbol="€"
-          rateValue={activeRates.eur}
+          rateValue={eurVal}
           rateInfo={eurInfo}
           rateMode={rateMode}
           isHistorical={rateMode === 'historical'}
@@ -197,6 +213,24 @@ export default function CalculatorCards({
           setCalcBaseAmount={setCalcBaseAmount}
           activeAmountBs={activeAmountBs}
           accentColor="var(--color-info)"
+        />
+
+        <CalculatorRateCard
+          title="Promedio BCV"
+          subtitle="(USD + EUR) / 2"
+          currencyCode="AVG_BCV"
+          currencySymbol="$"
+          rateValue={avgBcvValue}
+          rateInfo={avgBcvInfo}
+          rateMode={rateMode}
+          isHistorical={rateMode === 'historical'}
+          historicalDate={resolvedHistoricalEntry?.date}
+          calcBaseCurrency={calcBaseCurrency}
+          setCalcBaseCurrency={setCalcBaseCurrency}
+          calcBaseAmount={calcBaseAmount}
+          setCalcBaseAmount={setCalcBaseAmount}
+          activeAmountBs={activeAmountBs}
+          accentColor="var(--color-accent)"
         />
 
         <CalculatorRateCard

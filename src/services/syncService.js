@@ -92,16 +92,45 @@ function saveQueue(queue) {
   }
 }
 
-// Helper para upsert resiliente a esquemas con clave (user_id, id) o (id)
+// Helper para upsert resiliente a esquemas con clave (user_id, id) o (id) y tolerante a columnas no migradas
 async function resilientUpsert(table, records, onConflict = 'user_id,id') {
   if (!supabase) return { error: new Error('Supabase no inicializado') };
-  let { error } = await supabase.from(table).upsert(records, { onConflict });
-  if (error && (error.code === '42P10' || error.message?.includes('ON CONFLICT') || error.message?.includes('constraint'))) {
-    // Si la base de datos no tiene aún la clave compuesta (user_id, id), intentar con 'id'
-    const fallback = await supabase.from(table).upsert(records, { onConflict: 'id' });
-    if (!fallback.error) return { error: null };
+  let currentRecords = records;
+  let currentConflict = onConflict;
+
+  for (let attempt = 0; attempt < 5; attempt++) {
+    let { error } = await supabase.from(table).upsert(currentRecords, { onConflict: currentConflict });
+    if (error && (error.code === '42P10' || error.message?.includes('ON CONFLICT') || error.message?.includes('constraint'))) {
+      // Si la base de datos no tiene aún la clave compuesta (user_id, id), intentar con 'id'
+      currentConflict = 'id';
+      const fallback = await supabase.from(table).upsert(currentRecords, { onConflict: currentConflict });
+      if (!fallback.error) return { error: null };
+      error = fallback.error;
+    }
+
+    if (!error) return { error: null };
+
+    // Si la columna aún no existe en Supabase (ej: falta migración SQL de category_id en obligations)
+    // PostgREST responde: "Could not find the 'category_id' column of 'obligations' in the schema cache"
+    const missingColMatch = error.message && error.message.match(/Could not find the '([^']+)' column of/i);
+    if (missingColMatch) {
+      const missingCol = missingColMatch[1];
+      console.warn(`[syncService] Columna '${missingCol}' no existe en esquema remoto '${table}'. Reintentando sin ella...`);
+      const stripCol = (rec) => {
+        if (!rec || typeof rec !== 'object') return rec;
+        const copy = { ...rec };
+        delete copy[missingCol];
+        return copy;
+      };
+      currentRecords = Array.isArray(currentRecords)
+        ? currentRecords.map(stripCol)
+        : stripCol(currentRecords);
+      continue;
+    }
+
+    return { error };
   }
-  return { error };
+  return { error: new Error('Excedido el número máximo de reintentos para resilientUpsert') };
 }
 export function mapTxToDb(tx, userId) {
   const cleanId = (tx.id && String(tx.id).trim() !== '') ? tx.id : crypto.randomUUID();

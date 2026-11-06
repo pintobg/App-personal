@@ -100,4 +100,35 @@ describe('Hook: useExchangeRates', () => {
     expect(result.current.veRates.bcvUsd).toBe(74.85);
     expect(result.current.ratesDetails.bcvUsd.valor).toBe(74.85);
   });
+
+  it('obtiene y calcula bcvEur y el promedio BCV (USD y EUR)', async () => {
+    vi.spyOn(global, 'fetch').mockImplementation(async (url) => {
+      const urlStr = String(url);
+      if (urlStr.includes('dolarvzla')) {
+        return {
+          ok: true,
+          json: async () => ({
+            current: { usd: 80.00, eur: 90.00 }
+          })
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({})
+      };
+    });
+
+    const { result } = renderHook(() => useExchangeRates([]));
+
+    await act(async () => {
+      await new Promise(r => setTimeout(r, 50));
+    });
+
+    expect(result.current.rates.bcvUsd).toBe(80.00);
+    expect(result.current.rates.bcvEur).toBe(90.00);
+    expect(result.current.veRates.bcvUsd).toBe(80.00);
+    expect(result.current.veRates.bcvEur).toBe(90.00);
+    expect(result.current.veRates.avgBcv).toBe(85.00);
+    expect(result.current.rates.avgBcv).toBe(85.00);
+  });
 });

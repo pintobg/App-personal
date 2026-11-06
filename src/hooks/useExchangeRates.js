@@ -40,14 +40,14 @@ export function useExchangeRates(assets = []) {
       fechaValor: null
     },
     bcvEur: initialCache.cachedDetails?.bcvEur || {
-      valor: null,
-      fuente: null,
+      valor: initialCache.cachedRates?.bcvEur || null,
+      fuente: 'cache',
       fechaConsulta: null,
       fechaValor: null
     },
     paralelo: initialCache.cachedDetails?.paralelo || {
-      valor: null,
-      fuente: null,
+      valor: initialCache.cachedRates?.paralelo || null,
+      fuente: 'cache',
       fechaConsulta: null,
       fechaValor: null
     },
@@ -237,11 +237,19 @@ export function useExchangeRates(assets = []) {
     const fechaValor =
       ratesDetails.bcvUsd?.fechaValor ||
       ratesDetails.paralelo?.fechaValor ||
+      ratesDetails.bcvEur?.fechaValor ||
       null;
 
+    const bcvUsdVal = ratesDetails.bcvUsd?.valor || null;
+    const bcvEurVal = ratesDetails.bcvEur?.valor || null;
+    const avgBcvVal = (bcvUsdVal && bcvEurVal)
+      ? Number(((bcvUsdVal + bcvEurVal) / 2).toFixed(4))
+      : (bcvUsdVal || bcvEurVal || null);
+
     return {
-      bcvUsd: ratesDetails.bcvUsd?.valor || null,
-      bcvEur: ratesDetails.bcvEur?.valor || null,
+      bcvUsd: bcvUsdVal,
+      bcvEur: bcvEurVal,
+      avgBcv: avgBcvVal,
       paralelo: ratesDetails.paralelo?.valor || null,
       custom: customRate > 0 ? customRate : (ratesDetails.custom?.valor || 0),
       fechaConsulta,
@@ -254,8 +262,12 @@ export function useExchangeRates(assets = []) {
   // Tasas enriquecidas con la tasa de referencia activa
   const computedRates = useMemo(() => {
     const bcvVal = ratesDetails.bcvUsd?.valor || rates.bcvUsd || rates.VES;
+    const bcvEurVal = ratesDetails.bcvEur?.valor || rates.bcvEur;
     const parVal = ratesDetails.paralelo?.valor || rates.paralelo;
     const custVal = customRate > 0 ? customRate : (ratesDetails.custom?.valor || rates.custom);
+    const avgBcvVal = (bcvVal && bcvEurVal)
+      ? Number(((bcvVal + bcvEurVal) / 2).toFixed(4))
+      : null;
 
     let activeVes = bcvVal;
     if (referenceRate === 'paralelo' && parVal) {
@@ -269,6 +281,8 @@ export function useExchangeRates(assets = []) {
       referenceType: referenceRate,
       VES: activeVes,
       bcvUsd: bcvVal,
+      bcvEur: bcvEurVal,
+      avgBcv: avgBcvVal,
       paralelo: parVal,
       custom: custVal
     };
