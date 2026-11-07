@@ -160,44 +160,81 @@ export default function ObligationsView({
       }
     ].filter(Boolean);
 
+    const curr = actionOb.currency;
+    const hasPlan = breakdown.totalInstallments > 1;
+    const remainingBs = !done && breakdown.remainingAmount > 0
+      ? getIndexedBsInfo({ ...actionOb, amount: breakdown.remainingAmount })
+      : null;
+    const heroLabel = done
+      ? (isReceive ? 'Cobrado' : 'Pagado')
+      : breakdown.isOpenEnded
+        ? 'Próximo pago'
+        : (isReceive ? 'Falta por cobrar' : 'Falta por pagar');
+    const heroAmount = done ? (breakdown.totalAmount ?? breakdown.paidAmount) : breakdown.remainingAmount;
+    const rateName = { BCV_USD: 'BCV', BCV_EUR: 'BCV euro', EUR: 'BCV euro', PARALELO: 'paralelo' }[actionOb.indexRateType] || 'BCV';
+
+    const extraRows = [
+      hasPlan && { label: 'Total de la deuda', value: money(breakdown.totalAmount, curr) },
+      breakdown.purchaseTotal != null && { label: 'Compra original', value: money(breakdown.purchaseTotal, curr) },
+      breakdown.downPayment > 0 && { label: 'Inicial pagada', value: money(breakdown.downPayment, curr) },
+      { label: 'Frecuencia', value: translateFrequency(actionOb.frequency) },
+      actionOb.payInBs && { label: 'Se paga en Bs.', value: `Tasa ${rateName} del día` },
+      !done && { label: 'Recordatorio', value: actionOb.reminderEnabled !== false ? 'Activo, 9:00 a. m.' : 'Desactivado' }
+    ].filter(Boolean);
+
     sheet = (
       <ActionSheet
         isOpen
         onClose={closeSheet}
         title={actionOb.title}
-        subtitle={[actionOb.dueDate && !done ? formatDueLabel(actionOb.dueDate) : null, translateCategory(actionOb.category)].filter(Boolean).join(' · ')}
+        subtitle={translateCategory(actionOb.category) || undefined}
         actions={actions}
       >
-        <div className="detail-row"><span>Frecuencia</span><span>{translateFrequency(actionOb.frequency)}</span></div>
-        {breakdown && breakdown.totalInstallments > 1 && (
-          <>
-            <div className="detail-row"><span>Valor de cada cuota</span><span>{money(breakdown.perPayment, actionOb.currency)}</span></div>
-            <div className="detail-row"><span>Cuotas pagadas</span><span>{breakdown.paidInstallments} de {breakdown.totalInstallments}</span></div>
-            <div className="detail-row"><span>Ya {isReceive ? 'cobrado' : 'pagado'}</span><span>{money(breakdown.paidAmount, actionOb.currency)}</span></div>
-            <div className="detail-row"><span>Falta {isReceive ? 'por cobrar' : 'por pagar'}</span><span><strong>{money(breakdown.remainingAmount, actionOb.currency)}</strong> ({breakdown.remainingInstallments} {breakdown.remainingInstallments === 1 ? 'cuota' : 'cuotas'})</span></div>
-            <div className="detail-row"><span>Total de la deuda</span><span>{money(breakdown.totalAmount, actionOb.currency)}</span></div>
-          </>
+        {/* 1. Lo más importante: cuánto falta */}
+        <div className="ob-hero">
+          <span className="ob-hero-label">{heroLabel}</span>
+          <span className={`ob-hero-amount ${isReceive ? 'income' : 'expense'}`}>{money(heroAmount, curr)}</span>
+          {remainingBs && !breakdown.isOpenEnded && (
+            <span className="ob-hero-sub">≈ Bs. {formatAmount(remainingBs.bsAmount, 'VES')} con la tasa {rateName} de hoy</span>
+          )}
+          {hasPlan && (
+            <>
+              <span className="ob-hero-bar" aria-hidden="true">
+                <span className={`ob-hero-bar-fill ${isReceive ? 'receive' : 'pay'}`} style={{ width: `${Math.round((breakdown.progress || 0) * 100)}%` }} />
+              </span>
+              <span className="ob-hero-sub">
+                {breakdown.paidInstallments} de {breakdown.totalInstallments} cuotas {isReceive ? 'cobradas' : 'pagadas'} · {money(breakdown.paidAmount, curr)} {isReceive ? 'cobrado' : 'pagado'}
+              </span>
+            </>
+          )}
+          {breakdown.isOpenEnded && (
+            <span className="ob-hero-sub">Se repite sin fecha de fin · {breakdown.paidInstallments} {breakdown.paidInstallments === 1 ? 'pago hecho' : 'pagos hechos'}</span>
+          )}
+        </div>
+
+        {/* 2. Próximo pago con su fecha y equivalente en Bs. */}
+        {!done && (hasPlan || breakdown.isOpenEnded || actionOb.dueDate) && (
+          <div className="ob-next">
+            <div className="ob-next-main">
+              <span className="ob-next-label">{hasPlan ? 'Próxima cuota' : (isReceive ? 'Próximo cobro' : 'Próximo pago')}</span>
+              {actionOb.dueDate && <span className={`ob-next-date${dueClass(formatDueLabel(actionOb.dueDate))}`}>{formatDueLabel(actionOb.dueDate)}</span>}
+            </div>
+            <div className="ob-next-value">
+              <span className="ob-next-amount">{money(breakdown.perPayment, curr)}</span>
+              {info && <span className="ob-next-sub">≈ Bs. {formatAmount(info.bsAmount, 'VES')}</span>}
+            </div>
+          </div>
         )}
-        {breakdown && breakdown.totalInstallments === 1 && (
-          <div className="detail-row"><span>{done ? 'Monto' : (isReceive ? 'Por cobrar' : 'Por pagar')}</span><span><strong>{money(breakdown.totalAmount, actionOb.currency)}</strong></span></div>
-        )}
-        {breakdown && breakdown.isOpenEnded && (
-          <>
-            <div className="detail-row"><span>Cada pago</span><span>{money(breakdown.perPayment, actionOb.currency)}</span></div>
-            <div className="detail-row"><span>Pagos hechos</span><span>{breakdown.paidInstallments} ({money(breakdown.paidAmount, actionOb.currency)})</span></div>
-            <div className="detail-row"><span>Total</span><span>Sin fin definido. Edítala y pon el número de cuotas para ver el total.</span></div>
-          </>
-        )}
-        {breakdown && breakdown.purchaseTotal != null && (
-          <div className="detail-row"><span>Compra original</span><span>{money(breakdown.purchaseTotal, actionOb.currency)}{breakdown.downPayment > 0 ? ` (inicial ${money(breakdown.downPayment, actionOb.currency)})` : ''}</span></div>
-        )}
-        {actionOb.payInBs && (
-          <div className="detail-row"><span>Se paga en Bs.</span><span>a tasa {actionOb.indexRateType || 'BCV'}</span></div>
-        )}
-        {info && <div className="detail-row"><span>Equivale hoy</span><span>{info.text}</span></div>}
-        {!done && (
-          <div className="detail-row"><span>Recordatorio</span><span>{actionOb.reminderEnabled !== false ? 'Activo, 9:00 a. m.' : 'Desactivado'}</span></div>
-        )}
+
+        {/* 3. Detalles secundarios */}
+        <dl className="ob-details">
+          {extraRows.map(r => (
+            <div key={r.label} className="ob-details-row">
+              <dt>{r.label}</dt>
+              <dd>{r.value}</dd>
+            </div>
+          ))}
+        </dl>
       </ActionSheet>
     );
   }
