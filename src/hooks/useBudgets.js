@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { syncService } from '../services/syncService';
+import { MONTHLY_LIMIT_KEY, budgetAmount } from '../domain/dashboard';
 
 const STORAGE_KEY = 'personal_budgets';
 
 export function useBudgets(user = null) {
-  const [budgets, setBudgets] = useState(() => {
+  // Mapa completo tal como se guarda y sincroniza. Incluye la clave reservada
+  // MONTHLY_LIMIT_KEY con el tope total del mes (viaja en la tabla budgets).
+  const [allBudgets, setBudgets] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
@@ -21,11 +24,40 @@ export function useBudgets(user = null) {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(budgets));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(allBudgets));
     } catch (e) {
       console.error('Error guardando presupuestos en localStorage:', e);
     }
-  }, [budgets]);
+  }, [allBudgets]);
+
+  // Lo que ve el resto de la app: solo presupuestos por categoría.
+  const budgets = useMemo(() => {
+    if (!allBudgets || !(MONTHLY_LIMIT_KEY in allBudgets)) return allBudgets;
+    const copy = { ...allBudgets };
+    delete copy[MONTHLY_LIMIT_KEY];
+    return copy;
+  }, [allBudgets]);
+
+  const monthlyLimit = budgetAmount(allBudgets?.[MONTHLY_LIMIT_KEY]);
+
+  const setMonthlyLimit = useCallback((amount) => {
+    const num = Number(amount);
+    const nowIso = new Date().toISOString();
+    const valid = !isNaN(num) && num > 0;
+    setBudgets(prev => {
+      const updated = { ...prev };
+      if (valid) updated[MONTHLY_LIMIT_KEY] = Math.round(num * 100) / 100;
+      else delete updated[MONTHLY_LIMIT_KEY];
+      return updated;
+    });
+    if (user?.id) {
+      if (valid) {
+        syncService.queueChange('budgets', 'upsert', { category: MONTHLY_LIMIT_KEY, amount: Math.round(num * 100) / 100, updated_at: nowIso }, user.id);
+      } else {
+        syncService.queueChange('budgets', 'delete', { category: MONTHLY_LIMIT_KEY, deleted_at: nowIso, updated_at: nowIso }, user.id);
+      }
+    }
+  }, [user?.id]);
 
   const setCategoryBudget = (category, amount) => {
     const num = Number(amount);
@@ -64,17 +96,32 @@ export function useBudgets(user = null) {
 
   const updateAllBudgets = (newBudgets) => {
     const nowIso = new Date().toISOString();
-    setBudgets(newBudgets);
+    const previous = budgets || {};
+    // Conservar el tope mensual, que no forma parte del formulario por categoría
+    setBudgets(prev => {
+      const next = { ...newBudgets };
+      if (prev && MONTHLY_LIMIT_KEY in prev) next[MONTHLY_LIMIT_KEY] = prev[MONTHLY_LIMIT_KEY];
+      return next;
+    });
 
     if (user?.id) {
       Object.entries(newBudgets).forEach(([category, amount]) => {
-        syncService.queueChange('budgets', 'upsert', { category, amount, updated_at: nowIso }, user.id);
+        syncService.queueChange('budgets', 'upsert', { category, amount: budgetAmount(amount), updated_at: nowIso }, user.id);
+      });
+      // Las categorías que se quitaron también se borran en la nube
+      Object.keys(previous).forEach(category => {
+        if (!(category in newBudgets)) {
+          syncService.queueChange('budgets', 'delete', { category, deleted_at: nowIso, updated_at: nowIso }, user.id);
+        }
       });
     }
   };
 
   return {
     budgets,
+    allBudgets,
+    monthlyLimit,
+    setMonthlyLimit,
     setBudgets,
     setCategoryBudget,
     removeCategoryBudget,

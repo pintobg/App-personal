@@ -1189,3 +1189,130 @@
 .bulk-bar-btn.danger { color: var(--color-danger); }
 .bulk-bar-close { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: none; border-radius: var(--radius-full); background: transparent; color: var(--text-secondary); cursor: pointer; flex-shrink: 0; }
 @media (max-width: 359px) { .bulk-bar-count-word { display: none; } .bulk-bar-count { flex: 0 0 auto; font-size: var(--font-sm); margin-right: auto; } }
+
+/* ===== Deudas: totales y desglose ===== */
+.debt-summary { margin-bottom: var(--space-5, 1.25rem); padding: var(--space-3) var(--space-4); border-radius: var(--radius-lg); background: var(--bg-surface); border: 1px solid var(--border-color); }
+.debt-summary-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
+.debt-summary-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.debt-summary-label { font-size: var(--font-xs); color: var(--text-secondary); }
+.debt-summary-value { font-size: 1.25rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.debt-summary-value.expense, .debt-summary-foot .expense { color: var(--color-expense); }
+.debt-summary-value.income, .debt-summary-foot .income { color: var(--color-income); }
+.debt-summary-sub { font-size: var(--font-xs); color: var(--text-muted); overflow-wrap: anywhere; }
+.debt-summary-foot { display: flex; justify-content: space-between; margin-top: var(--space-3); padding-top: var(--space-2); border-top: 1px solid var(--border-subtle); font-size: var(--font-sm); color: var(--text-secondary); }
+.debt-summary-foot span:last-child { font-weight: 700; }
+.debt-summary-note { margin: var(--space-2) 0 0; font-size: var(--font-xs); color: var(--text-muted); line-height: 1.35; }
+.obligation-row { min-height: 64px; }
+.list-row-value .amount-label { font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.debt-progress { display: block; height: 4px; margin-top: 4px; border-radius: 2px; background: var(--bg-surface-elevated); overflow: hidden; max-width: 160px; }
+.debt-progress-fill { display: block; height: 100%; border-radius: 2px; background: var(--color-expense); }
+.debt-progress-fill.receive { background: var(--color-income); }
+
+/* ===== Compras: detalle de lista ===== */
+.shop-detail { display: flex; flex-direction: column; gap: var(--space-3); padding-bottom: 7rem; }
+.shop-detail-top { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); }
+.shop-detail-top .modal-back-btn { min-height: 40px; }
+.shop-detail-top-actions { display: flex; align-items: center; gap: var(--space-1); }
+.shop-detail-action { display: inline-flex; align-items: center; gap: 4px; min-height: 40px; min-width: 40px; justify-content: center; padding: 0 var(--space-3); border-radius: 9999px; background: var(--bg-surface); border: 1px solid var(--border-color); color: var(--text-secondary); font: inherit; font-size: var(--font-xs); font-weight: 600; cursor: pointer; }
+.shop-detail-action.danger { color: var(--color-danger); padding: 0; }
+.shop-detail-title h2 { margin: 0; font-size: 1.25rem; font-weight: 700; color: var(--text-primary); overflow-wrap: anywhere; }
+.shop-detail-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.shop-chip { font-size: 0.72rem; color: var(--text-secondary); background: var(--bg-surface-elevated); padding: 1px 8px; border-radius: 9999px; border: 1px solid var(--border-color); }
+.shop-chip.accent { color: var(--color-accent); border-color: var(--color-accent-border); }
+.shop-chip.success { color: var(--color-success); background: var(--color-success-soft); border-color: var(--color-success-border); }
+
+.shop-summary { padding: var(--space-3); border-radius: var(--radius-lg); background: var(--bg-surface); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: var(--space-2); }
+.shop-summary-budget-row { display: flex; justify-content: space-between; gap: var(--space-2); flex-wrap: wrap; font-size: 0.76rem; color: var(--text-secondary); margin-bottom: 4px; }
+.shop-summary-budget-row .success { color: var(--color-success); font-weight: 700; }
+.shop-summary-budget-row .danger { color: var(--color-danger); font-weight: 700; }
+.shop-bar { height: 5px; width: 100%; background: var(--bg-surface-elevated); border-radius: 9999px; overflow: hidden; }
+.shop-bar-fill { height: 100%; background: var(--color-accent-strong); transition: width 0.3s ease; }
+.shop-bar-fill.danger { background: var(--color-danger-strong); }
+.shop-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; text-align: center; }
+.shop-summary-cell { padding: 6px 4px; border-radius: var(--radius-md); background: var(--bg-surface-elevated); min-width: 0; }
+.shop-summary-label { font-size: 0.68rem; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shop-summary-value { font-size: 0.9rem; font-weight: 700; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shop-summary-alt { font-size: 0.62rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shop-summary-cell.accent .shop-summary-label, .shop-summary-cell.accent .shop-summary-value { color: var(--color-accent); }
+.shop-summary-cell.warning .shop-summary-value { color: var(--color-warning); }
+
+.shop-add { padding: var(--space-3); border-radius: var(--radius-lg); background: var(--bg-surface); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: var(--space-2); }
+.shop-add-row { display: flex; gap: var(--space-2); align-items: stretch; }
+.shop-add-name { position: relative; flex: 1; min-width: 0; }
+.shop-add-name .input-field { width: 100%; height: 44px; box-sizing: border-box; }
+.shop-add-hint { font-size: 0.72rem; color: var(--color-accent); font-weight: 600; }
+.shop-add-toggle { align-self: flex-start; font-size: 0.78rem; }
+.shop-add-details, .shop-edit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.shop-edit-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.shop-edit-field > span { font-size: 0.72rem; color: var(--text-secondary); }
+.shop-edit-field .input-field { width: 100%; height: 42px; box-sizing: border-box; font-size: 16px; }
+.shop-edit-form { display: flex; flex-direction: column; gap: var(--space-3); }
+.shop-edit-actions { display: flex; justify-content: space-between; gap: var(--space-2); padding-top: var(--space-2); border-top: 1px solid var(--border-color); }
+.shop-suggestions { position: absolute; top: 100%; left: 0; right: 0; margin-top: 4px; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-md); z-index: 40; max-height: 220px; overflow-y: auto; }
+.shop-suggestion { padding: 0.65rem 0.8rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: var(--space-2); border-bottom: 1px solid var(--border-subtle); font-size: 0.85rem; }
+.shop-suggestion .muted, .shop-section-name .muted { color: var(--text-muted); font-size: 0.72rem; }
+.shop-suggestion .accent { color: var(--color-accent); font-weight: 600; font-size: 0.75rem; white-space: nowrap; }
+
+.shop-empty { text-align: center; padding: 2rem 1rem; background: var(--bg-surface); border-radius: var(--radius-lg); border: 1px dashed var(--border-color); color: var(--text-secondary); }
+.shop-empty-icon { font-size: 2rem; margin-bottom: 0.4rem; }
+.shop-empty-title { font-size: 0.95rem; font-weight: 600; color: var(--text-primary); }
+.shop-empty-text { font-size: 0.78rem; margin-top: 4px; }
+
+.shop-sections { display: flex; flex-direction: column; gap: var(--space-3); }
+.shop-help { font-size: 0.72rem; color: var(--text-muted); }
+.shop-section { padding: var(--space-2) var(--space-2) var(--space-1); border-radius: var(--radius-lg); background: var(--bg-surface); border: 1px solid var(--border-color); }
+.shop-section-head { display: flex; justify-content: space-between; align-items: center; padding: 2px var(--space-2) var(--space-2); border-bottom: 1px solid var(--border-subtle); }
+.shop-section-name { font-weight: 700; font-size: 0.85rem; color: var(--text-primary); }
+.shop-section-total { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); }
+.shop-section-items { display: flex; flex-direction: column; }
+
+.shop-item { display: flex; align-items: center; gap: 2px; min-height: 52px; border-radius: var(--radius-md); }
+.shop-item + .shop-item { border-top: 1px solid var(--border-subtle); }
+.shop-item.checked .shop-item-name { color: var(--text-muted); text-decoration: line-through; }
+.shop-item-check { width: 40px; height: 44px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; background: transparent; border: none; padding: 0; cursor: pointer; }
+.shop-item-box { width: 22px; height: 22px; border-radius: 6px; border: 2px solid var(--text-muted); display: inline-flex; align-items: center; justify-content: center; color: var(--text-on-accent); }
+.shop-item.checked .shop-item-box { border-color: var(--color-accent); background: var(--color-accent-strong); }
+.shop-item-main { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; background: transparent; border: none; padding: 6px 2px; text-align: left; color: inherit; font: inherit; cursor: pointer; }
+.shop-item-name { font-size: 0.88rem; font-weight: 600; color: var(--text-primary); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shop-item-sub { font-size: 0.7rem; color: var(--text-secondary); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.shop-item-side { display: flex; align-items: center; gap: 0; flex-shrink: 0; }
+.shop-item-total { background: transparent; border: none; color: var(--text-primary); font: inherit; font-size: 0.86rem; font-weight: 700; padding: 6px 4px; min-height: 36px; cursor: pointer; border-radius: var(--radius-sm); }
+.shop-item.checked .shop-item-total { color: var(--color-accent); }
+.shop-item-price-edit { display: inline-flex; align-items: center; gap: 4px; }
+.shop-item-price-edit .input-field { width: 76px; height: 36px; font-size: 16px; padding: 0 6px; text-align: right; box-sizing: border-box; }
+.shop-item-confirm-delete { min-height: 32px; padding: 0 10px; border-radius: 9999px; border: 1px solid var(--color-danger-border); background: var(--color-danger-soft); color: var(--color-danger); font: inherit; font-size: 0.74rem; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.shop-item button:disabled { cursor: default; }
+
+.shop-register { display: flex; flex-direction: column; gap: 6px; margin-top: var(--space-1); }
+.shop-register-hint { font-size: 0.72rem; color: var(--text-muted); text-align: center; }
+
+/* ===== Presupuestos: tope total del mes ===== */
+.cap-card { margin-bottom: 1rem; padding: 1rem 1.15rem; border-radius: 16px; background: var(--bg-surface); border: 1px solid var(--color-accent-border); display: flex; flex-direction: column; gap: 0.5rem; }
+.cap-card.exceeded { border-color: var(--color-danger-border); background: var(--color-danger-soft); }
+.cap-card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; }
+.cap-card-label { font-size: 0.75rem; color: var(--text-secondary); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+.cap-card-amount { font-size: 1.35rem; font-weight: 700; color: var(--text-primary); margin-top: 0.2rem; }
+.cap-card-of { font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; }
+.cap-card-pct { padding: 0.3rem 0.65rem; border-radius: 12px; font-size: 0.85rem; font-weight: 700; background: var(--bg-surface-elevated); border: 1px solid var(--border-color); flex-shrink: 0; }
+.cap-bar { width: 100%; height: 10px; border-radius: 5px; background: var(--bg-surface-elevated); overflow: hidden; }
+.cap-bar-fill { height: 100%; border-radius: 5px; transition: width 0.4s ease; }
+.cap-card-status { font-size: 0.82rem; font-weight: 600; color: var(--color-success); }
+.cap-card-status.danger { color: var(--color-danger); }
+.cap-card-detail { display: flex; justify-content: space-between; gap: 0.5rem; font-size: 0.75rem; color: var(--text-secondary); }
+.cap-card-detail.warning { color: var(--color-warning); }
+.cap-card-text { margin: 0; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; }
+.cap-card-btn { align-self: flex-start; font-size: 0.85rem; padding: 0.5rem 1rem; border-radius: 12px; }
+.cap-card-edit { align-self: flex-start; font-size: 0.78rem; }
+
+/* ===== Presupuestos: campo de tope mensual en el modal ===== */
+.budget-cap-field { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.65rem 0.85rem; margin-bottom: 0.65rem; border-radius: 12px; background: var(--color-accent-soft); border: 1px solid var(--color-accent-border); flex-shrink: 0; }
+.budget-cap-field label { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.budget-cap-title { font-size: 0.85rem; font-weight: 700; color: var(--text-primary); }
+.budget-cap-help { font-size: 0.7rem; color: var(--text-secondary); line-height: 1.3; }
+.budget-cap-input { position: relative; display: flex; align-items: center; flex-shrink: 0; width: 120px; }
+.budget-cap-input span { position: absolute; left: 0.6rem; color: var(--color-accent); font-weight: 600; font-size: 0.85rem; pointer-events: none; }
+.budget-cap-input .input-field { width: 100%; height: 40px; padding: 0.3rem 0.6rem 0.3rem 1.4rem; text-align: right; font-size: 16px; border-radius: 10px; box-sizing: border-box; }
+
+.debt-plan { display: flex; align-items: center; gap: 6px; margin-top: 3px; min-width: 0; }
+.debt-plan .debt-progress { flex: 1; margin-top: 0; max-width: 110px; }
+.debt-plan-text { font-size: 0.68rem; color: var(--text-muted); white-space: nowrap; }

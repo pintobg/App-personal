@@ -31,7 +31,7 @@ export default function DashboardUpcoming({ items = [], isBalanceHidden, onSeeAl
               return (
                 <li key={item.id} className="home-list-row">
                   <div className="home-list-main">
-                    <div className="home-list-title">Presupuesto: {translateCategory(item.title)}</div>
+                    <div className="home-list-title">{item.isCap ? item.title : `Presupuesto: ${translateCategory(item.title)}`}</div>
                     <div className={`home-list-sub${item.overdue ? ' danger' : ''}`}>
                       {item.overdue ? 'Superaste el límite' : 'Cerca del límite'}
                     </div>

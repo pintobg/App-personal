@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import IconButton from './IconButton';
 
 /**
@@ -34,7 +35,9 @@ export default function Modal({
 
   if (!isOpen) return null;
 
-  return (
+  // Se monta en <body> para que ningún contenedor con transform/animación
+  // (las vistas lo tienen) recorte el fondo o mueva la ventana.
+  const content = (
     <div
       className={`ui-modal-overlay modal-overlay ${className}`.trim()}
       onClick={onClose}
@@ -143,4 +146,6 @@ export default function Modal({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(content, document.body) : content;
 }

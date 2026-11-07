@@ -41,3 +41,49 @@ describe('Domain: Indexación de Obligaciones a Bolívares a la tasa del día', 
     expect(bsResult).toBe(2900);
   });
 });
+
+import { getObligationBreakdown, summarizeObligations } from './obligations';
+
+describe('Domain: desglose y totales de deudas', () => {
+  it('calcula pagado, pendiente y total de una deuda en cuotas', () => {
+    const b = getObligationBreakdown({ type: 'pay', amount: '25', currency: 'USD', totalInstallments: '6', paidInstallments: 2 });
+    expect(b.totalAmount).toBe(150);
+    expect(b.paidAmount).toBe(50);
+    expect(b.remainingAmount).toBe(100);
+    expect(b.remainingInstallments).toBe(4);
+    expect(b.isOpenEnded).toBe(false);
+  });
+
+  it('un pago único debe el monto completo', () => {
+    const b = getObligationBreakdown({ type: 'pay', amount: 80, currency: 'USD', frequency: 'one-time' });
+    expect(b.totalAmount).toBe(80);
+    expect(b.remainingAmount).toBe(80);
+  });
+
+  it('una deuda recurrente sin cuotas cuenta solo el próximo pago', () => {
+    const b = getObligationBreakdown({ type: 'pay', amount: 30, currency: 'USD', frequency: 'monthly' });
+    expect(b.isOpenEnded).toBe(true);
+    expect(b.remainingAmount).toBe(30);
+    expect(b.totalAmount).toBeNull();
+  });
+
+  it('una deuda pagada no tiene saldo pendiente', () => {
+    const b = getObligationBreakdown({ type: 'pay', amount: 10, totalInstallments: 3, paidInstallments: 3 });
+    expect(b.remainingAmount).toBe(0);
+    expect(b.paidAmount).toBe(30);
+  });
+
+  it('suma todas las deudas pendientes por moneda y en USD', () => {
+    const s = summarizeObligations([
+      { type: 'pay', amount: 25, currency: 'USD', totalInstallments: 4, paidInstallments: 1 },
+      { type: 'pay', amount: 1000, currency: 'VES', frequency: 'one-time' },
+      { type: 'pay', amount: 50, currency: 'USD', status: 'paid' },
+      { type: 'receive', amount: 40, currency: 'USD', frequency: 'one-time' }
+    ], { VES: 50 });
+    expect(s.pay.count).toBe(2);
+    expect(s.pay.byCurrency.USD).toBe(75);
+    expect(s.pay.byCurrency.VES).toBe(1000);
+    expect(s.pay.usd).toBe(95);
+    expect(s.receive.usd).toBe(40);
+  });
+});

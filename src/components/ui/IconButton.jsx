@@ -4,6 +4,7 @@
  */
 export default function IconButton({
   icon,
+  children,
   'aria-label': ariaLabelAttr,
   ariaLabel,
   title,
@@ -90,7 +91,7 @@ export default function IconButton({
       }}
       {...rest}
     >
-      {icon}
+      {icon ?? children}
     </button>
   );
 }

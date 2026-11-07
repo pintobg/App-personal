@@ -59,24 +59,6 @@ export default function ShoppingListsView({
     return (shoppingLists || []).find(l => l.id === activeListId);
   }, [shoppingLists, activeListId]);
 
-  if (currentList) {
-    return (
-      <ShoppingListDetailView
-        list={currentList}
-        items={shoppingItems}
-        products={shoppingProducts}
-        rates={rates}
-        onBack={() => setActiveListId(null)}
-        onAddItem={onAddItem}
-        onUpdateItem={onUpdateItem}
-        onToggleItemCheck={onToggleItemCheck}
-        onDeleteItem={onDeleteItem}
-        onRegisterPurchase={onRegisterPurchase}
-        searchProducts={searchProducts}
-      />
-    );
-  }
-
   const handleOpenCreateModal = () => {
     setEditingList(null);
     setIsFormModalOpen(true);
@@ -109,11 +91,45 @@ export default function ShoppingListsView({
 
   const handleDelete = (listId, e) => {
     if (e) e.stopPropagation();
+    if (listId === activeListId) setActiveListId(null);
     onDeleteListWithUndo(listId);
   };
 
+  const formModal = (
+    <ShoppingListFormModal
+      isOpen={isFormModalOpen}
+      onClose={() => setIsFormModalOpen(false)}
+      initialList={editingList}
+      onSave={handleSaveModal}
+    />
+  );
+
+  // Dentro de una lista: vista de detalle con botón claro para volver a "Mis listas"
+  if (currentList) {
+    return (
+      <>
+        <ShoppingListDetailView
+          list={currentList}
+          items={shoppingItems}
+          products={shoppingProducts}
+          rates={rates}
+          onBack={() => setActiveListId(null)}
+          onAddItem={onAddItem}
+          onUpdateItem={onUpdateItem}
+          onToggleItemCheck={onToggleItemCheck}
+          onDeleteItem={onDeleteItem}
+          onRegisterPurchase={onRegisterPurchase}
+          searchProducts={searchProducts}
+          onEditList={(list) => handleOpenEditModal(list)}
+          onDeleteList={(id) => handleDelete(id)}
+        />
+        {formModal}
+      </>
+    );
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '0.5rem' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', marginTop: '0.5rem', paddingBottom: '6rem' }}>
       {/* ENCABEZADO Y BOTÓN NUEVA LISTA */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
         <div>
@@ -348,12 +364,7 @@ export default function ShoppingListsView({
       )}
 
       {/* Modal para crear o editar lista */}
-      <ShoppingListFormModal
-        isOpen={isFormModalOpen}
-        onClose={() => setIsFormModalOpen(false)}
-        initialList={editingList}
-        onSave={handleSaveModal}
-      />
+      {formModal}
     </div>
   );
 }

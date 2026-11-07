@@ -92,6 +92,59 @@ export function calculateExchangeGapData(rates = {}, ratesDetails = {}, rateHist
   };
 }
 
+/** Clave reservada en el mapa de presupuestos para el tope total del mes. */
+export const MONTHLY_LIMIT_KEY = '__tope_mensual__';
+
+/** Monto de un presupuesto, sea número (formato viejo) u objeto { amount }. */
+export function budgetAmount(value) {
+  if (value && typeof value === 'object') return Number(value.amount) || 0;
+  return Number(value) || 0;
+}
+
+function isInCurrentMonth(t, startOfMonth, endOfMonth) {
+  if (!t?.date) return false;
+  const d = parseLocalDate(toLocalDateString(t.date));
+  return d >= startOfMonth && d <= endOfMonth;
+}
+
+/**
+ * Tope total de gasto del mes: suma TODOS los gastos del mes, tengan o no
+ * presupuesto por categoría, y los compara con el tope definido.
+ */
+export function calculateMonthlySpendingCap(transactions = [], rates = {}, limit = 0, budgetStats = null) {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+  let spent = 0;
+  (transactions || []).forEach(t => {
+    if (t.type !== 'spent' || !isInCurrentMonth(t, startOfMonth, endOfMonth)) return;
+    spent += getTxUsdEquivalent(t, rates);
+  });
+  spent = Math.round(spent * 100) / 100;
+
+  const numLimit = budgetAmount(limit);
+  const hasLimit = numLimit > 0;
+  const inBudgets = Math.min(spent, budgetStats?.totalSpentInBudgets || 0);
+  const outsideBudgets = Math.max(0, Math.round((spent - inBudgets) * 100) / 100);
+  const remaining = hasLimit ? Math.round((numLimit - spent) * 100) / 100 : null;
+  const daysInMonth = endOfMonth.getDate();
+  const daysLeft = daysInMonth - now.getDate() + 1;
+
+  return {
+    hasLimit,
+    limit: numLimit,
+    spent,
+    remaining,
+    exceeded: hasLimit && spent > numLimit,
+    percent: hasLimit ? (spent / numLimit) * 100 : 0,
+    outsideBudgets,
+    categoryBudgetsTotal: budgetStats?.totalBudgetUsd || 0,
+    daysLeft,
+    dailyAllowance: hasLimit && remaining > 0 ? Math.floor((remaining / daysLeft) * 100) / 100 : 0
+  };
+}
+
 /**
  * Calcula estadísticas de presupuestos del mes actual.
  */
@@ -117,11 +170,11 @@ export function calculateBudgetStats(transactions = [], budgets = {}, rates = {}
   });
 
   const activeBudgetCategories = Object.entries(budgets || {})
-    .filter(([_, limit]) => Number(limit) > 0)
+    .filter(([catKey, limit]) => catKey !== MONTHLY_LIMIT_KEY && budgetAmount(limit) > 0)
     .map(([catKey, limit]) => {
       const displayName = (getCategoryName ? getCategoryName(catKey) : '') || translateCategory(catKey) || catKey;
       const spent = categorySpentMap[displayName] || categorySpentMap[catKey] || 0;
-      const numLimit = Number(limit);
+      const numLimit = budgetAmount(limit);
       const percent = numLimit > 0 ? (spent / numLimit) * 100 : 0;
       return {
         category: displayName,
@@ -316,7 +369,7 @@ export function calculateWealthEvolution(transactions = [], rates = {}, grandTot
  * en una sola lista sin duplicados. Los vencidos van primero, luego por fecha.
  * Los presupuestos (sin fecha) van al final.
  */
-export function buildUpcomingDue(obligations = [], budgetStats = null, today = new Date()) {
+export function buildUpcomingDue(obligations = [], budgetStats = null, today = new Date(), capStats = null) {
   const todayStr = toLocalDateString(today);
   const seen = new Set();
   const dated = [];
@@ -365,5 +418,18 @@ export function buildUpcomingDue(obligations = [], budgetStats = null, today = n
       overdue: b.percent >= 100
     }));
 
-  return [...dated, ...budgets];
+  const cap = capStats && capStats.hasLimit && capStats.percent >= 80
+    ? [{
+        id: 'budget-total-mes',
+        kind: 'budget',
+        isCap: true,
+        title: 'Tope total del mes',
+        percent: capStats.percent,
+        spent: capStats.spent,
+        limit: capStats.limit,
+        overdue: capStats.percent >= 100
+      }]
+    : [];
+
+  return [...dated, ...cap, ...budgets];
 }

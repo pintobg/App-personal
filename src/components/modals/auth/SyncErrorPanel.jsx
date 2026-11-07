@@ -6,7 +6,11 @@ const TABLE_NAMES = {
   transactions: 'Movimientos (transactions)',
   assets: 'Cuentas / Activos (assets)',
   budgets: 'Presupuestos (budgets)',
-  goals: 'Metas de Ahorro (goals)'
+  goals: 'Metas de Ahorro (goals)',
+  user_categories: 'Categorías (user_categories)',
+  shopping_lists: 'Listas de compras (shopping_lists)',
+  shopping_items: 'Artículos de compras (shopping_items)',
+  shopping_products: 'Catálogo de productos (shopping_products)'
 };
 
 const ACTION_NAMES = {

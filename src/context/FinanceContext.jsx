@@ -18,6 +18,7 @@ import { clearAllDB } from '../services/db';
 import { exportBackup } from '../utils/backup';
 import { mergeById, mergeBudgets } from '../services/merge';
 import { migrateTransactionsAssetIds } from '../domain/balances';
+import { MONTHLY_LIMIT_KEY } from '../domain/dashboard';
 import {
   executeAddOrEditTransaction,
   executeTransfer as runTransfer,
@@ -54,6 +55,10 @@ export function simplifyErrorMessage(rawError) {
   }
   if (/row-level security|permission denied/i.test(str)) {
     return 'permiso denegado por seguridad';
+  }
+  const missingTable = str.match(/could not find the table '(?:public\.)?([a-z_]+)'/i) || str.match(/relation "(?:public\.)?([a-z_]+)" does not exist/i);
+  if (missingTable) {
+    return `falta crear la tabla ${missingTable[1]} en Supabase (ejecuta la migración SQL pendiente)`;
   }
   if (/column .* does not exist/i.test(str)) {
     return 'estructura de base de datos desactualizada';
@@ -101,6 +106,9 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
 
   const {
     budgets,
+    allBudgets,
+    monthlyLimit,
+    setMonthlyLimit,
     setBudgets,
     updateAllBudgets
   } = useBudgets(user);
@@ -436,6 +444,9 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
                 if (remote.categories) {
                   setCategories(mergeById([], remote.categories));
                 }
+                setShoppingLists(mergeById([], remote.shoppingLists || []));
+                setShoppingItems(mergeById([], remote.shoppingItems || []));
+                setShoppingProducts(mergeById([], remote.shoppingProducts || []));
               } else {
                 setAssets([]);
                 setTransactions([]);
@@ -460,7 +471,7 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
         assets,
         transactions,
         obligations,
-        budgets,
+        budgets: allBudgets,
         goals,
         categories,
         shoppingLists,
@@ -472,7 +483,7 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
       console.error('Error al exportar respaldo:', err);
       if (showToast) showToast('No se pudo generar el respaldo', 'error');
     }
-  }, [assets, transactions, obligations, budgets, goals, categories, shoppingLists, shoppingItems, shoppingProducts, showToast]);
+  }, [assets, transactions, obligations, allBudgets, goals, categories, shoppingLists, shoppingItems, shoppingProducts, showToast]);
 
   const clearLocalData = useCallback(() => {
     localStorage.removeItem('personal_assets');
@@ -552,7 +563,8 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
       }
       if (needsBgMigration) {
         const migratedBg = migrateLegacyBudgets(budgets);
-        setBudgets(migratedBg);
+        // Conservar el tope total del mes (no es una categoría)
+        setBudgets(prev => (prev && MONTHLY_LIMIT_KEY in prev ? { ...migratedBg, [MONTHLY_LIMIT_KEY]: prev[MONTHLY_LIMIT_KEY] } : migratedBg));
       }
       localStorage.setItem(migrationKey, 'true');
     }
@@ -581,6 +593,7 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     transactions,
     obligations,
     budgets,
+    monthlyLimit,
     goals,
     categories,
     activeExpenseCategories,
@@ -607,6 +620,7 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     transactions,
     obligations,
     budgets,
+    monthlyLimit,
     goals,
     categories,
     activeExpenseCategories,
@@ -650,6 +664,7 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     deleteObligation,
     updateObligation,
     updateAllBudgets,
+    setMonthlyLimit,
     addGoal,
     updateGoal,
     deleteGoal,
@@ -714,6 +729,7 @@ export function FinanceProvider({ children, showToast, requestConfirm }) {
     deleteObligation,
     updateObligation,
     updateAllBudgets,
+    setMonthlyLimit,
     addGoal,
     updateGoal,
     deleteGoal,

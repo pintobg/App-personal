@@ -1,5 +1,7 @@
 import { formatAmount } from '../../utils/formatters';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
+import { FinanceContext } from '../../context/FinanceContext';
+import { budgetAmount } from '../../domain/dashboard';
 import CategoryPicker from '../common/CategoryPicker';
 import { useCategories } from '../../hooks/useCategories';
 import { parseAmount, round, add } from '../../domain/money';
@@ -22,17 +24,30 @@ export default function BudgetModal({
   onClose,
   budgets = {},
   onSave,
-  showToast
+  showToast,
+  monthlyLimit: monthlyLimitProp,
+  onSaveMonthlyLimit
 }) {
+  const finance = useContext(FinanceContext);
+  const monthlyLimit = monthlyLimitProp ?? finance?.monthlyLimit ?? 0;
+  const saveMonthlyLimit = onSaveMonthlyLimit || finance?.setMonthlyLimit;
   const [formData, setFormData] = useState({});
+  const [capValue, setCapValue] = useState('');
   const [selectedPickerCategory, setSelectedPickerCategory] = useState(null);
   const { activeExpenseCategories } = useCategories();
 
   useEffect(() => {
     if (isOpen) {
-      setFormData({ ...budgets });
+      // Los presupuestos pueden venir como número o como { amount } (formato migrado)
+      const flat = {};
+      Object.entries(budgets || {}).forEach(([cat, val]) => {
+        const amount = budgetAmount(val);
+        flat[cat] = amount > 0 ? amount : '';
+      });
+      setFormData(flat);
+      setCapValue(monthlyLimit > 0 ? String(monthlyLimit) : '');
     }
-  }, [isOpen, budgets]);
+  }, [isOpen, budgets, monthlyLimit]);
 
   if (!isOpen) return null;
 
@@ -73,7 +88,19 @@ export default function BudgetModal({
       }
     }
 
+    let parsedCap = 0;
+    if (capValue !== '' && capValue !== null) {
+      parsedCap = parseAmount(capValue);
+      if (parsedCap === null || parsedCap < 0) {
+        if (showToast) showToast('Monto inválido para el tope del mes', 'error');
+        return;
+      }
+    }
+
     onSave(cleanBudgets);
+    if (saveMonthlyLimit && round(parsedCap || 0, 'USD') !== round(monthlyLimit || 0, 'USD')) {
+      saveMonthlyLimit(parsedCap > 0 ? round(parsedCap, 'USD') : 0);
+    }
     if (showToast) {
       showToast('Presupuestos actualizados');
     }
@@ -124,6 +151,26 @@ export default function BudgetModal({
           <div style={{ width: '58px', flexShrink: 0 }} />
         </div>
 
+        {/* Tope total del mes: cuenta todos los gastos, tengan o no presupuesto */}
+        <div className="budget-cap-field">
+          <label htmlFor="budget-monthly-cap">
+            <span className="budget-cap-title">Tope total del mes</span>
+            <span className="budget-cap-help">Suma todos tus gastos, también los de categorías sin presupuesto.</span>
+          </label>
+          <div className="budget-cap-input">
+            <span aria-hidden="true">$</span>
+            <input
+              id="budget-monthly-cap"
+              type="text"
+              inputMode="decimal"
+              className="input-field"
+              placeholder="Sin tope"
+              value={capValue}
+              onChange={e => setCapValue(e.target.value)}
+            />
+          </div>
+        </div>
+
         {/* Resumen compacto superior */}
         <div
           style={{
@@ -140,7 +187,7 @@ export default function BudgetModal({
         >
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
-              Límite mensual total (USD)
+              Suma por categorías (USD)
             </span>
             <span style={{ fontSize: '0.72rem', color: 'var(--color-success)', fontWeight: 600 }}>
               {activeCount} de {allCategories.length} categorías activas

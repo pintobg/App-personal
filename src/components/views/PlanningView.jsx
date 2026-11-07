@@ -86,7 +86,14 @@ export default function PlanningView({
               role="tab"
               aria-selected={isActive}
               className={`planning-tab${isActive ? ' active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => {
+                // Tocar "Compras" estando dentro de una lista vuelve a todas las listas;
+                // salir de Compras también cierra la lista abierta.
+                if (setSelectedShoppingListId && (tab.id !== 'compras' || activeTab === 'compras')) {
+                  setSelectedShoppingListId(null);
+                }
+                setActiveTab(tab.id);
+              }}
             >
               <span>{tab.label}</span>
               {count > 0 && <span className="planning-tab-count">{count}</span>}

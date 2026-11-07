@@ -1,15 +1,15 @@
 import { useState, useMemo, useRef, useCallback } from 'react';
 import Button from '../ui/Button';
-import IconButton from '../ui/IconButton';
+import Icon from '../ui/Icon';
 import PriceHistoryModal from './PriceHistoryModal';
 import ShoppingListItemRow from './ShoppingListItemRow';
+import ShoppingItemEditModal from './ShoppingItemEditModal';
 import {
   SHOPPING_SECTIONS,
   SHOPPING_UNITS,
   calculateListTotals,
   groupItemsBySection,
-  normalizeSection,
-  calculateItemSubtotal
+  normalizeSection
 } from '../../domain/shopping';
 import { formatAmount, getCurrencySymbol } from '../../utils/formatters';
 
@@ -24,7 +24,9 @@ export default function ShoppingListDetailView({
   onToggleItemCheck,
   onDeleteItem,
   onRegisterPurchase,
-  searchProducts
+  searchProducts,
+  onEditList,
+  onDeleteList
 }) {
   // Formulario rápido para nuevo artículo
   const [name, setName] = useState('');
@@ -35,6 +37,8 @@ export default function ShoppingListDetailView({
   const [selectedProductId, setSelectedProductId] = useState(null);
   const [suggestedPriceBadge, setSuggestedPriceBadge] = useState(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
 
   // Modal de historial de precios
   const [historyProduct, setHistoryProduct] = useState(null);
@@ -78,6 +82,7 @@ export default function ShoppingListDetailView({
     setSection(normalizeSection(prod.section));
     setSelectedProductId(prod.id);
     setShowSuggestions(false);
+    setShowDetails(true);
 
     if (prod.last_price > 0) {
       setEstimatedPrice(String(prod.last_price));
@@ -110,6 +115,7 @@ export default function ShoppingListDetailView({
     setSelectedProductId(null);
     setSuggestedPriceBadge(null);
     setShowSuggestions(false);
+    // Mantener el foco para seguir agregando (el teclado ya estaba abierto)
     nameInputRef.current?.focus();
   };
 
@@ -149,57 +155,88 @@ export default function ShoppingListDetailView({
 
   const currSymbol = getCurrencySymbol(list?.currency || 'USD');
   const altSymbol = getCurrencySymbol(totals.altCurrency);
+  const isDone = list?.status === 'done';
+  const purchaseTotal = totals.checkedTotal > 0 ? totals.checkedTotal : totals.estimatedTotal;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', paddingBottom: '9rem' }}>
-      {/* 1. ENCABEZADO SUPERIOR */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flex: 1, minWidth: 0 }}>
-          <IconButton
-            ariaLabel="Volver a listas"
-            variant="ghost"
-            onClick={onBack}
-            style={{ width: '36px', height: '36px' }}
-          >
-            ←
-          </IconButton>
-          <div style={{ minWidth: 0 }}>
-            <h1 style={{ margin: 0, fontSize: 'clamp(1.1rem, 4.5vw, 1.35rem)', fontWeight: 700, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {list?.name}
-            </h1>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px', flexWrap: 'wrap' }}>
-              {list?.store && (
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', background: 'var(--bg-surface-elevated)', padding: '1px 6px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-                  🏪 {list.store}
-                </span>
-              )}
-              <span style={{ fontSize: '0.72rem', color: 'var(--color-accent)', fontWeight: 600 }}>
-                {list?.currency || 'USD'}
+    <div className="shop-detail">
+      {/* 1. ENCABEZADO: volver a todas las listas + nombre + acciones de la lista */}
+      <div className="shop-detail-top">
+        <button type="button" className="modal-back-btn" onClick={onBack} aria-label="Volver a mis listas">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          <span>Mis listas</span>
+        </button>
+        <div className="shop-detail-top-actions">
+          {onEditList && (
+            <button type="button" className="shop-detail-action" onClick={() => onEditList(list)} aria-label="Editar nombre, tienda o presupuesto de la lista">
+              <Icon name="edit" size={16} /> <span>Editar</span>
+            </button>
+          )}
+          {onDeleteList && (
+            <button type="button" className="shop-detail-action danger" onClick={() => onDeleteList(list.id)} aria-label="Eliminar esta lista">
+              <Icon name="trash" size={16} />
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="shop-detail-title">
+        <h2>{list?.name}</h2>
+        <div className="shop-detail-chips">
+          {list?.store && <span className="shop-chip">{list.store}</span>}
+          <span className="shop-chip accent">{list?.currency || 'USD'}</span>
+          <span className="shop-chip">{totals.totalCount} {totals.totalCount === 1 ? 'artículo' : 'artículos'}</span>
+          {isDone && <span className="shop-chip success">✓ Completada</span>}
+        </div>
+      </div>
+
+      {/* 2. RESUMEN (en el flujo de la página, ya no tapa los artículos) */}
+      <div className="shop-summary">
+        {totals.hasBudget && (
+          <div className="shop-summary-budget">
+            <div className="shop-summary-budget-row">
+              <span>Presupuesto: <strong>{currSymbol}{formatAmount(totals.budgetAmount, list?.currency)}</strong></span>
+              <span className={totals.isOverBudget ? 'danger' : 'success'}>
+                {totals.isOverBudget
+                  ? `Excedido por ${currSymbol}${formatAmount(Math.abs(totals.budgetRemaining), list?.currency)}`
+                  : `Quedan: ${currSymbol}${formatAmount(totals.budgetRemaining, list?.currency)}`}
               </span>
-              {list?.status === 'done' && (
-                <span style={{ fontSize: '0.68rem', background: 'var(--color-success-soft)', color: 'var(--color-success)', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
-                  ✓ Completada
-                </span>
-              )}
             </div>
+            <div className="shop-bar">
+              <div className={`shop-bar-fill${totals.isOverBudget ? ' danger' : ''}`} style={{ width: `${Math.min(totals.budgetUsagePercent, 100)}%` }} />
+            </div>
+          </div>
+        )}
+        <div className="shop-summary-grid">
+          <div className="shop-summary-cell">
+            <div className="shop-summary-label">Estimado</div>
+            <div className="shop-summary-value">{currSymbol}{formatAmount(totals.estimatedTotal, list?.currency)}</div>
+            <div className="shop-summary-alt">≈ {altSymbol}{formatAmount(totals.estimatedTotalAlt, totals.altCurrency)}</div>
+          </div>
+          <div className="shop-summary-cell accent">
+            <div className="shop-summary-label">Marcado ({totals.checkedCount})</div>
+            <div className="shop-summary-value">{currSymbol}{formatAmount(totals.checkedTotal, list?.currency)}</div>
+            <div className="shop-summary-alt">≈ {altSymbol}{formatAmount(totals.checkedTotalAlt, totals.altCurrency)}</div>
+          </div>
+          <div className={`shop-summary-cell${totals.pendingCount > 0 ? ' warning' : ''}`}>
+            <div className="shop-summary-label">Falta ({totals.pendingCount})</div>
+            <div className="shop-summary-value">{currSymbol}{formatAmount(totals.pendingTotal, list?.currency)}</div>
+            <div className="shop-summary-alt">≈ {altSymbol}{formatAmount(totals.pendingTotalAlt, totals.altCurrency)}</div>
           </div>
         </div>
       </div>
 
-      {/* 2. FORMULARIO AGREGAR ARTÍCULO */}
-      {list?.status !== 'done' && (
-        <div className="glass-card" style={{ padding: '0.85rem', borderRadius: '14px', background: 'var(--bg-surface)', border: '1px solid var(--border-color)' }}>
-          <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.6rem' }}>
-            + Agregar artículo
-          </div>
-          <form onSubmit={handleAddItemSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
-            {/* Campo de búsqueda / nombre con autocomplete */}
-            <div style={{ position: 'relative' }}>
+      {/* 3. AGREGAR ARTÍCULO: nombre + botón; cantidad, precio y sección van plegados */}
+      {!isDone && (
+        <form className="shop-add" onSubmit={handleAddItemSubmit}>
+          <div className="shop-add-row">
+            <div className="shop-add-name">
               <input
                 ref={nameInputRef}
                 type="text"
                 className="input-field"
-                placeholder="Nombre del producto (ej. Harina PAN, Leche, Jabón...)"
+                placeholder="Nombre del producto"
+                aria-label="Nombre del producto a agregar"
                 value={name}
                 onChange={e => {
                   setName(e.target.value);
@@ -208,165 +245,95 @@ export default function ShoppingListDetailView({
                   setSuggestedPriceBadge(null);
                 }}
                 onFocus={() => setShowSuggestions(true)}
-                style={{ width: '100%', height: '44px', borderRadius: '10px' }}
+                onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
               />
 
-              {/* Menú de sugerencias autocompletadas */}
               {suggestions.length > 0 && (
-                <div style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  right: 0,
-                  marginTop: '4px',
-                  background: 'var(--bg-surface-elevated)',
-                  border: '1px solid var(--border-color)',
-                  borderRadius: '10px',
-                  boxShadow: 'var(--shadow-md)',
-                  zIndex: 40,
-                  maxHeight: '220px',
-                  overflowY: 'auto'
-                }}>
+                <div className="shop-suggestions" role="listbox">
                   {suggestions.map(sug => (
                     <div
                       key={sug.id}
+                      role="option"
+                      aria-selected="false"
+                      onMouseDown={e => e.preventDefault()}
                       onClick={() => handleSelectSuggestion(sug)}
-                      style={{
-                        padding: '0.6rem 0.8rem',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        borderBottom: '1px solid var(--border-color)',
-                        fontSize: '0.85rem'
-                      }}
+                      className="shop-suggestion"
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span>
                         <span>{sug.name}</span>
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>({sug.default_unit || 'und'})</span>
-                      </div>
+                        <span className="muted"> ({sug.default_unit || 'und'})</span>
+                      </span>
                       {sug.last_price > 0 && (
-                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-accent)' }}>
+                        <span className="accent">
                           Último: ${formatAmount(sug.last_price, sug.last_price_currency || list.currency)}
-                        </div>
+                        </span>
                       )}
                     </div>
                   ))}
                 </div>
               )}
             </div>
-
-            {/* Pill de sugerencia de precio si existe */}
-            {suggestedPriceBadge && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: 'var(--color-accent)', fontWeight: 600 }}>
-                <span>💡</span>
-                <span>Último precio registrado: ${formatAmount(suggestedPriceBadge.price, suggestedPriceBadge.currency)} {suggestedPriceBadge.currency}</span>
-              </div>
-            )}
-
-            {/* Fila: Sección, Cantidad, Unidad y Precio estimado */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.4rem' }}>
-              <div>
-                <label style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '2px' }}>Sección</label>
-                <select
-                  value={section}
-                  onChange={e => setSection(e.target.value)}
-                  className="input-field"
-                  style={{ width: '100%', height: '38px', borderRadius: '8px', fontSize: '0.76rem', padding: '0 4px' }}
-                >
-                  {SHOPPING_SECTIONS.map(s => (
-                    <option key={s.id} value={s.id}>{s.icon} {s.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '2px' }}>Cantidad</label>
-                <input
-                  type="number"
-                  step="any"
-                  min="0.01"
-                  inputMode="decimal"
-                  value={quantity}
-                  onChange={e => setQuantity(e.target.value)}
-                  className="input-field"
-                  style={{ width: '100%', height: '38px', borderRadius: '8px', fontSize: '0.8rem', textAlign: 'center' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '2px' }}>Unidad</label>
-                <select
-                  value={unit}
-                  onChange={e => setUnit(e.target.value)}
-                  className="input-field"
-                  style={{ width: '100%', height: '38px', borderRadius: '8px', fontSize: '0.76rem', padding: '0 4px' }}
-                >
-                  {SHOPPING_UNITS.map(u => (
-                    <option key={u} value={u}>{u}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '2px' }}>Precio est.</label>
-                <input
-                  type="number"
-                  step="any"
-                  min="0"
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  value={estimatedPrice}
-                  onChange={e => setEstimatedPrice(e.target.value)}
-                  className="input-field"
-                  style={{ width: '100%', height: '38px', borderRadius: '8px', fontSize: '0.8rem', textAlign: 'right', paddingRight: '6px' }}
-                />
-              </div>
-            </div>
-
-            <Button
-              type="submit"
-              variant="primary"
-              style={{ width: '100%', height: '38px', marginTop: '0.2rem', fontSize: '0.84rem' }}
-            >
-              Agregar a la lista
+            <Button type="submit" variant="primary" disabled={!name.trim()} ariaLabel="Agregar a la lista" style={{ flexShrink: 0 }}>
+              Agregar
             </Button>
-          </form>
-        </div>
+          </div>
+
+          {suggestedPriceBadge && (
+            <div className="shop-add-hint">
+              Último precio registrado: ${formatAmount(suggestedPriceBadge.price, suggestedPriceBadge.currency)} {suggestedPriceBadge.currency}
+            </div>
+          )}
+
+          <button type="button" className="link-btn shop-add-toggle" onClick={() => setShowDetails(v => !v)} aria-expanded={showDetails}>
+            {showDetails ? 'Ocultar cantidad, precio y sección ▴' : 'Cantidad, precio y sección ▾'}
+          </button>
+
+          {showDetails && (
+            <div className="shop-add-details">
+              <label className="shop-edit-field">
+                <span>Cantidad</span>
+                <input type="number" step="any" min="0.01" inputMode="decimal" value={quantity} onChange={e => setQuantity(e.target.value)} className="input-field" />
+              </label>
+              <label className="shop-edit-field">
+                <span>Unidad</span>
+                <select value={unit} onChange={e => setUnit(e.target.value)} className="input-field">
+                  {SHOPPING_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+              </label>
+              <label className="shop-edit-field">
+                <span>Precio est. ({list?.currency || 'USD'})</span>
+                <input type="number" step="any" min="0" inputMode="decimal" placeholder="0,00" value={estimatedPrice} onChange={e => setEstimatedPrice(e.target.value)} className="input-field" />
+              </label>
+              <label className="shop-edit-field">
+                <span>Sección</span>
+                <select value={section} onChange={e => setSection(e.target.value)} className="input-field">
+                  {SHOPPING_SECTIONS.map(s => <option key={s.id} value={s.id}>{s.icon} {s.label}</option>)}
+                </select>
+              </label>
+            </div>
+          )}
+        </form>
       )}
 
-      {/* 3. ARTÍCULOS AGRUPADOS POR SECCIÓN */}
+      {/* 4. ARTÍCULOS AGRUPADOS POR SECCIÓN */}
       {sections.length === 0 ? (
-        <div style={{
-          textAlign: 'center',
-          padding: '2.5rem 1rem',
-          background: 'var(--bg-surface)',
-          borderRadius: '16px',
-          border: '1px dashed var(--border-color)',
-          color: 'var(--text-secondary)'
-        }}>
-          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🛒</div>
-          <div style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>La lista está vacía</div>
-          <div style={{ fontSize: '0.78rem', marginTop: '4px' }}>Escribe un producto arriba para comenzar a planificar tu compra.</div>
+        <div className="shop-empty">
+          <div className="shop-empty-icon">🛒</div>
+          <div className="shop-empty-title">La lista está vacía</div>
+          <div className="shop-empty-text">Escribe un producto arriba y toca Agregar.</div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div className="shop-sections">
+          {!isDone && <div className="shop-help">Marca la casilla cuando lo tengas en el carrito. Toca un artículo o el lápiz para editarlo.</div>}
           {sections.map(sec => (
-            <div key={sec.sectionKey} className="glass-card" style={{ padding: '0.75rem', borderRadius: '14px', background: 'var(--bg-surface)', border: '1px solid var(--border-color)' }}>
-              {/* Encabezado de la sección */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem', paddingBottom: '0.4rem', borderBottom: '1px solid var(--border-color)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                  <span style={{ fontSize: '1.1rem' }}>{sec.icon}</span>
-                  <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)' }}>{sec.label}</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>({sec.items.length})</span>
-                </div>
-                <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  {currSymbol}{formatAmount(sec.subtotal, list?.currency || 'USD')}
-                </div>
+            <div key={sec.sectionKey} className="shop-section">
+              <div className="shop-section-head">
+                <span className="shop-section-name">
+                  <span aria-hidden="true">{sec.icon}</span> {sec.label} <span className="muted">({sec.items.length})</span>
+                </span>
+                <span className="shop-section-total">{currSymbol}{formatAmount(sec.subtotal, list?.currency || 'USD')}</span>
               </div>
-
-              {/* Lista de ítems en esta sección */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+              <div className="shop-section-items">
                 {sec.items.map(item => (
                   <ShoppingListItemRow
                     key={item.id}
@@ -374,13 +341,14 @@ export default function ShoppingListDetailView({
                     listCurrency={list?.currency}
                     currSymbol={currSymbol}
                     onToggleItemCheck={onToggleItemCheck}
-                    onOpenProductHistory={handleOpenProductHistory}
+                    onEditItem={setEditingItem}
                     onDeleteItem={onDeleteItem}
                     isEditingPrice={editingActualPriceId === item.id}
                     inlinePriceVal={inlinePriceVal}
                     setInlinePriceVal={setInlinePriceVal}
                     onStartEditPrice={handleStartEditPrice}
                     onSaveActualPrice={handleSaveActualPrice}
+                    readOnly={isDone}
                   />
                 ))}
               </div>
@@ -389,102 +357,36 @@ export default function ShoppingListDetailView({
         </div>
       )}
 
-      {/* 4. BARRA FIJA INFERIOR CON TOTALES Y ACCIÓN DE COMPRA */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 'calc(62px + env(safe-area-inset-bottom))',
-          left: 0,
-          right: 0,
-          background: 'var(--bg-surface-elevated)',
-          borderTop: '1px solid var(--border-color)',
-          boxShadow: '0 -4px 16px rgba(0, 0, 0, 0.25)',
-          padding: '0.75rem 1rem',
-          zIndex: 70,
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.6rem'
-        }}
-      >
-        {/* Indicador de presupuesto si existe */}
-        {totals.hasBudget && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.74rem', marginBottom: '3px' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>
-                Presupuesto: <strong>{currSymbol}{formatAmount(totals.budgetAmount, list?.currency)}</strong>
-              </span>
-              <span style={{
-                color: totals.isOverBudget ? 'var(--color-danger)' : 'var(--color-success)',
-                fontWeight: 700
-              }}>
-                {totals.isOverBudget
-                  ? `Excedido por ${currSymbol}${formatAmount(Math.abs(totals.budgetRemaining), list?.currency)}`
-                  : `Quedan: ${currSymbol}${formatAmount(totals.budgetRemaining, list?.currency)}`}
-              </span>
-            </div>
-            <div style={{ height: '5px', width: '100%', background: 'var(--bg-surface)', borderRadius: '9999px', overflow: 'hidden' }}>
-              <div
-                style={{
-                  height: '100%',
-                  width: `${Math.min(totals.budgetUsagePercent, 100)}%`,
-                  background: totals.isOverBudget ? 'var(--color-danger-strong)' : 'var(--color-accent-strong)',
-                  transition: 'width 0.3s ease'
-                }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Totales consolidados: Estimado, Marcado, Falta */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.4rem', textAlign: 'center' }}>
-          <div style={{ padding: '0.35rem', background: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)' }}>Estimado</div>
-            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              {currSymbol}{formatAmount(totals.estimatedTotal, list?.currency)}
-            </div>
-            <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>
-              ≈ {altSymbol}{formatAmount(totals.estimatedTotalAlt, totals.altCurrency)}
-            </div>
-          </div>
-
-          <div style={{ padding: '0.35rem', background: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--color-accent-border)' }}>
-            <div style={{ fontSize: '0.66rem', color: 'var(--color-accent)', fontWeight: 600 }}>Marcado ({totals.checkedCount})</div>
-            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-accent)' }}>
-              {currSymbol}{formatAmount(totals.checkedTotal, list?.currency)}
-            </div>
-            <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>
-              ≈ {altSymbol}{formatAmount(totals.checkedTotalAlt, totals.altCurrency)}
-            </div>
-          </div>
-
-          <div style={{ padding: '0.35rem', background: 'var(--bg-surface)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-            <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)' }}>Falta ({totals.pendingCount})</div>
-            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: totals.pendingCount > 0 ? 'var(--color-warning)' : 'var(--text-muted)' }}>
-              {currSymbol}{formatAmount(totals.pendingTotal, list?.currency)}
-            </div>
-            <div style={{ fontSize: '0.62rem', color: 'var(--text-muted)' }}>
-              ≈ {altSymbol}{formatAmount(totals.pendingTotalAlt, totals.altCurrency)}
-            </div>
-          </div>
-        </div>
-
-        {/* Botón "Registrar compra" */}
-        {list?.status !== 'done' && (
+      {/* 5. REGISTRAR COMPRA: al final de la lista, sin tapar contenido */}
+      {!isDone && totals.totalCount > 0 && (
+        <div className="shop-register">
           <Button
             variant="primary"
             onClick={() => onRegisterPurchase({
               list,
-              totalAmount: totals.checkedTotal > 0 ? totals.checkedTotal : totals.estimatedTotal,
+              totalAmount: purchaseTotal,
               checkedItems: listItems.filter(i => i.is_checked)
             })}
-            style={{ width: '100%', height: '44px', fontWeight: 700 }}
+            style={{ width: '100%', height: '48px', fontWeight: 700 }}
           >
-            🛒 Registrar compra ({currSymbol}{formatAmount(totals.checkedTotal > 0 ? totals.checkedTotal : totals.estimatedTotal, list?.currency)})
+            🛒 Registrar compra ({currSymbol}{formatAmount(purchaseTotal, list?.currency)})
           </Button>
-        )}
-      </div>
+          <div className="shop-register-hint">
+            {totals.checkedCount > 0
+              ? 'Se registra como gasto el total de lo marcado y la lista pasa a Terminadas.'
+              : 'Aún no marcas nada: se usará el total estimado.'}
+          </div>
+        </div>
+      )}
 
-      {/* Modal de Historial de Precios */}
+      <ShoppingItemEditModal
+        item={editingItem}
+        onClose={() => setEditingItem(null)}
+        onSave={(id, updates) => onUpdateItem(id, updates)}
+        onDelete={onDeleteItem}
+        onOpenHistory={handleOpenProductHistory}
+      />
+
       <PriceHistoryModal
         isOpen={isHistoryModalOpen}
         onClose={() => setIsHistoryModalOpen(false)}

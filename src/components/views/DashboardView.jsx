@@ -9,6 +9,7 @@ import {
   calculateMonthlyComparison,
   calculateBudgetStats,
   calculateWealthEvolution,
+  calculateMonthlySpendingCap,
   buildUpcomingDue
 } from '../../domain/dashboard';
 
@@ -60,9 +61,15 @@ export default function DashboardView({
     return calculateBudgetStats(transactions, budgets, rates, getCategoryName);
   }, [transactions, budgets, rates, getCategoryName]);
 
+  const monthlyLimit = finance?.monthlyLimit || 0;
+  const capStats = useMemo(
+    () => calculateMonthlySpendingCap(transactions, rates, monthlyLimit, budgetStats),
+    [transactions, rates, monthlyLimit, budgetStats]
+  );
+
   const upcoming = useMemo(() => {
-    return buildUpcomingDue(allObligations, budgetStats);
-  }, [allObligations, budgetStats]);
+    return buildUpcomingDue(allObligations, budgetStats, new Date(), capStats);
+  }, [allObligations, budgetStats, capStats]);
 
   const activeBudgetCount = budgetStats?.activeBudgetCategories?.length || 0;
 

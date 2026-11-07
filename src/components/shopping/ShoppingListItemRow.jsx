@@ -1,139 +1,131 @@
-import React, { memo } from 'react';
+import React, { memo, useEffect, useState } from 'react';
 import IconButton from '../ui/IconButton';
+import Icon from '../ui/Icon';
 import { formatAmount } from '../../utils/formatters';
 import { calculateItemSubtotal } from '../../domain/shopping';
 
+/**
+ * Fila de un artículo de la lista.
+ * - Casilla para marcarlo como comprado.
+ * - Tocar el nombre o el lápiz abre la edición (nombre, cantidad, precios, sección).
+ * - Tocar el monto permite poner el precio real rápido mientras compras.
+ * - La papelera pide un segundo toque para confirmar ("¿Borrar?").
+ */
 const ShoppingListItemRow = memo(function ShoppingListItemRow({
   item,
   listCurrency,
   currSymbol,
   onToggleItemCheck,
-  onOpenProductHistory,
+  onEditItem,
   onDeleteItem,
   isEditingPrice,
   inlinePriceVal,
   setInlinePriceVal,
   onStartEditPrice,
-  onSaveActualPrice
+  onSaveActualPrice,
+  readOnly = false
 }) {
   const subtotal = calculateItemSubtotal(item, true);
   const isChecked = Boolean(item.is_checked);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  useEffect(() => {
+    if (!confirmDelete) return undefined;
+    const t = setTimeout(() => setConfirmDelete(false), 3000);
+    return () => clearTimeout(t);
+  }, [confirmDelete]);
+
+  const priceCurrency = item.price_currency || listCurrency;
+  const unitPrice = item.actual_price != null ? item.actual_price : item.estimated_price;
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0.55rem 0.65rem',
-        borderRadius: '10px',
-        background: isChecked ? 'var(--bg-surface-elevated)' : 'transparent',
-        border: isChecked ? '1px solid var(--border-color)' : '1px solid transparent',
-        opacity: isChecked ? 0.75 : 1,
-        transition: 'all 0.15s ease',
-        gap: '0.5rem'
-      }}
-    >
-      {/* Checkbox de marcado táctil */}
-      <div
+    <div className={`shop-item${isChecked ? ' checked' : ''}`}>
+      <button
+        type="button"
+        className="shop-item-check"
+        role="checkbox"
+        aria-checked={isChecked}
+        aria-label={isChecked ? `Desmarcar ${item.name}` : `Marcar ${item.name} como comprado`}
         onClick={() => onToggleItemCheck(item.id)}
-        style={{
-          width: '22px',
-          height: '22px',
-          borderRadius: '6px',
-          border: isChecked ? '2px solid var(--color-accent)' : '2px solid var(--text-muted)',
-          background: isChecked ? 'var(--color-accent-strong)' : 'transparent',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          flexShrink: 0,
-          color: '#fff',
-          fontSize: '0.75rem',
-          fontWeight: 700
-        }}
+        disabled={readOnly}
       >
-        {isChecked && '✓'}
-      </div>
+        <span className="shop-item-box">{isChecked && <Icon name="check" size={14} />}</span>
+      </button>
 
-      {/* Nombre del artículo (tocar para abrir historial) */}
-      <div
-        onClick={() => onOpenProductHistory(item)}
-        style={{
-          flex: 1,
-          minWidth: 0,
-          cursor: 'pointer'
-        }}
+      <button
+        type="button"
+        className="shop-item-main"
+        onClick={() => !readOnly && onEditItem && onEditItem(item)}
+        aria-label={`Editar ${item.name}`}
+        disabled={readOnly}
       >
-        <div style={{
-          fontSize: '0.88rem',
-          fontWeight: 600,
-          color: isChecked ? 'var(--text-muted)' : 'var(--text-primary)',
-          textDecoration: isChecked ? 'line-through' : 'none',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap'
-        }}>
-          {item.name}
-        </div>
-        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <span>{item.quantity} {item.unit}</span>
-          <span>•</span>
-          <span>
-            {item.actual_price != null ? `Real: $${formatAmount(item.actual_price, item.price_currency || listCurrency)}` : `Est: $${formatAmount(item.estimated_price, item.price_currency || listCurrency)}`}
-          </span>
-        </div>
-      </div>
+        <span className="shop-item-name">{item.name}</span>
+        <span className="shop-item-sub">
+          {item.quantity} {item.unit} × {currSymbol}{formatAmount(unitPrice || 0, priceCurrency)}
+          {item.actual_price != null ? ' (real)' : ' (est.)'}
+        </span>
+      </button>
 
-      {/* Subtotal y edición de precio real */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+      <div className="shop-item-side">
         {isEditingPrice ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+          <span className="shop-item-price-edit">
             <input
               type="number"
               step="any"
               min="0"
               inputMode="decimal"
               placeholder="Precio"
+              aria-label={`Precio real de ${item.name}`}
               value={inlinePriceVal}
               onChange={e => setInlinePriceVal(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') onSaveActualPrice(item.id); }}
-              style={{ width: '65px', height: '28px', fontSize: '0.78rem', borderRadius: '6px', padding: '0 4px', textAlign: 'right' }}
+              className="input-field"
             />
-            <button
-              type="button"
-              onClick={() => onSaveActualPrice(item.id)}
-              style={{ background: 'var(--color-accent-strong)', color: '#fff', border: 'none', borderRadius: '4px', padding: '2px 6px', fontSize: '0.7rem', cursor: 'pointer' }}
-            >
-              ✓
-            </button>
-          </div>
+            <IconButton ariaLabel="Guardar precio" variant="primary" size="sm" onClick={() => onSaveActualPrice(item.id)} icon={<Icon name="check" size={16} />} />
+          </span>
         ) : (
-          <div
-            onClick={() => onStartEditPrice(item)}
-            title="Toca para editar precio real"
-            style={{
-              fontSize: '0.88rem',
-              fontWeight: 700,
-              color: isChecked ? 'var(--color-accent)' : 'var(--text-primary)',
-              cursor: 'pointer',
-              padding: '2px 4px',
-              borderRadius: '4px'
-            }}
+          <button
+            type="button"
+            className="shop-item-total"
+            onClick={() => !readOnly && onStartEditPrice(item)}
+            title="Toca para poner el precio real"
+            aria-label={`Total ${item.name}: ${currSymbol}${formatAmount(subtotal, listCurrency || 'USD')}. Toca para poner el precio real`}
+            disabled={readOnly}
           >
             {currSymbol}{formatAmount(subtotal, listCurrency || 'USD')}
-          </div>
+          </button>
         )}
 
-        <IconButton
-          ariaLabel={`Eliminar ${item.name}`}
-          variant="ghost"
-          size="sm"
-          onClick={() => onDeleteItem(item.id)}
-          style={{ color: 'var(--color-danger)', padding: '2px' }}
-        >
-          ✕
-        </IconButton>
+        {!readOnly && !isEditingPrice && (
+          <>
+            <IconButton
+              ariaLabel={`Editar ${item.name}`}
+              variant="ghost"
+              size="sm"
+              onClick={() => onEditItem && onEditItem(item)}
+              icon={<Icon name="edit" size={16} />}
+            />
+            {confirmDelete ? (
+              <button
+                type="button"
+                className="shop-item-confirm-delete"
+                onClick={() => { setConfirmDelete(false); onDeleteItem(item.id); }}
+                aria-label={`Confirmar borrar ${item.name}`}
+              >
+                ¿Borrar?
+              </button>
+            ) : (
+              <IconButton
+                ariaLabel={`Eliminar ${item.name}`}
+                variant="ghost"
+                size="sm"
+                onClick={() => setConfirmDelete(true)}
+                style={{ color: 'var(--color-danger)' }}
+                icon={<Icon name="trash" size={16} />}
+              />
+            )}
+          </>
+        )}
       </div>
     </div>
   );
